@@ -24,6 +24,7 @@ export class LinearClient {
 	private resolvedStatusMap:
 		| ResolvedProjectConfig["linear"]["statusMap"]
 		| null = null;
+	private resolvedCanceledStateId: string | null = null;
 	private resolvedWorkflowLabelIds: Partial<
 		Record<WorkflowLabelStage, string>
 	> = {};
@@ -57,10 +58,11 @@ export class LinearClient {
 				this.mapSdkIssueToLinearIssue(issue, includeLabels),
 			),
 		);
+		const assignedStateId = this.requiredStatusMap().assigned;
 
 		return sortIssuesByPriority(
 			issues
-				.filter((issue) => issue.state.id === this.requiredStatusMap().assigned)
+				.filter((issue) => issue.state.id === assignedStateId)
 				.filter((issue) => {
 					if (!this.config.linear.requiredLabel) {
 						return true;
@@ -74,6 +76,11 @@ export class LinearClient {
 		);
 	}
 
+	async isAssignedState(stateId: string): Promise<boolean> {
+		await this.ensureResolvedStatusMap();
+		return this.requiredStatusMap().assigned === stateId;
+	}
+
 	async markStage(
 		issueId: string,
 		stage: keyof ResolvedProjectConfig["linear"]["statusMap"],
@@ -83,6 +90,15 @@ export class LinearClient {
 			return;
 		}
 		const stateId = this.requiredStatusMap()[stage];
+		await this.client.updateIssue(issueId, { stateId });
+	}
+
+	async markCanceled(issueId: string): Promise<void> {
+		if (this.config.dryRun) {
+			return;
+		}
+		await this.ensureResolvedStatusMap();
+		const stateId = await this.resolveCanceledStateId();
 		await this.client.updateIssue(issueId, { stateId });
 	}
 
@@ -181,6 +197,33 @@ export class LinearClient {
 			blocked: this.resolveStatusValue("blocked", statusMap.blocked, states),
 			done: this.resolveStatusValue("done", statusMap.done, states),
 		};
+	}
+
+	private async resolveCanceledStateId(): Promise<string> {
+		if (this.resolvedCanceledStateId) {
+			return this.resolvedCanceledStateId;
+		}
+
+		const workflowStates = await this.client.workflowStates({
+			first: 250,
+		});
+		const states = workflowStates.nodes.filter((state) =>
+			this.config.linear.teamId
+				? state.teamId === this.config.linear.teamId
+				: true,
+		);
+		const canceled = states.find(
+			(state) => state.name.toLowerCase() === "canceled",
+		);
+
+		if (canceled?.id) {
+			this.resolvedCanceledStateId = canceled.id;
+			return canceled.id;
+		}
+
+		// Fallback for customized workflows without a literal "Canceled" state name.
+		this.resolvedCanceledStateId = this.requiredStatusMap().blocked;
+		return this.resolvedCanceledStateId;
 	}
 
 	private async ensureResolvedWorkflowLabels(): Promise<void> {

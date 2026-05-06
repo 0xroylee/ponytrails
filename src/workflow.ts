@@ -104,11 +104,28 @@ async function runProjectWorkflow(
 async function processIssue(
 	config: ResolvedProjectConfig,
 	linear: LinearClient,
-	issue: { id: string; identifier: string; title: string; url: string },
+	issue: {
+		id: string;
+		identifier: string;
+		title: string;
+		url: string;
+		state: {
+			id: string;
+			name: string;
+		};
+	},
 ): Promise<void> {
 	const key = normalizeIssueKey(issue.identifier);
 	const issueLogger = logger.child({ projectId: config.id, issueKey: key });
 	const existing = await loadRunState(config.workspacePath, config.id, key);
+	const isAssignedState = await linear.isAssignedState(issue.state.id);
+	if (!existing && !isAssignedState) {
+		issueLogger.info(
+			{ issueState: issue.state.name, issueStateId: issue.state.id },
+			"Skipping in-progress issue without resumable local run state",
+		);
+		return;
+	}
 	const runState: RunState =
 		existing ??
 		({
@@ -146,11 +163,11 @@ async function processIssue(
 		runState.lastError = message;
 		runState.stage = "blocked";
 		await saveRunState(config.workspacePath, runState);
-		await safeLinearStageUpdate(linear, runState.issue.id, "blocked");
+		await safeLinearMoveToCanceled(linear, runState.issue.id);
 		await safeLinearComment(
 			linear,
 			runState.issue.id,
-			`PIV loop failed and marked blocked.\n\nError:\n${message}`,
+			`PIV loop failed and moved issue to Canceled.\n\nError:\n${message}`,
 		);
 		issueLogger.error(
 			{
@@ -342,11 +359,11 @@ async function executeIssue(
 			}
 			Object.assign(state, transitionStage(state, "blocked"));
 			await saveRunState(config.workspacePath, state);
-			await linear.markStage(state.issue.id, "blocked");
+			await linear.markCanceled(state.issue.id);
 			await linear.comment(
 				state.issue.id,
 				[
-					"Review/testing found bugs. Marked as blocked.",
+					"Review/testing found bugs. Moved issue to Canceled.",
 					...state.bugs.map(
 						(bug) =>
 							`- ${bug.title}${bug.issueUrl ? ` (${bug.issueUrl})` : ""}`,
@@ -489,6 +506,21 @@ async function safeLinearStageUpdate(
 		runLogger.error(
 			{ err: normalizeError(error) },
 			"Failed to update Linear stage",
+		);
+	}
+}
+
+async function safeLinearMoveToCanceled(
+	linear: LinearClient,
+	issueId: string,
+): Promise<void> {
+	const runLogger = logger.child({ issueId, stage: "canceled" });
+	try {
+		await linear.markCanceled(issueId);
+	} catch (error) {
+		runLogger.error(
+			{ err: normalizeError(error) },
+			"Failed to move Linear issue to Canceled",
 		);
 	}
 }
