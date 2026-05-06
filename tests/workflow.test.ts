@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ResolvedProjectConfig } from "../src/types";
 import {
+	buildIssueJobLogFields,
 	buildPlanComment,
 	parseReviewOutcome,
 	resolvePollingSettings,
@@ -117,6 +118,80 @@ describe("resolvePollingSettings", () => {
 			intervalMs: 15000,
 			maxCycles: 2,
 			exitWhenIdle: false,
+		});
+	});
+});
+
+describe("buildIssueJobLogFields", () => {
+	it("returns consistent issue job fields", () => {
+		const now = new Date().toISOString();
+		const fields = buildIssueJobLogFields(
+			{
+				projectId: "default",
+				projectName: "Default",
+				workspacePath: "/tmp/work",
+				repository: {
+					owner: "acme",
+					name: "repo",
+					baseBranch: "main",
+				},
+				issue: {
+					id: "lin_123",
+					key: "ENG-1",
+					title: "Improve logging",
+					url: "https://linear.app/acme/issue/ENG-1/improve-logging",
+				},
+				stage: "planning",
+				bugs: [],
+				startedAt: now,
+				updatedAt: now,
+			},
+			"planning",
+		);
+
+		expect(fields).toEqual({
+			projectId: "default",
+			issueKey: "ENG-1",
+			issueId: "lin_123",
+			issueTitle: "Improve logging",
+			stage: "planning",
+		});
+	});
+
+	it("includes resumed flag when issue run is resumed", () => {
+		const now = new Date().toISOString();
+		const fields = buildIssueJobLogFields(
+			{
+				projectId: "default",
+				projectName: "Default",
+				workspacePath: "/tmp/work",
+				repository: {
+					owner: "acme",
+					name: "repo",
+					baseBranch: "main",
+				},
+				issue: {
+					id: "lin_123",
+					key: "ENG-1",
+					title: "Improve logging",
+					url: "https://linear.app/acme/issue/ENG-1/improve-logging",
+				},
+				stage: "implementing",
+				bugs: [],
+				startedAt: now,
+				updatedAt: now,
+			},
+			"implementing",
+			{ resumed: true },
+		);
+
+		expect(fields).toEqual({
+			projectId: "default",
+			issueKey: "ENG-1",
+			issueId: "lin_123",
+			issueTitle: "Improve logging",
+			stage: "implementing",
+			resumed: true,
 		});
 	});
 });

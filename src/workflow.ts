@@ -104,11 +104,28 @@ async function runProjectWorkflow(
 async function processIssue(
 	config: ResolvedProjectConfig,
 	linear: LinearClient,
-	issue: { id: string; identifier: string; title: string; url: string },
+	issue: {
+		id: string;
+		identifier: string;
+		title: string;
+		url: string;
+		state: {
+			id: string;
+			name: string;
+		};
+	},
 ): Promise<void> {
 	const key = normalizeIssueKey(issue.identifier);
 	const issueLogger = logger.child({ projectId: config.id, issueKey: key });
 	const existing = await loadRunState(config.workspacePath, config.id, key);
+	const isAssignedState = await linear.isAssignedState(issue.state.id);
+	if (!existing && !isAssignedState) {
+		issueLogger.info(
+			{ issueState: issue.state.name, issueStateId: issue.state.id },
+			"Skipping in-progress issue without resumable local run state",
+		);
+		return;
+	}
 	const runState: RunState =
 		existing ??
 		({
@@ -131,6 +148,12 @@ async function processIssue(
 			startedAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 		} satisfies RunState);
+	issueLogger.info(
+		buildIssueJobLogFields(runState, runState.stage, {
+			resumed: existing !== null,
+		}),
+		"Taking issue job",
+	);
 
 	try {
 		await executeIssue(config, linear, runState);
@@ -140,11 +163,11 @@ async function processIssue(
 		runState.lastError = message;
 		runState.stage = "blocked";
 		await saveRunState(config.workspacePath, runState);
-		await safeLinearStageUpdate(linear, runState.issue.id, "blocked");
+		await safeLinearMoveToCanceled(linear, runState.issue.id);
 		await safeLinearComment(
 			linear,
 			runState.issue.id,
-			`PIV loop failed and marked blocked.\n\nError:\n${message}`,
+			`PIV loop failed and moved issue to Canceled.\n\nError:\n${message}`,
 		);
 		issueLogger.error(
 			{
@@ -179,6 +202,30 @@ export async function sleep(ms: number): Promise<void> {
 	await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export interface IssueJobLogFields {
+	projectId: string;
+	issueKey: string;
+	issueId: string;
+	issueTitle: string;
+	stage: string;
+	resumed?: true;
+}
+
+export function buildIssueJobLogFields(
+	state: RunState,
+	stage: string,
+	options?: { resumed?: boolean },
+): IssueJobLogFields {
+	return {
+		projectId: state.projectId,
+		issueKey: state.issue.key,
+		issueId: state.issue.id,
+		issueTitle: state.issue.title,
+		stage,
+		...(options?.resumed ? { resumed: true as const } : {}),
+	};
+}
+
 async function executeIssue(
 	config: ResolvedProjectConfig,
 	linear: LinearClient,
@@ -196,6 +243,7 @@ async function executeIssue(
 	}
 
 	if (state.stage === "planning") {
+		logger.info(buildIssueJobLogFields(state, "planning"), "Planning issue");
 		const prompt = await buildPlanPrompt(config.skills.plan, state.issue);
 		const result = await runPlanSession(config, prompt);
 		state.codexSessionId = result.sessionId ?? state.codexSessionId;
@@ -207,12 +255,17 @@ async function executeIssue(
 			state.issue.id,
 			buildPlanComment(state.issue.key, state.planSummary),
 		);
+		logger.info(buildIssueJobLogFields(state, "planning"), "Plan completed");
 	}
 
 	if (state.stage === "implementing") {
 		if (!state.codexSessionId) {
 			throw new Error("Missing codex session id for implement step");
 		}
+		logger.info(
+			buildIssueJobLogFields(state, "implementing"),
+			"Implementing issue",
+		);
 		const prompt = await buildImplementPrompt(
 			config.skills.implement,
 			state.issue,
@@ -243,6 +296,10 @@ async function executeIssue(
 			state.issue.id,
 			`Implementation completed. Draft PR: ${state.pullRequest.url ?? "(created)"}`,
 		);
+		logger.info(
+			buildIssueJobLogFields(state, "implementing"),
+			"Implementation completed",
+		);
 	}
 
 	if (state.stage === "pr_created") {
@@ -253,6 +310,7 @@ async function executeIssue(
 	}
 
 	if (state.stage === "reviewing" || state.stage === "testing") {
+		logger.info(buildIssueJobLogFields(state, "testing"), "Testing issue");
 		await linear.markStage(state.issue.id, "testing");
 		await linear.applyStageLabel(state.issue.id, "testing");
 		Object.assign(state, transitionStage(state, "testing"));
@@ -301,11 +359,11 @@ async function executeIssue(
 			}
 			Object.assign(state, transitionStage(state, "blocked"));
 			await saveRunState(config.workspacePath, state);
-			await linear.markStage(state.issue.id, "blocked");
+			await linear.markCanceled(state.issue.id);
 			await linear.comment(
 				state.issue.id,
 				[
-					"Review/testing found bugs. Marked as blocked.",
+					"Review/testing found bugs. Moved issue to Canceled.",
 					...state.bugs.map(
 						(bug) =>
 							`- ${bug.title}${bug.issueUrl ? ` (${bug.issueUrl})` : ""}`,
@@ -319,6 +377,10 @@ async function executeIssue(
 		await saveRunState(config.workspacePath, state);
 		await linear.markStage(state.issue.id, "done");
 		await linear.comment(state.issue.id, "Review/testing passed. Marked done.");
+		logger.info(
+			buildIssueJobLogFields(state, "testing"),
+			"Review/testing completed",
+		);
 	}
 }
 
@@ -444,6 +506,21 @@ async function safeLinearStageUpdate(
 		runLogger.error(
 			{ err: normalizeError(error) },
 			"Failed to update Linear stage",
+		);
+	}
+}
+
+async function safeLinearMoveToCanceled(
+	linear: LinearClient,
+	issueId: string,
+): Promise<void> {
+	const runLogger = logger.child({ issueId, stage: "canceled" });
+	try {
+		await linear.markCanceled(issueId);
+	} catch (error) {
+		runLogger.error(
+			{ err: normalizeError(error) },
+			"Failed to move Linear issue to Canceled",
 		);
 	}
 }
