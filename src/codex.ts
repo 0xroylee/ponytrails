@@ -110,9 +110,6 @@ async function runCodex(
 	config: ResolvedProjectConfig,
 	args: string[],
 ): Promise<CodexResult> {
-	const isDevMode =
-		process.env.PIV_DEV_MODE === "1" ||
-		process.env.PIV_PRINT_CODEX_LOGS === "1";
 	const outputFile = args[args.indexOf("--output-last-message") + 1] ?? "";
 	const envOverrides = config.codex.codexHome
 		? { CODEX_HOME: config.codex.codexHome }
@@ -120,8 +117,8 @@ async function runCodex(
 	const result = await runCommand(config.codex.binary, args, {
 		cwd: config.executionPath,
 		env: envOverrides,
-		streamStdout: isDevMode,
-		streamStderr: isDevMode,
+		streamStdout: config.codex.streamLogs,
+		streamStderr: config.codex.streamLogs,
 		stdinMode: "ignore",
 	});
 

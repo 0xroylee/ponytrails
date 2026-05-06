@@ -7,87 +7,10 @@ import type {
 import {
 	appendCodexUsage,
 	buildIssueJobLogFields,
-	buildPlanComment,
-	formatCodexUsageLine,
-	parseReviewOutcome,
 	resolvePollingSettings,
 	routeProjectsForIssueProjectId,
 	shouldStopPolling,
 } from "../src/workflow";
-
-describe("parseReviewOutcome", () => {
-	it("parses pass with no bugs", () => {
-		const text = `
-RESULT: PASS
-SUMMARY: Looks good.
-BUGS_JSON:
-[]
-`;
-		const outcome = parseReviewOutcome(text);
-		expect(outcome.passed).toBe(true);
-		expect(outcome.bugs).toHaveLength(0);
-	});
-
-	it("parses fail with bugs", () => {
-		const text = `
-RESULT: FAIL
-SUMMARY: Found regressions.
-BUGS_JSON:
-[{"title":"Bug A","body":"Details"}]
-`;
-		const outcome = parseReviewOutcome(text);
-		expect(outcome.passed).toBe(false);
-		expect(outcome.bugs).toHaveLength(1);
-		expect(outcome.bugs[0]?.title).toBe("Bug A");
-	});
-});
-
-describe("buildPlanComment", () => {
-	it("includes header and plan summary", () => {
-		const comment = buildPlanComment("ENG-1", "1. Do A\n2. Do B", {
-			inputTokens: 12,
-			outputTokens: 8,
-		});
-		expect(comment).toContain("PIV loop plan for ENG-1");
-		expect(comment).toContain("Planning completed; implementation started.");
-		expect(comment).toContain("Token usage: input 12, output 8, total 20");
-		expect(comment).toContain("1. Do A");
-	});
-
-	it("uses fallback when no summary is returned", () => {
-		const comment = buildPlanComment("ENG-1", "   ");
-		expect(comment).toContain("(No plan summary returned by planning agent.)");
-		expect(comment).toContain("Token usage: unknown");
-	});
-});
-
-describe("formatCodexUsageLine", () => {
-	it("formats full usage values", () => {
-		expect(
-			formatCodexUsageLine({
-				inputTokens: 3,
-				outputTokens: 7,
-				totalTokens: 10,
-			}),
-		).toBe("Token usage: input 3, output 7, total 10");
-	});
-
-	it("derives total when missing", () => {
-		expect(
-			formatCodexUsageLine({
-				inputTokens: 9,
-				outputTokens: 4,
-			}),
-		).toBe("Token usage: input 9, output 4, total 13");
-	});
-
-	it("handles missing fields", () => {
-		expect(formatCodexUsageLine({ inputTokens: 5 })).toBe(
-			"Token usage: input 5, output unknown, total unknown",
-		);
-		expect(formatCodexUsageLine()).toBe("Token usage: unknown");
-	});
-});
 
 describe("resolvePollingSettings", () => {
 	const polling: PollingConfig = {
@@ -361,6 +284,7 @@ function createProject(
 		},
 		codex: {
 			binary: "codex",
+			streamLogs: false,
 		},
 		skills: {
 			plan: "/tmp/plan.md",

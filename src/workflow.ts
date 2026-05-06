@@ -1,4 +1,10 @@
 import { runPlanSession, runResumeSession, runReviewSession } from "./codex";
+import {
+	buildBugsCanceledComment,
+	buildImplementationComment,
+	buildPlanComment,
+	buildReviewComment,
+} from "./comments";
 import { type LoadedConfig, getProjectById } from "./config";
 import {
 	commentOnPr,
@@ -12,6 +18,7 @@ import {
 	buildPlanPrompt,
 	buildReviewPrompt,
 } from "./prompts";
+import { parseReviewOutcome } from "./review";
 import {
 	loadRunState,
 	normalizeIssueKey,
@@ -19,7 +26,6 @@ import {
 	transitionStage,
 } from "./state";
 import type {
-	BugRecord,
 	CodexUsageRecord,
 	PollingConfig,
 	ResolvedProjectConfig,
@@ -427,10 +433,7 @@ async function executeIssue(
 		await linear.applyStageLabel(state.issue.id, "pr_created");
 		await linear.comment(
 			state.issue.id,
-			[
-				`Implementation completed. Draft PR: ${state.pullRequest.url ?? "(created)"}`,
-				formatCodexUsageLine(result.usage),
-			].join("\n"),
+			buildImplementationComment(state.pullRequest.url, result.usage),
 		);
 		logger.info(
 			buildIssueJobLogFields(state, "implementing"),
@@ -466,19 +469,13 @@ async function executeIssue(
 		state.bugs = outcome.bugs;
 		await saveRunState(config.workspacePath, state);
 
-		const reviewComment = [
-			`PIV loop review for ${state.issue.key}`,
-			"",
-			`Result: ${outcome.passed ? "PASS" : "FAIL"}`,
-			"",
-			formatCodexUsageLine(review.usage),
-			"",
-			outcome.summary,
-			"",
-			outcome.bugs.length > 0
-				? "Bugs were detected and converted to GitHub issues."
-				: "No bugs found.",
-		].join("\n");
+		const reviewComment = buildReviewComment({
+			issueKey: state.issue.key,
+			passed: outcome.passed,
+			summary: outcome.summary,
+			usage: review.usage,
+			bugs: outcome.bugs,
+		});
 
 		if (!config.dryRun && state.pullRequest) {
 			await commentOnPr(config, state.pullRequest, reviewComment);
@@ -501,13 +498,7 @@ async function executeIssue(
 			await linear.markCanceled(state.issue.id);
 			await linear.comment(
 				state.issue.id,
-				[
-					"Review/testing found bugs. Moved issue to Canceled.",
-					...state.bugs.map(
-						(bug) =>
-							`- ${bug.title}${bug.issueUrl ? ` (${bug.issueUrl})` : ""}`,
-					),
-				].join("\n"),
+				buildBugsCanceledComment(state.bugs),
 			);
 			return;
 		}
@@ -545,126 +536,6 @@ export function appendCodexUsage(
 	];
 }
 
-export interface ReviewOutcome {
-	passed: boolean;
-	summary: string;
-	bugs: BugRecord[];
-}
-
-export function buildPlanComment(
-	issueKey: string,
-	planSummary: string,
-	usage?: {
-		inputTokens?: number;
-		outputTokens?: number;
-		totalTokens?: number;
-	},
-): string {
-	const maxSummaryLength = 6000;
-	const normalized = planSummary.trim();
-	const truncated =
-		normalized.length > maxSummaryLength
-			? `${normalized.slice(0, maxSummaryLength)}\n\n[truncated]`
-			: normalized;
-
-	return [
-		`PIV loop plan for ${issueKey}`,
-		"",
-		"Planning completed; implementation started.",
-		"",
-		formatCodexUsageLine(usage),
-		"",
-		"Plan:",
-		truncated || "(No plan summary returned by planning agent.)",
-	].join("\n");
-}
-
-export function formatCodexUsageLine(usage?: {
-	inputTokens?: number;
-	outputTokens?: number;
-	totalTokens?: number;
-}): string {
-	if (!usage) {
-		return "Token usage: unknown";
-	}
-	const input = usage.inputTokens ?? "unknown";
-	const output = usage.outputTokens ?? "unknown";
-	const total =
-		usage.totalTokens ??
-		(typeof usage.inputTokens === "number" &&
-		typeof usage.outputTokens === "number"
-			? usage.inputTokens + usage.outputTokens
-			: "unknown");
-	return `Token usage: input ${input}, output ${output}, total ${total}`;
-}
-
-export function parseReviewOutcome(text: string): ReviewOutcome {
-	const upper = text.toUpperCase();
-	const passed =
-		upper.includes("RESULT: PASS") && !upper.includes("RESULT: FAIL");
-	const summary = extractSummary(text);
-	const bugs = extractBugs(text);
-	return {
-		passed: passed && bugs.length === 0,
-		summary,
-		bugs,
-	};
-}
-
-function extractSummary(text: string): string {
-	const match = text.match(/SUMMARY:\s*([\s\S]*?)(?:\nBUGS_JSON:|$)/i);
-	if (match?.[1]) {
-		return match[1].trim();
-	}
-	return text.trim().slice(0, 1200);
-}
-
-function extractBugs(text: string): BugRecord[] {
-	const jsonFromLabel = text.match(/BUGS_JSON:\s*([\s\S]*)$/i)?.[1]?.trim();
-	if (jsonFromLabel) {
-		const parsed = parseBugJson(jsonFromLabel);
-		if (parsed.length > 0) {
-			return parsed;
-		}
-	}
-
-	const fenced = text.match(/```json\s*([\s\S]*?)```/i)?.[1]?.trim();
-	if (fenced) {
-		const parsed = parseBugJson(fenced);
-		if (parsed.length > 0) {
-			return parsed;
-		}
-	}
-
-	return [];
-}
-
-function parseBugJson(input: string): BugRecord[] {
-	try {
-		const parsed = JSON.parse(input) as unknown;
-		if (Array.isArray(parsed)) {
-			return parsed
-				.map((item) => {
-					if (!item || typeof item !== "object") {
-						return null;
-					}
-					const bug = item as Record<string, unknown>;
-					if (typeof bug.title !== "string" || typeof bug.body !== "string") {
-						return null;
-					}
-					return {
-						title: bug.title,
-						body: bug.body,
-					} satisfies BugRecord;
-				})
-				.filter((item): item is BugRecord => item !== null);
-		}
-	} catch {
-		return [];
-	}
-	return [];
-}
-
 async function safeLinearComment(
 	linear: LinearClient,
 	issueId: string,
@@ -677,22 +548,6 @@ async function safeLinearComment(
 		runLogger.error(
 			{ err: normalizeError(error) },
 			"Failed to add Linear comment",
-		);
-	}
-}
-
-async function safeLinearStageUpdate(
-	linear: LinearClient,
-	issueId: string,
-	stage: keyof ResolvedProjectConfig["linear"]["statusMap"],
-): Promise<void> {
-	const runLogger = logger.child({ issueId, stage });
-	try {
-		await linear.markStage(issueId, stage);
-	} catch (error) {
-		runLogger.error(
-			{ err: normalizeError(error) },
-			"Failed to update Linear stage",
 		);
 	}
 }

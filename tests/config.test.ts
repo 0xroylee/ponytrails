@@ -21,6 +21,8 @@ const envKeys = [
 	"CODEX_MODEL_PLAN",
 	"CODEX_MODEL_IMPLEMENT",
 	"CODEX_MODEL_REVIEW_TEST",
+	"PIV_DEV_MODE",
+	"PIV_PRINT_CODEX_LOGS",
 	"PIV_POLL_INTERVAL_MS",
 	"PIV_MAX_POLL_CYCLES",
 	"PIV_EXIT_WHEN_IDLE",
@@ -41,9 +43,11 @@ describe("loadConfig", () => {
 							? "30000"
 							: key === "PIV_MAX_POLL_CYCLES"
 								? ""
-								: key === "PIV_EXIT_WHEN_IDLE"
-									? "1"
-									: key.toLowerCase();
+								: key === "PIV_DEV_MODE" || key === "PIV_PRINT_CODEX_LOGS"
+									? "0"
+									: key === "PIV_EXIT_WHEN_IDLE"
+										? "1"
+										: key.toLowerCase();
 		}
 	});
 
@@ -136,5 +140,23 @@ describe("loadConfig", () => {
 		expect(config.projects[0]?.codex.models?.plan).toBe("gpt-5.5");
 		expect(config.projects[0]?.codex.models?.implement).toBe("gpt-5.3-codex");
 		expect(config.projects[0]?.codex.models?.reviewTest).toBe("gpt-5.3-codex");
+	});
+
+	it("does not stream codex logs by default", async () => {
+		process.env.PIV_DEV_MODE = "0";
+		process.env.PIV_PRINT_CODEX_LOGS = "0";
+		const config = await loadConfig(process.cwd());
+		expect(config.projects[0]?.codex.streamLogs).toBe(false);
+	});
+
+	it("streams codex logs when enabled by env", async () => {
+		process.env.PIV_DEV_MODE = "1";
+		const configFromDevMode = await loadConfig(process.cwd());
+		expect(configFromDevMode.projects[0]?.codex.streamLogs).toBe(true);
+
+		process.env.PIV_DEV_MODE = "0";
+		process.env.PIV_PRINT_CODEX_LOGS = "1";
+		const configFromLegacyFlag = await loadConfig(process.cwd());
+		expect(configFromLegacyFlag.projects[0]?.codex.streamLogs).toBe(true);
 	});
 });

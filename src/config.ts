@@ -84,6 +84,7 @@ function buildEnvBase(cwd: string): ProjectRuntimeConfig {
 		},
 		codex: {
 			binary: env.CODEX_BINARY ?? "codex",
+			streamLogs: env.PIV_DEV_MODE === "1" || env.PIV_PRINT_CODEX_LOGS === "1",
 			model: env.CODEX_MODEL,
 			models: {
 				plan: env.CODEX_MODEL_PLAN,

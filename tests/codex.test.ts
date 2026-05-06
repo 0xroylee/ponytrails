@@ -37,6 +37,7 @@ const config: ResolvedProjectConfig = {
 	github: { useGhCli: true, defaultBugLabel: "bug" },
 	codex: {
 		binary: "codex",
+		streamLogs: false,
 		model: "gpt-5.4",
 		models: {
 			plan: "gpt-5.5",

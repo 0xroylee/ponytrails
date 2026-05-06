@@ -65,6 +65,7 @@ export interface ProjectRuntimeConfig {
 	};
 	codex: {
 		binary: string;
+		streamLogs: boolean;
 		model?: string;
 		models?: {
 			plan?: string;
