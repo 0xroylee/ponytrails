@@ -1,17 +1,22 @@
 import { describe, expect, it } from "bun:test";
-import { sortIssuesByPriority } from "../src/linear";
+import {
+	isIssueInConfiguredProject,
+	sortIssuesByPriority,
+} from "../src/linear";
 import type { LinearIssue } from "../src/types";
 
 function createIssue(
 	identifier: string,
 	priorityValue: number,
 	priorityName: string,
+	projectId?: string,
 ): LinearIssue {
 	return {
 		id: identifier,
 		identifier,
 		title: identifier,
 		url: `https://linear.app/roy/issue/${identifier}`,
+		projectId,
 		priority: {
 			value: priorityValue,
 			name: priorityName,
@@ -57,5 +62,18 @@ describe("sortIssuesByPriority", () => {
 			"ROY-11",
 			"ROY-12",
 		]);
+	});
+});
+
+describe("isIssueInConfiguredProject", () => {
+	it("accepts all issues when no project filter is configured", () => {
+		expect(isIssueInConfiguredProject("proj_a", undefined)).toBe(true);
+		expect(isIssueInConfiguredProject(undefined, undefined)).toBe(true);
+	});
+
+	it("accepts only matching project ids when filter is configured", () => {
+		expect(isIssueInConfiguredProject("proj_a", "proj_a")).toBe(true);
+		expect(isIssueInConfiguredProject("proj_b", "proj_a")).toBe(false);
+		expect(isIssueInConfiguredProject(undefined, "proj_a")).toBe(false);
 	});
 });

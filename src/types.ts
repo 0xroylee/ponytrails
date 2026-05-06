@@ -51,6 +51,7 @@ export interface ProjectRuntimeConfig {
 	linear: {
 		apiKey: string;
 		apiUrl: string;
+		projectId?: string;
 		teamId?: string;
 		requiredLabel?: string;
 		pollLimit: number;
@@ -107,6 +108,7 @@ export interface LinearIssue {
 	identifier: string;
 	title: string;
 	url: string;
+	projectId?: string;
 	priority: {
 		value: number;
 		name: string;

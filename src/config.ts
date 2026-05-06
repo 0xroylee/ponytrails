@@ -57,6 +57,7 @@ function buildEnvBase(cwd: string): ProjectRuntimeConfig {
 		linear: {
 			apiKey: env.LINEAR_API_KEY ?? "",
 			apiUrl: env.LINEAR_API_URL ?? "https://api.linear.app/graphql",
+			projectId: normalizeOptionalValue(env.LINEAR_PROJECT_ID),
 			teamId: env.LINEAR_TEAM_ID,
 			requiredLabel: env.LINEAR_REQUIRED_LABEL,
 			pollLimit: Number(env.PIV_POLL_LIMIT ?? "10"),

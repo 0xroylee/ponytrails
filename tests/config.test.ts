@@ -5,6 +5,7 @@ import { loadConfig } from "../src/config";
 
 const envKeys = [
 	"LINEAR_API_KEY",
+	"LINEAR_PROJECT_ID",
 	"LINEAR_STATUS_ASSIGNED",
 	"LINEAR_STATUS_PLANNING",
 	"LINEAR_STATUS_IMPLEMENTING",
@@ -55,6 +56,7 @@ describe("loadConfig", () => {
 	it("loads required env values", async () => {
 		const config = await loadConfig(process.cwd());
 		expect(config.projects[0]?.linear.apiKey).toBe("linear_api_key");
+		expect(config.projects[0]?.linear.projectId).toBe("linear_project_id");
 		expect(config.projects[0]?.linear.statusMap.assigned).toBe(
 			"linear_status_assigned",
 		);

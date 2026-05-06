@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { PollingConfig, RunState } from "../src/types";
+import type {
+	PollingConfig,
+	ResolvedProjectConfig,
+	RunState,
+} from "../src/types";
 import {
 	appendCodexUsage,
 	buildIssueJobLogFields,
@@ -7,6 +11,7 @@ import {
 	formatCodexUsageLine,
 	parseReviewOutcome,
 	resolvePollingSettings,
+	routeProjectsForIssueProjectId,
 	shouldStopPolling,
 } from "../src/workflow";
 
@@ -309,5 +314,97 @@ describe("appendCodexUsage", () => {
 
 		appendCodexUsage(state, "planning", undefined);
 		expect(state.codexUsage).toHaveLength(0);
+	});
+});
+
+function createProject(
+	id: string,
+	linearProjectId?: string,
+): ResolvedProjectConfig {
+	return {
+		id,
+		name: id,
+		workspacePath: "/tmp/workspace",
+		executionPath: "/tmp/repo",
+		repo: {
+			owner: "acme",
+			name: "repo",
+			baseBranch: "main",
+		},
+		linear: {
+			apiKey: "key",
+			apiUrl: "https://api.linear.app/graphql",
+			projectId: linearProjectId,
+			teamId: undefined,
+			requiredLabel: undefined,
+			pollLimit: 10,
+			statusMap: {
+				assigned: "Todo",
+				planning: "In Progress",
+				implementing: "In Progress",
+				pr_created: "In Review",
+				reviewing: "In Review",
+				testing: "In Review",
+				blocked: "Canceled",
+				done: "Done",
+			},
+			labelMap: {
+				pr_created: "PR Created",
+				reviewing: "Reviewing",
+				testing: "Testing",
+			},
+			autoCreateLabels: true,
+		},
+		github: {
+			useGhCli: true,
+			defaultBugLabel: "bug",
+		},
+		codex: {
+			binary: "codex",
+		},
+		skills: {
+			plan: "/tmp/plan.md",
+			implement: "/tmp/implement.md",
+			reviewTest: "/tmp/review.md",
+		},
+		dryRun: false,
+	};
+}
+
+describe("routeProjectsForIssueProjectId", () => {
+	it("routes to explicit linear.projectId match", () => {
+		const result = routeProjectsForIssueProjectId(
+			[createProject("api", "proj_api"), createProject("web", "proj_web")],
+			"proj_web",
+		);
+		expect(result).toEqual({
+			selectedProjectId: "web",
+		});
+	});
+
+	it("skips when no configured project matches issue project id", () => {
+		const result = routeProjectsForIssueProjectId(
+			[createProject("api", "proj_api"), createProject("web", "proj_web")],
+			"proj_unknown",
+		);
+		expect(result.selectedProjectId).toBeUndefined();
+		expect(result.error).toBeUndefined();
+		expect(result.skipReason).toContain("No project configured");
+	});
+
+	it("fails when multiple projects share same linear.projectId", () => {
+		const result = routeProjectsForIssueProjectId(
+			[createProject("api", "proj_a"), createProject("web", "proj_a")],
+			"proj_a",
+		);
+		expect(result.error).toContain("Multiple projects are configured");
+	});
+
+	it("fails when issue has no project id and multiple unscoped projects exist", () => {
+		const result = routeProjectsForIssueProjectId(
+			[createProject("api"), createProject("web")],
+			undefined,
+		);
+		expect(result.error).toContain("multiple unscoped projects");
 	});
 });

@@ -37,10 +37,20 @@ export async function runWorkflow(
 		return;
 	}
 
-	const projectContexts = projects.map((project) => ({
+	let projectContexts = projects.map((project) => ({
 		config: project,
 		linear: new LinearClient(project),
 	}));
+
+	if (options.issueArg && options.allProjects && !options.projectId) {
+		projectContexts = await routeProjectContextsForTargetIssue(
+			projectContexts,
+			options.issueArg,
+		);
+		if (projectContexts.length === 0) {
+			return;
+		}
+	}
 	const globalPolling = resolvePollingSettings(config.polling, options);
 	let cycle = 0;
 
@@ -81,6 +91,102 @@ function pickProjects(
 		return config.projects;
 	}
 	return config.projects.slice(0, 1);
+}
+
+async function routeProjectContextsForTargetIssue(
+	contexts: Array<{ config: ResolvedProjectConfig; linear: LinearClient }>,
+	issueArg: string,
+): Promise<Array<{ config: ResolvedProjectConfig; linear: LinearClient }>> {
+	const routeLogger = logger.child({ issueArg });
+	const issue = await contexts[0]?.linear.fetchIssueByIdentifier(issueArg);
+	if (!issue) {
+		routeLogger.info("Target issue was not found; skipping run.");
+		return [];
+	}
+
+	const routing = routeProjectsForIssueProjectId(
+		contexts.map((context) => context.config),
+		issue.projectId,
+	);
+	if (routing.error) {
+		throw new Error(routing.error);
+	}
+	if (!routing.selectedProjectId) {
+		routeLogger.info(
+			{
+				issueKey: issue.identifier,
+				issueProjectId: issue.projectId ?? null,
+				reason: routing.skipReason,
+			},
+			"Target issue is not routable to any configured project; skipping run",
+		);
+		return [];
+	}
+
+	const selected = contexts.filter(
+		(context) => context.config.id === routing.selectedProjectId,
+	);
+	routeLogger.info(
+		{
+			issueKey: issue.identifier,
+			issueProjectId: issue.projectId ?? null,
+			projectId: routing.selectedProjectId,
+		},
+		"Routed target issue to project by Linear project id",
+	);
+	return selected;
+}
+
+export interface IssueProjectRoutingResult {
+	selectedProjectId?: string;
+	skipReason?: string;
+	error?: string;
+}
+
+export function routeProjectsForIssueProjectId(
+	projects: ResolvedProjectConfig[],
+	issueProjectId: string | undefined,
+): IssueProjectRoutingResult {
+	const scopedProjects = projects.filter((project) => project.linear.projectId);
+	const unscopedProjects = projects.filter(
+		(project) => !project.linear.projectId,
+	);
+
+	if (!issueProjectId) {
+		if (unscopedProjects.length > 1) {
+			return {
+				error:
+					"Target issue has no Linear project id and multiple unscoped projects are configured. Re-run with --project <PROJECT_ID>.",
+			};
+		}
+		return {
+			skipReason:
+				"Target issue has no Linear project id and cannot be safely routed in --all-projects mode.",
+		};
+	}
+
+	const explicitMatches = scopedProjects.filter(
+		(project) => project.linear.projectId === issueProjectId,
+	);
+	if (explicitMatches.length > 1) {
+		return {
+			error: `Multiple projects are configured with linear.projectId='${issueProjectId}'. Re-run with --project <PROJECT_ID>.`,
+		};
+	}
+	if (explicitMatches.length === 1) {
+		return {
+			selectedProjectId: explicitMatches[0]?.id,
+		};
+	}
+	if (unscopedProjects.length > 1) {
+		return {
+			error:
+				"No explicit linear.projectId match was found and multiple unscoped projects are configured. Re-run with --project <PROJECT_ID>.",
+		};
+	}
+	return {
+		skipReason: `No project configured for linear.projectId='${issueProjectId}'.`,
+	};
 }
 
 export function shouldStopPolling(

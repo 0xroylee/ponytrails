@@ -17,6 +17,8 @@ Configuration is loaded from `piv-loop.config.ts` and resolved into project-spec
 
 - Root defaults can define shared repo, linear, codex, skills, and dry-run behavior.
 - Polling is a single global config at the root `polling` key (`intervalMs`, `maxCycles`, `exitWhenIdle`) and applies to all selected projects in a run.
+- Optional `linear.projectId` can scope each PIV project to a specific Linear project when selecting assigned work.
+- For targeted runs with `--all-projects --issue <KEY>`, PIV routes the issue to exactly one project by matching `linear.projectId` to the Linear issue's `projectId`.
 - `projects` contains one or more project entries, each with:
   - `id` (required)
   - `name` (optional)
@@ -34,6 +36,12 @@ Run state is namespaced per project at:
 Legacy fallback for default project:
 
 ` .piv-loop/runs/<LINEAR_KEY>.json `
+
+Routing notes:
+
+- `project.id` is the PIV workspace/agent identifier used for execution path, state namespace, and workflow ownership.
+- `linear.projectId` is the Linear project filter/routing key.
+- If `--all-projects --issue` cannot resolve to one unique project (for example duplicate mappings or ambiguous unscoped projects), run with `--project <PROJECT_ID>`.
 
 ## Commands
 
@@ -53,6 +61,7 @@ bun run src/index.ts projects
 Set these variables before running:
 
 - `LINEAR_API_KEY`
+- `LINEAR_PROJECT_ID` (optional; when set, only issues from this Linear project are eligible)
 - `LINEAR_STATUS_ASSIGNED`
 - `LINEAR_STATUS_PLANNING`
 - `LINEAR_STATUS_IMPLEMENTING`
@@ -88,6 +97,8 @@ Optional:
 - `PIV_LOG_PRETTY` (optional; default `1` in TTY, `0` otherwise)
 
 `LINEAR_STATUS_*` values may be either Linear workflow state IDs or exact state names (for example `Todo`, `In Progress`, `Done`). Names are resolved to IDs at runtime.
+
+When `--all-projects` is used, each configured PIV project applies its own `linear.projectId` filter (if configured). If `linear.projectId` is unset, behavior remains unchanged and issues are not filtered by Linear project.
 
 Recommended mapping for your board:
 
