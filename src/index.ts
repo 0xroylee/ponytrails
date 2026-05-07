@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { parseArgs } from "./args";
 import { getProjectById, loadConfig } from "./config";
+import { runCronScheduler } from "./cron";
 import { logger, normalizeError, setupProcessErrorHandlers } from "./logger";
 import { loadRunState, normalizeIssueKey } from "./state";
 import { runWorkflow } from "./workflow";
@@ -18,6 +19,11 @@ async function main(): Promise<void> {
 
 	if (command.kind === "run") {
 		await runWorkflow(config, command.options);
+		return;
+	}
+
+	if (command.kind === "cron") {
+		await runCronScheduler(config, { jobId: command.jobId });
 		return;
 	}
 
@@ -61,6 +67,7 @@ function printHelp(): void {
 			"Commands:",
 			"  adhd-ai run [--project <PROJECT_ID>] [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle] [--poll-interval-ms <MS>] [--max-poll-cycles <N>]",
 			"  adhd-ai run --all-projects [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle]",
+			"  adhd-ai cron [--job <JOB_ID>]",
 			"  adhd-ai status --project <PROJECT_ID> --issue <LINEAR_KEY>",
 			"  adhd-ai projects",
 			"  adhd-ai help",

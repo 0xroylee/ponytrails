@@ -3,11 +3,16 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
 	AdhdAiRootConfig,
+	CronConfig,
+	CronJobConfig,
+	CronJobSchedule,
+	CronScheduleDayOfWeek,
 	DeepPartial,
 	PollingConfig,
 	ProjectConfig,
 	ProjectRuntimeConfig,
 	ResolvedProjectConfig,
+	RunOptions,
 } from "./types";
 
 const DEFAULT_CONFIG_FILE = "adhd-ai.config.ts";
@@ -20,6 +25,7 @@ type AnyOverride = RootOverride | LegacyOverride;
 export interface LoadedConfig {
 	projects: ResolvedProjectConfig[];
 	polling: PollingConfig;
+	cron: CronConfig;
 }
 
 export async function loadConfig(cwd: string): Promise<LoadedConfig> {
@@ -30,9 +36,11 @@ export async function loadConfig(cwd: string): Promise<LoadedConfig> {
 	assertNoProjectPolling(root.projects);
 	const projects = resolveProjects(envBase, root);
 	const polling = resolvePolling(envPolling, root.polling);
+	const cron = resolveCron(root.cron);
 	validateProjects(projects);
 	validatePolling(polling);
-	return { projects, polling };
+	validateCron(cron);
+	return { projects, polling, cron };
 }
 
 export function getProjectById(
@@ -163,7 +171,7 @@ function resolveProjects(
 function stripProjects(
 	root: AdhdAiRootConfig,
 ): DeepPartial<ProjectRuntimeConfig> {
-	const { projects: _, polling: __, ...rest } = root;
+	const { projects: _, polling: __, cron: ___, ...rest } = root;
 	return rest;
 }
 
@@ -175,6 +183,188 @@ function resolvePolling(
 		...base,
 		...(override ?? {}),
 	};
+}
+
+function resolveCron(
+	override: DeepPartial<CronConfig> | undefined,
+): CronConfig {
+	const jobs = override?.jobs ?? [];
+	return {
+		jobs: jobs.map((job, index) => resolveCronJob(job, index)),
+	};
+}
+
+function resolveCronJob(
+	job: DeepPartial<CronJobConfig>,
+	index: number,
+): CronJobConfig {
+	if (!job || typeof job !== "object") {
+		throw new Error(`cron.jobs[${index}] must be an object`);
+	}
+	if (typeof job.id !== "string" || job.id.trim() === "") {
+		throw new Error(`cron.jobs[${index}].id is required`);
+	}
+
+	return {
+		id: job.id.trim(),
+		name:
+			typeof job.name === "string" && job.name.trim()
+				? job.name.trim()
+				: undefined,
+		enabled: job.enabled === undefined ? true : job.enabled === true,
+		schedule: resolveCronSchedule(job.schedule, index),
+		run: resolveCronRun(job.run, index),
+	};
+}
+
+function resolveCronSchedule(
+	schedule: DeepPartial<CronJobSchedule> | undefined,
+	index: number,
+): CronJobSchedule {
+	if (!schedule || typeof schedule !== "object") {
+		throw new Error(`cron.jobs[${index}].schedule is required`);
+	}
+	if (schedule.frequency === "minute") {
+		return {
+			frequency: "minute",
+			every: parseOptionalPositiveIntStrict(
+				schedule.every,
+				`cron.jobs[${index}].schedule.every`,
+			),
+		};
+	}
+	if (schedule.frequency === "hourly") {
+		return {
+			frequency: "hourly",
+			every: parseOptionalPositiveIntStrict(
+				schedule.every,
+				`cron.jobs[${index}].schedule.every`,
+			),
+			minute: parseOptionalPositiveIntStrict(
+				schedule.minute,
+				`cron.jobs[${index}].schedule.minute`,
+				true,
+			),
+		};
+	}
+	if (schedule.frequency === "daily") {
+		if (typeof schedule.time !== "string") {
+			throw new Error(`cron.jobs[${index}].schedule.time is required`);
+		}
+		return {
+			frequency: "daily",
+			time: schedule.time,
+		};
+	}
+	if (schedule.frequency === "weekly") {
+		if (typeof schedule.time !== "string") {
+			throw new Error(`cron.jobs[${index}].schedule.time is required`);
+		}
+		if (typeof schedule.dayOfWeek !== "string") {
+			throw new Error(`cron.jobs[${index}].schedule.dayOfWeek is required`);
+		}
+		return {
+			frequency: "weekly",
+			dayOfWeek: schedule.dayOfWeek as CronScheduleDayOfWeek,
+			time: schedule.time,
+		};
+	}
+
+	throw new Error(
+		`cron.jobs[${index}].schedule.frequency must be one of minute, hourly, daily, weekly`,
+	);
+}
+
+function resolveCronRun(
+	run: DeepPartial<RunOptions> | undefined,
+	index: number,
+): RunOptions {
+	if (!run || typeof run !== "object") {
+		return {};
+	}
+	const projectId =
+		typeof run.projectId === "string"
+			? normalizeOptionalValue(run.projectId)
+			: undefined;
+	const issueArg =
+		typeof run.issueArg === "string"
+			? normalizeOptionalValue(run.issueArg)
+			: undefined;
+	const pollIntervalMs = parseOptionalPositiveIntStrict(
+		run.pollIntervalMs,
+		`cron.jobs[${index}].run.pollIntervalMs`,
+	);
+	const maxPollCycles = parseOptionalPositiveIntStrict(
+		run.maxPollCycles,
+		`cron.jobs[${index}].run.maxPollCycles`,
+	);
+	const exitWhenIdle =
+		run.exitWhenIdle === undefined
+			? undefined
+			: run.exitWhenIdle === true
+				? true
+				: run.exitWhenIdle === false
+					? false
+					: invalidCronRunBoolean(
+							`cron.jobs[${index}].run.exitWhenIdle must be a boolean`,
+						);
+	const allProjects =
+		run.allProjects === undefined
+			? undefined
+			: run.allProjects === true
+				? true
+				: run.allProjects === false
+					? false
+					: invalidCronRunBoolean(
+							`cron.jobs[${index}].run.allProjects must be a boolean`,
+						);
+	const poll =
+		run.poll === undefined
+			? undefined
+			: run.poll === true
+				? true
+				: run.poll === false
+					? false
+					: invalidCronRunBoolean(
+							`cron.jobs[${index}].run.poll must be a boolean`,
+						);
+
+	return {
+		issueArg,
+		projectId,
+		allProjects,
+		poll,
+		pollIntervalMs,
+		maxPollCycles,
+		exitWhenIdle,
+	};
+}
+
+function invalidCronRunBoolean(_message: string): never {
+	throw new Error(_message);
+}
+
+function parseOptionalPositiveIntStrict(
+	input: unknown,
+	field: string,
+	allowZero = false,
+): number | undefined {
+	if (input === undefined) {
+		return undefined;
+	}
+	if (typeof input !== "number" || !Number.isInteger(input)) {
+		throw new Error(`${field} must be an integer`);
+	}
+	if (allowZero) {
+		if (input < 0) {
+			throw new Error(`${field} must be zero or a positive integer`);
+		}
+		return input;
+	}
+	if (input <= 0) {
+		throw new Error(`${field} must be a positive integer`);
+	}
+	return input;
 }
 
 function resolveProject(
@@ -350,6 +540,90 @@ function validatePolling(polling: PollingConfig): void {
 		polling.staleRunTimeoutMs <= 0
 	) {
 		throw new Error("Polling stale run timeout must be a positive integer");
+	}
+}
+
+function validateCron(cron: CronConfig): void {
+	const seen = new Set<string>();
+	for (const job of cron.jobs) {
+		if (seen.has(job.id)) {
+			throw new Error(`Duplicate cron job id: ${job.id}`);
+		}
+		seen.add(job.id);
+		validateCronSchedule(job.id, job.schedule);
+		validateCronRun(job.id, job.run);
+	}
+}
+
+function validateCronSchedule(jobId: string, schedule: CronJobSchedule): void {
+	if (schedule.frequency === "minute") {
+		const every = schedule.every ?? 1;
+		if (!Number.isInteger(every) || every <= 0 || every > 59) {
+			throw new Error(
+				`Cron job '${jobId}' minute schedule.every must be between 1 and 59`,
+			);
+		}
+		return;
+	}
+	if (schedule.frequency === "hourly") {
+		const every = schedule.every ?? 1;
+		const minute = schedule.minute ?? 0;
+		if (!Number.isInteger(every) || every <= 0 || every > 24) {
+			throw new Error(
+				`Cron job '${jobId}' hourly schedule.every must be between 1 and 24`,
+			);
+		}
+		if (!Number.isInteger(minute) || minute < 0 || minute > 59) {
+			throw new Error(
+				`Cron job '${jobId}' hourly schedule.minute must be between 0 and 59`,
+			);
+		}
+		return;
+	}
+	if (schedule.frequency === "daily") {
+		assertValidTime(jobId, schedule.time);
+		return;
+	}
+	assertValidDayOfWeek(jobId, schedule.dayOfWeek);
+	assertValidTime(jobId, schedule.time);
+}
+
+function validateCronRun(jobId: string, run: RunOptions): void {
+	if (run.projectId && run.allProjects) {
+		throw new Error(
+			`Cron job '${jobId}' run cannot use projectId with allProjects`,
+		);
+	}
+}
+
+function assertValidTime(jobId: string, time: string): void {
+	if (!/^\d{2}:\d{2}$/.test(time)) {
+		throw new Error(`Cron job '${jobId}' time must be in HH:mm 24-hour format`);
+	}
+	const [hourRaw, minuteRaw] = time.split(":");
+	const hour = Number(hourRaw);
+	const minute = Number(minuteRaw);
+	if (
+		!Number.isInteger(hour) ||
+		!Number.isInteger(minute) ||
+		hour < 0 ||
+		hour > 23 ||
+		minute < 0 ||
+		minute > 59
+	) {
+		throw new Error(`Cron job '${jobId}' time must be in HH:mm 24-hour format`);
+	}
+}
+
+function assertValidDayOfWeek(
+	jobId: string,
+	dayOfWeek: CronScheduleDayOfWeek,
+): void {
+	const allowed = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+	if (!allowed.includes(dayOfWeek)) {
+		throw new Error(
+			`Cron job '${jobId}' weekly dayOfWeek must be one of: ${allowed.join(", ")}`,
+		);
 	}
 }
 

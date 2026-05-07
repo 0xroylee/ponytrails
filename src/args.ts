@@ -2,6 +2,7 @@ import type { RunOptions } from "./types";
 
 export type CliCommand =
 	| { kind: "run"; options: RunOptions }
+	| { kind: "cron"; jobId?: string }
 	| { kind: "status"; issueKey: string; projectId: string }
 	| { kind: "projects" }
 	| { kind: "help" };
@@ -45,6 +46,12 @@ export function parseArgs(argv: string[]): CliCommand {
 				maxPollCycles,
 			},
 		};
+	}
+
+	if (command === "cron") {
+		const args = rest.slice(1);
+		const jobId = readFlagValue(args, "--job");
+		return { kind: "cron", jobId };
 	}
 
 	if (command === "status") {

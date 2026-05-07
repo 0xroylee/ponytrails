@@ -109,6 +109,14 @@ describe("parseArgs", () => {
 		});
 	});
 
+	it("parses cron command", () => {
+		const parsed = parseArgs(["bun", "adhd-ai", "cron", "--job", "weekday"]);
+		expect(parsed).toEqual({
+			kind: "cron",
+			jobId: "weekday",
+		});
+	});
+
 	it("rejects project with all-projects", () => {
 		expect(() =>
 			parseArgs([
