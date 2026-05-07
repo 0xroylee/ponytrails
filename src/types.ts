@@ -107,8 +107,50 @@ export interface PollingConfig {
 	staleRunTimeoutMs: number;
 }
 
+export type CronScheduleDayOfWeek =
+	| "sun"
+	| "mon"
+	| "tue"
+	| "wed"
+	| "thu"
+	| "fri"
+	| "sat";
+
+export type CronJobSchedule =
+	| {
+			frequency: "minute";
+			every?: number;
+	  }
+	| {
+			frequency: "hourly";
+			every?: number;
+			minute?: number;
+	  }
+	| {
+			frequency: "daily";
+			time: string;
+	  }
+	| {
+			frequency: "weekly";
+			dayOfWeek: CronScheduleDayOfWeek;
+			time: string;
+	  };
+
+export interface CronJobConfig {
+	id: string;
+	name?: string;
+	enabled?: boolean;
+	schedule: CronJobSchedule;
+	run: RunOptions;
+}
+
+export interface CronConfig {
+	jobs: CronJobConfig[];
+}
+
 export type AdhdAiRootConfig = DeepPartial<ProjectRuntimeConfig> & {
 	polling?: DeepPartial<PollingConfig>;
+	cron?: DeepPartial<CronConfig>;
 	projects: ProjectConfig[];
 };
 

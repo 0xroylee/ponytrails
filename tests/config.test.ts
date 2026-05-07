@@ -245,4 +245,181 @@ describe("loadConfig", () => {
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});
+
+	it("loads cron jobs with schedule and run options", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  cron: {",
+				"    jobs: [",
+				"      {",
+				"        id: 'weekday-sweep',",
+				"        schedule: { frequency: 'weekly', dayOfWeek: 'mon', time: '09:30' },",
+				"        run: { projectId: 'default', poll: true, maxPollCycles: 2 }",
+				"      }",
+				"    ]",
+				"  },",
+				"  projects: [",
+				"    { id: 'default' }",
+				"  ]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.cron.jobs).toHaveLength(1);
+			expect(config.cron.jobs[0]).toEqual({
+				id: "weekday-sweep",
+				name: undefined,
+				enabled: true,
+				schedule: {
+					frequency: "weekly",
+					dayOfWeek: "mon",
+					time: "09:30",
+				},
+				run: {
+					projectId: "default",
+					poll: true,
+					maxPollCycles: 2,
+					issueArg: undefined,
+					allProjects: undefined,
+					pollIntervalMs: undefined,
+					exitWhenIdle: undefined,
+				},
+			});
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects duplicate cron job ids", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  cron: {",
+				"    jobs: [",
+				"      { id: 'same', schedule: { frequency: 'minute' } },",
+				"      { id: 'same', schedule: { frequency: 'hourly' } }",
+				"    ]",
+				"  },",
+				"  projects: [",
+				"    { id: 'default' }",
+				"  ]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			await expect(loadConfig(tempDir)).rejects.toThrow(
+				"Duplicate cron job id: same",
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects invalid cron daily time", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  cron: {",
+				"    jobs: [",
+				"      { id: 'daily', schedule: { frequency: 'daily', time: '25:10' } }",
+				"    ]",
+				"  },",
+				"  projects: [",
+				"    { id: 'default' }",
+				"  ]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			await expect(loadConfig(tempDir)).rejects.toThrow(
+				"Cron job 'daily' time must be in HH:mm 24-hour format",
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects invalid cron weekly dayOfWeek", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  cron: {",
+				"    jobs: [",
+				"      { id: 'weekly', schedule: { frequency: 'weekly', dayOfWeek: 'monday', time: '09:00' } }",
+				"    ]",
+				"  },",
+				"  projects: [",
+				"    { id: 'default' }",
+				"  ]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			await expect(loadConfig(tempDir)).rejects.toThrow(
+				"Cron job 'weekly' weekly dayOfWeek must be one of",
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects cron run projectId with allProjects", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  cron: {",
+				"    jobs: [",
+				"      {",
+				"        id: 'invalid-run',",
+				"        schedule: { frequency: 'hourly' },",
+				"        run: { projectId: 'default', allProjects: true }",
+				"      }",
+				"    ]",
+				"  },",
+				"  projects: [",
+				"    { id: 'default' }",
+				"  ]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			await expect(loadConfig(tempDir)).rejects.toThrow(
+				"Cron job 'invalid-run' run cannot use projectId with allProjects",
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
 });

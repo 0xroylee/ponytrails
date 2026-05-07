@@ -95,13 +95,42 @@ bun run src/index.ts run --project default --issue ENG-123
 bun run src/index.ts run --project default --poll
 bun run src/index.ts run --project default --poll --poll-interval-ms 15000 --max-poll-cycles 20
 bun run src/index.ts run --all-projects --poll --no-exit-when-idle
+bun run src/index.ts cron
+bun run src/index.ts cron --job weekday-sweep
 bun run src/index.ts status --project default --issue ENG-123
 bun run src/index.ts projects
 
 # after linking/installing the package bin
 adhd-ai run --project default
+adhd-ai cron
 adhd-ai projects
 ```
+
+## Cron Jobs
+
+Define scheduled pipeline jobs in `adhd-ai.config.ts`:
+
+```ts
+export default {
+  cron: {
+    jobs: [
+      {
+        id: "weekday-sweep",
+        schedule: { frequency: "weekly", dayOfWeek: "mon", time: "09:30" },
+        run: { allProjects: true, poll: true, maxPollCycles: 3 },
+      },
+    ],
+  },
+  projects: [{ id: "default" }],
+};
+```
+
+Supported schedules:
+
+- `minute`: `{ frequency: "minute", every?: 1..59 }`
+- `hourly`: `{ frequency: "hourly", every?: 1..24, minute?: 0..59 }`
+- `daily`: `{ frequency: "daily", time: "HH:mm" }`
+- `weekly`: `{ frequency: "weekly", dayOfWeek: "sun"|"mon"|...|"sat", time: "HH:mm" }`
 
 ## Required Environment
 
