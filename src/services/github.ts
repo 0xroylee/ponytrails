@@ -85,21 +85,20 @@ export async function updateDraftPrFromWorktree(
 	config: ResolvedProjectConfig,
 	prBranch: string,
 	issueKey: string,
-): Promise<void> {
+): Promise<boolean> {
 	await ensureGitRepository(config);
 	await ensureCurrentBranch(config, prBranch);
 	await stageAllChanges(config);
 
 	const hasChanges = await stagedChangesExist(config);
 	if (!hasChanges) {
-		throw new Error(
-			"No staged changes found after verification feedback; cannot update PR",
-		);
+		return false;
 	}
 
 	const commitTitle = `[adhd.ai] ${issueKey}: address review feedback`;
 	await commitChanges(config, commitTitle);
 	await pushBranch(config, prBranch);
+	return true;
 }
 
 export async function prepareImplementationBranch(

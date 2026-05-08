@@ -558,6 +558,11 @@ function mergeRuntime(
 			implement: resolveSkillPath(skillRoot, mergedSkills.implement),
 			reviewTest: resolveSkillPath(skillRoot, mergedSkills.reviewTest),
 		},
+		agent: {
+			...base.agent,
+			...(rootDefaults.agent ?? {}),
+			...(project.agent ?? {}),
+		},
 		dryRun: project.dryRun ?? rootDefaults.dryRun ?? base.dryRun,
 	};
 }
