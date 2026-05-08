@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import type { IssueRef, PullRequestRef } from "../src/core/types";
-import { buildFixPrompt } from "../src/skills/prompts";
+import { buildFixPrompt, buildPlanPrompt } from "../src/skills/prompts";
 
 const issue: IssueRef = {
 	id: "lin_123",
@@ -36,5 +39,28 @@ describe("buildFixPrompt", () => {
 		expect(prompt).toContain(
 			"Address every bug, update the existing branch/PR",
 		);
+	});
+});
+
+describe("buildPlanPrompt", () => {
+	it("includes planning decomposition contract from skill text", async () => {
+		const tmpDir = await mkdtemp(path.join(os.tmpdir(), "adhd-plan-skill-"));
+		const skillPath = path.join(tmpDir, "SKILL.md");
+		await writeFile(
+			skillPath,
+			[
+				"name: adhd-plan",
+				"COMPLEXITY: SIMPLE|COMPLEX",
+				"SPLIT_TASKS_JSON: [...]",
+			].join("\n"),
+			"utf8",
+		);
+		try {
+			const prompt = await buildPlanPrompt(skillPath, issue);
+			expect(prompt).toContain("COMPLEXITY: SIMPLE|COMPLEX");
+			expect(prompt).toContain("SPLIT_TASKS_JSON: [...]");
+		} finally {
+			await rm(tmpDir, { recursive: true, force: true });
+		}
 	});
 });

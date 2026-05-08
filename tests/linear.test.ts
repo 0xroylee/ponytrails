@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { LinearIssue } from "../src/core/types";
 import {
+	buildTodoIssueFromPlanInput,
 	isIssueInConfiguredProject,
 	sortIssuesByPriority,
 } from "../src/services/linear";
@@ -75,5 +76,36 @@ describe("isIssueInConfiguredProject", () => {
 		expect(isIssueInConfiguredProject("proj_a", "proj_a")).toBe(true);
 		expect(isIssueInConfiguredProject("proj_b", "proj_a")).toBe(false);
 		expect(isIssueInConfiguredProject(undefined, "proj_a")).toBe(false);
+	});
+});
+
+describe("buildTodoIssueFromPlanInput", () => {
+	it("uses assigned state id and configured team/project scope", () => {
+		const input = buildTodoIssueFromPlanInput({
+			task: {
+				title: "Split task",
+				description: "Implement sub-scope",
+				priority: 2,
+			},
+			parentIssue: {
+				id: "lin_parent",
+				key: "ROY-35",
+				url: "https://linear.app/roy/issue/ROY-35/example",
+			},
+			assignedStateId: "state_todo_123",
+			teamId: "team_123",
+			projectId: "proj_456",
+		});
+
+		expect(input).toEqual({
+			title: "Split task",
+			description:
+				"Implement sub-scope\n\nParent issue: ROY-35 (https://linear.app/roy/issue/ROY-35/example)",
+			stateId: "state_todo_123",
+			teamId: "team_123",
+			parentId: "lin_parent",
+			projectId: "proj_456",
+			priority: 2,
+		});
 	});
 });

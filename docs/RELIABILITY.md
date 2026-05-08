@@ -21,3 +21,12 @@ Review/testing output must preserve:
 - `RESULT: PASS|FAIL`
 - `SUMMARY: ...`
 - `BUGS_JSON: [...]`
+
+## Planning Decomposition Contract
+
+Planning output can optionally include:
+
+- `COMPLEXITY: SIMPLE|COMPLEX`
+- `SPLIT_TASKS_JSON: [...]` (required only when complexity is `COMPLEX`)
+
+When `COMPLEXITY: COMPLEX` is returned, ADHD.ai creates child Linear tasks from `SPLIT_TASKS_JSON` and completes the parent issue without entering implementation/review stages.

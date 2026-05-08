@@ -7,6 +7,7 @@ import {
 import { normalizeIssueKey } from "../core/state";
 import type {
 	LinearIssue,
+	PlannedSplitTask,
 	ResolvedProjectConfig,
 	WorkflowStage,
 } from "../core/types";
@@ -17,6 +18,49 @@ interface LinearLabelRecord {
 	id: string;
 	name: string;
 	teamId?: string;
+}
+
+interface ParentIssueRef {
+	id: string;
+	key: string;
+	url: string;
+}
+
+interface CreatedLinearIssueRef {
+	id: string;
+	identifier: string;
+	title: string;
+	url: string;
+}
+
+interface TodoIssueFromPlanInput {
+	title: string;
+	description: string;
+	stateId: string;
+	teamId: string;
+	parentId: string;
+	projectId?: string;
+	priority?: number;
+}
+
+export function buildTodoIssueFromPlanInput(input: {
+	task: PlannedSplitTask;
+	parentIssue: ParentIssueRef;
+	assignedStateId: string;
+	teamId: string;
+	projectId?: string;
+}): TodoIssueFromPlanInput {
+	const taskDescription =
+		input.task.description?.trim() || "No description provided.";
+	return {
+		title: input.task.title,
+		description: `${taskDescription}\n\nParent issue: ${input.parentIssue.key} (${input.parentIssue.url})`,
+		stateId: input.assignedStateId,
+		teamId: input.teamId,
+		parentId: input.parentIssue.id,
+		projectId: input.projectId,
+		priority: input.task.priority,
+	};
 }
 
 export class LinearClient {
@@ -116,6 +160,66 @@ export class LinearClient {
 		await this.ensureResolvedStatusMap();
 		const stateId = await this.resolveCanceledStateId();
 		await this.client.updateIssue(issueId, { stateId });
+	}
+
+	async createTodoIssueFromPlan(
+		parentIssue: ParentIssueRef,
+		task: PlannedSplitTask,
+	): Promise<CreatedLinearIssueRef> {
+		await this.ensureResolvedStatusMap();
+		const assignedStateId = this.requiredStatusMap().assigned;
+		const teamId = this.config.linear.teamId?.trim();
+		if (!teamId) {
+			throw new Error(
+				"Cannot create split Linear tasks because linear.teamId is not configured.",
+			);
+		}
+
+		const createInput = buildTodoIssueFromPlanInput({
+			task,
+			parentIssue,
+			assignedStateId,
+			teamId,
+			projectId: this.config.linear.projectId,
+		});
+		if (this.config.dryRun) {
+			return {
+				id: `dry-run-${normalizeIssueKey(parentIssue.key)}-${Date.now()}`,
+				identifier: `${normalizeIssueKey(parentIssue.key)}-SPLIT`,
+				title: createInput.title,
+				url: `${parentIssue.url}#split-task`,
+			};
+		}
+
+		const payload = await this.client.createIssue(createInput as never);
+		if (!payload.success) {
+			throw new Error(
+				`Failed to create split Linear task '${task.title}' for ${parentIssue.key}.`,
+			);
+		}
+
+		const createdIssue =
+			(await payload.issue) ??
+			(payload.issueId ? await this.client.issue(payload.issueId) : undefined);
+		if (!createdIssue?.id || !createdIssue.identifier || !createdIssue.url) {
+			throw new Error(
+				`Split Linear task '${task.title}' was created without required issue fields.`,
+			);
+		}
+
+		const labelIds = await this.resolveSplitTaskLabelIds(task.labels);
+		if (labelIds.length > 0) {
+			await this.client.updateIssue(createdIssue.id, {
+				addedLabelIds: labelIds,
+			});
+		}
+
+		return {
+			id: createdIssue.id,
+			identifier: createdIssue.identifier,
+			title: createdIssue.title,
+			url: createdIssue.url,
+		};
 	}
 
 	async applyStageLabel(issueId: string, stage: WorkflowStage): Promise<void> {
@@ -340,6 +444,42 @@ export class LinearClient {
 			throw new Error(`Linear label '${labelName}' was created without an id.`);
 		}
 		return this.mapSdkLabelToRecord(issueLabel);
+	}
+
+	private async resolveSplitTaskLabelIds(
+		labelNames: string[] | undefined,
+	): Promise<string[]> {
+		const normalizedNames = (labelNames ?? [])
+			.map((label) => label.trim())
+			.filter(Boolean);
+		if (normalizedNames.length === 0) {
+			return [];
+		}
+
+		const labelsConnection = await this.client.issueLabels({
+			first: 250,
+		});
+		const availableLabels = labelsConnection.nodes.map((label) =>
+			this.mapSdkLabelToRecord(label),
+		);
+		const labelIds: string[] = [];
+
+		for (const labelName of normalizedNames) {
+			let labelId = this.findLabelIdByName(labelName, availableLabels);
+			if (!labelId) {
+				if (!this.config.linear.autoCreateLabels) {
+					throw new Error(
+						`Linear label '${labelName}' was not found for split task in project '${this.config.id}'.`,
+					);
+				}
+				const created = await this.createIssueLabel(labelName);
+				availableLabels.push(created);
+				labelId = created.id;
+			}
+			labelIds.push(labelId);
+		}
+
+		return Array.from(new Set(labelIds));
 	}
 
 	private resolveStatusValue(

@@ -10,6 +10,7 @@ import {
 	buildRunLeaseOwnerId,
 	isRunStateStaleForRetry,
 	normalizeFailedReviewBugs,
+	parsePlannerDecision,
 	resolvePollingSettings,
 	routeProjectsForIssueProjectId,
 	selectStaleRunIssueKeys,
@@ -375,6 +376,85 @@ describe("normalizeFailedReviewBugs", () => {
 		expect(bugs).toHaveLength(1);
 		expect(bugs[0]?.title).toContain("failed without structured bug details");
 		expect(bugs[0]?.body).toContain("Result failed with malformed output.");
+	});
+});
+
+describe("parsePlannerDecision", () => {
+	it("defaults to SIMPLE when complexity marker is missing", () => {
+		const result = parsePlannerDecision(
+			[
+				"Scope summary",
+				"- Keep behavior unchanged.",
+				"Implementation steps",
+				"- Proceed directly.",
+			].join("\n"),
+		);
+		expect(result).toEqual({
+			complexity: "SIMPLE",
+			splitTasks: [],
+		});
+	});
+
+	it("parses COMPLEX with valid split task JSON", () => {
+		const result = parsePlannerDecision(
+			[
+				"COMPLEXITY: COMPLEX",
+				"SPLIT_TASKS_JSON:",
+				"```json",
+				JSON.stringify(
+					[
+						{
+							title: "Task A",
+							description: "Ship part A",
+							labels: ["backend", "urgent"],
+							priority: 2,
+						},
+						{
+							title: "Task B",
+						},
+					],
+					null,
+					2,
+				),
+				"```",
+			].join("\n"),
+		);
+
+		expect(result.complexity).toBe("COMPLEX");
+		expect(result.splitTasks).toEqual([
+			{
+				title: "Task A",
+				description: "Ship part A",
+				labels: ["backend", "urgent"],
+				priority: 2,
+			},
+			{
+				title: "Task B",
+				description: undefined,
+				labels: undefined,
+				priority: undefined,
+			},
+		]);
+	});
+
+	it("throws when COMPLEX split task JSON is malformed", () => {
+		expect(() =>
+			parsePlannerDecision(
+				[
+					"COMPLEXITY: COMPLEX",
+					"SPLIT_TASKS_JSON: [",
+					'{"title":"Task A"}',
+				].join("\n"),
+			),
+		).toThrow("did not contain a JSON array");
+	});
+
+	it("throws when COMPLEX split task array is empty", () => {
+		expect(() =>
+			parsePlannerDecision(
+				["COMPLEXITY: COMPLEX", "SPLIT_TASKS_JSON: []"].join("\n"),
+			),
+		).toThrow("must be a non-empty JSON array");
 	});
 });
 

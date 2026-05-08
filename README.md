@@ -44,11 +44,12 @@ flowchart LR
 1. A human creates an idea, task, or issue on the Linear job board.
 2. ADHD.ai pulls the eligible Linear job for the configured project.
 3. The planning agent turns the job into an implementation plan with risks and tests.
-4. The implementation agent changes the code and opens or updates a GitHub PR.
-5. The verification agent reviews and tests the PR work in a separate Codex session.
-6. If verification fails, ADHD.ai sends structured bug feedback back to implementation and updates the same PR branch.
-7. The loop repeats until verification passes or the job is blocked.
-8. Linear status, labels, comments, and notifications stay synchronized with the current stage.
+4. If planning marks the task as too complex (`COMPLEXITY: COMPLEX`), ADHD.ai creates child Linear tasks in the assigned/Todo state, comments the parent with links, and marks the parent done.
+5. Otherwise, the implementation agent changes the code and opens or updates a GitHub PR.
+6. The verification agent reviews and tests the PR work in a separate Codex session.
+7. If verification fails, ADHD.ai sends structured bug feedback back to implementation and updates the same PR branch.
+8. The loop repeats until verification passes or the job is blocked.
+9. Linear status, labels, comments, and notifications stay synchronized with the current stage.
 
 ## Multi-Project Configuration
 

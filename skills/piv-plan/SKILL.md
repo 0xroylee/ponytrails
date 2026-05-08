@@ -21,3 +21,11 @@ You are the planning agent.
   - implementation steps
   - test plan
   - known risks
+- Optional decomposition contract when task is too complex for one pass:
+  - `COMPLEXITY: SIMPLE|COMPLEX`
+  - If `COMPLEX`, include `SPLIT_TASKS_JSON: [...]` with a non-empty JSON array.
+  - Each split task object:
+    - `title` (required)
+    - `description` (optional)
+    - `labels` (optional string array)
+    - `priority` (optional integer `0..4`, where `1` is urgent)

@@ -1,4 +1,4 @@
-import type { BugRecord } from "../core/types";
+import type { BugRecord, SplitTaskRef } from "../core/types";
 
 export interface TokenUsage {
 	inputTokens?: number;
@@ -39,6 +39,42 @@ export function buildPlanComment(
 		"Planning completed; implementation started.",
 		"",
 		formatCodexUsageLine(usage),
+		"",
+		"Plan:",
+		truncated || "(No plan summary returned by planning agent.)",
+	].join("\n");
+}
+
+export function buildPlanSplitComment(
+	issueKey: string,
+	planSummary: string,
+	splitTasks: SplitTaskRef[],
+	options?: { usage?: TokenUsage },
+): string {
+	const maxSummaryLength = 6000;
+	const normalized = planSummary.trim();
+	const truncated =
+		normalized.length > maxSummaryLength
+			? `${normalized.slice(0, maxSummaryLength)}\n\n[truncated]`
+			: normalized;
+	const taskLines =
+		splitTasks.length > 0
+			? splitTasks.map(
+					(task) =>
+						`- ${task.title}${task.issueKey ? ` (${task.issueKey})` : ""}${task.issueUrl ? `: ${task.issueUrl}` : ""}`,
+				)
+			: ["- (No split tasks were created.)"];
+
+	return [
+		`ADHD.ai plan for ${issueKey}`,
+		"",
+		"Planning marked this task as too complex for a single implementation pass.",
+		"Created split tasks in Todo and marked the parent issue done.",
+		"",
+		formatCodexUsageLine(options?.usage),
+		"",
+		"Created tasks:",
+		...taskLines,
 		"",
 		"Plan:",
 		truncated || "(No plan summary returned by planning agent.)",
