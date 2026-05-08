@@ -684,7 +684,7 @@ describe("loadConfig", () => {
 					folder: false,
 					database: true,
 				},
-				databasePath: path.resolve("./tmp/skills.db"),
+				databasePath: path.resolve(tempDir, "./tmp/skills.db"),
 				maxSelected: 2,
 			});
 		} finally {

@@ -48,7 +48,7 @@ export async function loadConfig(cwd: string): Promise<LoadedConfig> {
 	const root = normalizeOverrideToRoot(loadedOverride);
 	assertNoProjectPolling(root.projects);
 	assertNoProjectNotifications(root.projects);
-	const projects = resolveProjects(envBase, root);
+	const projects = resolveProjects(cwd, envBase, root);
 	const polling = resolvePolling(envPolling, root.polling);
 	const cron = resolveCron(root.cron);
 	const notifications = resolveNotifications(
@@ -279,6 +279,7 @@ function normalizeOverrideToRoot(override: AnyOverride): AdhdAiRootConfig {
 }
 
 function resolveProjects(
+	configCwd: string,
 	base: ProjectRuntimeConfig,
 	root: AdhdAiRootConfig,
 ): ResolvedProjectConfig[] {
@@ -286,7 +287,7 @@ function resolveProjects(
 		root.projects.length > 0 ? root.projects : [{ id: "default" }];
 	const rootDefaults = stripProjects(root);
 	const resolved = projectSpecs.map((project) =>
-		resolveProject(base, rootDefaults, project),
+		resolveProject(configCwd, base, rootDefaults, project),
 	);
 	return resolved;
 }
@@ -591,11 +592,12 @@ function parseOptionalPositiveIntStrict(
 }
 
 function resolveProject(
+	configCwd: string,
 	base: ProjectRuntimeConfig,
 	rootDefaults: DeepPartial<ProjectRuntimeConfig>,
 	project: ProjectConfig,
 ): ResolvedProjectConfig {
-	const mergedRuntime = mergeRuntime(base, rootDefaults, project);
+	const mergedRuntime = mergeRuntime(configCwd, base, rootDefaults, project);
 	const id = project.id.trim();
 	const name = project.name?.trim() || id;
 
@@ -607,6 +609,7 @@ function resolveProject(
 }
 
 function mergeRuntime(
+	configCwd: string,
 	base: ProjectRuntimeConfig,
 	rootDefaults: DeepPartial<ProjectRuntimeConfig>,
 	project: ProjectConfig,
@@ -634,6 +637,7 @@ function mergeRuntime(
 			base.skills.reviewTest,
 	};
 	const mergedAutoSelect = resolveAutoSelectConfig(
+		configCwd,
 		base.skills.autoSelect,
 		rootDefaults.skills?.autoSelect,
 		project.skills?.autoSelect,
@@ -696,6 +700,7 @@ function resolveSkillPath(root: string, input: string): string {
 }
 
 function resolveAutoSelectConfig(
+	configCwd: string,
 	base: ProjectRuntimeConfig["skills"]["autoSelect"] | undefined,
 	rootOverride:
 		| DeepPartial<NonNullable<ProjectRuntimeConfig["skills"]["autoSelect"]>>
@@ -720,6 +725,7 @@ function resolveAutoSelectConfig(
 		projectOverride?.databasePath ??
 			rootOverride?.databasePath ??
 			base?.databasePath,
+		configCwd,
 	);
 	const mergedMaxSelected = normalizeMaxSelected(
 		projectOverride?.maxSelected ??
@@ -738,7 +744,10 @@ function resolveAutoSelectConfig(
 	};
 }
 
-function normalizeOptionalPath(input: unknown): string | undefined {
+function normalizeOptionalPath(
+	input: unknown,
+	baseDir: string,
+): string | undefined {
 	if (typeof input !== "string") {
 		return undefined;
 	}
@@ -746,7 +755,9 @@ function normalizeOptionalPath(input: unknown): string | undefined {
 	if (!trimmed) {
 		return undefined;
 	}
-	return path.isAbsolute(trimmed) ? trimmed : path.resolve(trimmed);
+	return path.isAbsolute(trimmed)
+		? trimmed
+		: path.resolve(baseDir || process.cwd(), trimmed);
 }
 
 function normalizeMaxSelected(input: unknown): number {
