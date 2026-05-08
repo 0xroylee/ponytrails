@@ -21,11 +21,12 @@ You are the planning agent.
   - implementation steps
   - test plan
   - known risks
-- Optional decomposition contract when task is too complex for one pass:
+- Required routing contract for all plans:
   - `COMPLEXITY: SIMPLE|COMPLEX`
   - `COMPLEXITY_SCORE: 0..10` (integer)
     - `< 5`: bot review can run
     - `>= 5`: requires human review (email notification + pause automated review)
+- Optional decomposition contract when task is too complex for one pass:
   - If `COMPLEX`, include `SPLIT_TASKS_JSON: [...]` with a non-empty JSON array.
   - Each split task object:
     - `title` (required)

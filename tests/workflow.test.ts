@@ -500,7 +500,7 @@ describe("parsePlannerDecision", () => {
 		expect(result).toEqual({
 			complexity: "SIMPLE",
 			splitTasks: [],
-			complexityScore: 5,
+			complexityScore: 4,
 		});
 	});
 
@@ -583,7 +583,20 @@ describe("parsePlannerComplexityScore", () => {
 	});
 
 	it("defaults to conservative score when missing", () => {
-		expect(parsePlannerComplexityScore("no score marker")).toBe(5);
+		expect(parsePlannerComplexityScore("no score marker")).toBe(4);
+	});
+});
+
+describe("planner routing with missing score", () => {
+	it("routes simple plans without score to bot review mode", () => {
+		const decision = parsePlannerDecision(
+			["COMPLEXITY: SIMPLE", "scope summary", "implementation steps"].join(
+				"\n",
+			),
+		);
+		expect(resolveReviewModeForComplexityScore(decision.complexityScore)).toBe(
+			"bot",
+		);
 	});
 });
 

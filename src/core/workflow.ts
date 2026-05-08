@@ -65,7 +65,7 @@ interface WorkflowIssue {
 	};
 }
 
-const DEFAULT_PLANNER_COMPLEXITY_SCORE = 5;
+const DEFAULT_PLANNER_COMPLEXITY_SCORE = 4;
 const HUMAN_REVIEW_COMPLEXITY_THRESHOLD = 5;
 
 export async function runWorkflow(
