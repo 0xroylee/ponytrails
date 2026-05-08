@@ -57,6 +57,7 @@ Configuration is loaded from `adhd-ai.config.ts` and resolved into project-speci
 - Root defaults can define shared repo, linear, codex, skills, and dry-run behavior.
 - Optional root `notifications.email` settings can enable terminal outcome emails through Resend.
 - Polling is a single global config at the root `polling` key (`intervalMs`, `maxCycles`, `exitWhenIdle`, `staleRunTimeoutMs`) and applies to all selected projects in a run.
+- During polling, per-project cycle failures are logged and the loop continues; targeted `--issue` runs and non-polling runs still fail fast.
 - Optional `linear.projectId` can scope each ADHD.ai project to a specific Linear project when selecting assigned work.
 - For targeted runs with `--all-projects --issue <KEY>`, ADHD.ai routes the issue to exactly one project by matching `linear.projectId` to the Linear issue's `projectId`.
 - `projects` contains one or more project entries, each with:
@@ -80,6 +81,10 @@ Path behavior:
 Run state is namespaced per project at:
 
 ` .piv-loop/projects/<project-id>/runs/<LINEAR_KEY>.json `
+
+Polling cycle errors are logged per project at:
+
+` .piv-loop/projects/<project-id>/errors.log `
 
 Legacy fallback for default project:
 
