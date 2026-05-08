@@ -266,6 +266,31 @@ export interface CodexUsageRecord {
 	recordedAt: string;
 }
 
+export type AgentChatLogRole = "planning" | "implementing" | "review-testing";
+
+export interface AgentChatLogUsage {
+	inputTokens?: number;
+	outputTokens?: number;
+	totalTokens?: number;
+}
+
+export interface AgentChatLogEntry {
+	projectId: string;
+	issueKey: string;
+	issueId: string;
+	issueTitle: string;
+	agentRole: AgentChatLogRole;
+	skillPath: string;
+	prompt: string;
+	finalMessage: string;
+	stdout: string;
+	sessionId?: string;
+	usage?: AgentChatLogUsage;
+	success: boolean;
+	error?: string;
+	recordedAt: string;
+}
+
 export interface RunLease {
 	ownerId: string;
 	acquiredAt: string;

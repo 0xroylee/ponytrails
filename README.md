@@ -6,6 +6,10 @@ The purpose is simple: create an idea, task, or issue in Linear; ADHD.ai pulls t
 
 Production default: run unattended processing with `adhd-ai cron`. Use `adhd-ai run --poll` as a local/dev mode when iterating on workflow behavior.
 
+## Operator Guide
+
+For non-technical operators, start with [NON_TECHNICAL_GUIDE.md](docs/NON_TECHNICAL_GUIDE.md).
+
 ## Purpose
 
 - Use Linear as the job board for engineering ideas, tasks, and issues.
@@ -132,7 +136,7 @@ Run `adhd-ai setup` to answer plain-language prompts and generate local setup fi
 
 At runtime, config resolution uses this precedence for env-like values: process environment -> SQLite env store -> built-in defaults.
 
-Run `adhd-ai setup --check` to validate that config loads, the execution path exists, `gh` is authenticated, Codex is available, and configured secrets are not present in tracked config files.
+Run `adhd-ai setup --check` to validate that config loads, the execution path exists, `gh` is authenticated, `rtk` is available, Codex is available, and configured secrets are not present in tracked config files.
 
 ## Cron Jobs
 

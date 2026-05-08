@@ -3,6 +3,9 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
+	AGENT_CHAT_LOG_RETENTION,
+	agentChatLogPath,
+	appendAgentChatLog,
 	appendProjectErrorLog,
 	applyRunLease,
 	clearRunLease,
@@ -134,5 +137,58 @@ describe("state helpers", () => {
 		expect(entry.context).toEqual({
 			projectName: "Default",
 		});
+	});
+
+	it("builds project-scoped agent chat log paths", () => {
+		const file = agentChatLogPath(
+			"/tmp/workspace",
+			"default",
+			"review-testing",
+			"skills/piv-review-test/SKILL.md",
+		);
+
+		expect(file).toContain(
+			"/tmp/workspace/.piv-loop/projects/default/chat-logs/",
+		);
+		expect(file).toContain("/review-testing/");
+		expect(path.basename(file)).toMatch(
+			/^skills-piv-review-test-skill-md-[a-f0-9]{8}\.json$/,
+		);
+	});
+
+	it("retains only the latest agent chat log entries", async () => {
+		const cwd = await mkdtemp(path.join(os.tmpdir(), "adhd-chat-log-test-"));
+		const totalEntries = AGENT_CHAT_LOG_RETENTION + 5;
+		for (let i = 1; i <= totalEntries; i += 1) {
+			await appendAgentChatLog(cwd, "default", {
+				projectId: "default",
+				issueKey: "ENG-1",
+				issueId: "lin_1",
+				issueTitle: "Store logs",
+				agentRole: "planning",
+				skillPath: "skills/piv-plan/SKILL.md",
+				prompt: `prompt-${i}`,
+				finalMessage: `final-${i}`,
+				stdout: `stdout-${i}`,
+				success: true,
+				recordedAt: new Date().toISOString(),
+			});
+		}
+
+		const file = agentChatLogPath(
+			cwd,
+			"default",
+			"planning",
+			"skills/piv-plan/SKILL.md",
+		);
+		const raw = await readFile(file, "utf8");
+		const entries = JSON.parse(raw) as Array<{
+			prompt: string;
+			finalMessage: string;
+		}>;
+		expect(entries).toHaveLength(AGENT_CHAT_LOG_RETENTION);
+		expect(entries[0]?.prompt).toBe("prompt-6");
+		expect(entries[0]?.finalMessage).toBe("final-6");
+		expect(entries.at(-1)?.prompt).toBe(`prompt-${totalEntries}`);
 	});
 });

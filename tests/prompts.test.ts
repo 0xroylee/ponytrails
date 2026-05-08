@@ -60,6 +60,9 @@ describe("buildPlanPrompt", () => {
 			const prompt = await buildPlanPrompt(skillPath, issue);
 			expect(prompt).toContain("COMPLEXITY: SIMPLE|COMPLEX");
 			expect(prompt).toContain("SPLIT_TASKS_JSON: [...]");
+			expect(prompt).toContain(
+				"When including SPLIT_TASKS_JSON, write action-oriented task titles",
+			);
 		} finally {
 			await rm(tmpDir, { recursive: true, force: true });
 		}

@@ -59,6 +59,7 @@ export async function buildPlanPrompt(
 		`URL: ${issue.url}`,
 		supplementalSection,
 		"",
+		"When including SPLIT_TASKS_JSON, write action-oriented task titles and clear descriptions that include expected behavior, implementation scope, and tests.",
 		"Create a concrete implementation plan and include risks and tests.",
 	].join("\n");
 }

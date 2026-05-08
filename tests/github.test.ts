@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import type { ResolvedProjectConfig } from "../src/core/types";
 import {
 	buildBugIssueBody,
+	commentOnPr,
 	createDraftPrFromWorktree,
 	ensureGhAuth,
 	issueBranchName,
@@ -58,6 +59,70 @@ describe("ensureGhAuth", () => {
 				assertCommandOk: assertOk,
 			}),
 		).rejects.toThrow("gh auth status failed after 3 attempts");
+		expect(attempts).toBe(3);
+	});
+});
+
+describe("commentOnPr", () => {
+	it("retries transient gh pr comment failures", async () => {
+		let attempts = 0;
+		const runCommand = mock(
+			async (_command: string, args: string[]): Promise<CommandResult> => {
+				attempts += 1;
+				expect(args).toEqual([
+					"pr",
+					"comment",
+					"https://github.com/acme/repo/pull/77",
+					"--body",
+					"Review passed.",
+				]);
+				if (attempts < 3) {
+					return {
+						code: 1,
+						stdout: "",
+						stderr: 'Post "https://api.github.com/graphql": EOF',
+					};
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		);
+
+		await commentOnPr(
+			createProjectConfig(),
+			{
+				url: "https://github.com/acme/repo/pull/77",
+				branch: "codex/eng-42",
+				title: "Review passed",
+			},
+			"Review passed.",
+			{ runCommand, assertCommandOk: assertOk },
+		);
+
+		expect(attempts).toBe(3);
+	});
+
+	it("reports the retry label when gh pr comment keeps failing", async () => {
+		let attempts = 0;
+		const runCommand = mock(async (): Promise<CommandResult> => {
+			attempts += 1;
+			return {
+				code: 1,
+				stdout: "",
+				stderr: 'Post "https://api.github.com/graphql": EOF',
+			};
+		});
+
+		await expect(
+			commentOnPr(
+				createProjectConfig(),
+				{ number: 77, branch: "codex/eng-42", title: "Review passed" },
+				"Review passed.",
+				{
+					runCommand,
+					assertCommandOk: assertOk,
+				},
+			),
+		).rejects.toThrow("gh pr comment failed after 3 attempts");
 		expect(attempts).toBe(3);
 	});
 });

@@ -250,19 +250,24 @@ export async function commentOnPr(
 	config: ResolvedProjectConfig,
 	pr: PullRequestRef,
 	body: string,
+	deps: GithubCommandDeps = {},
 ): Promise<void> {
 	if (!pr.url && !pr.number) {
 		throw new Error("PR URL or number is required to leave a comment");
 	}
+	const commandRunner = deps.runCommand ?? runCommand;
+	const assertOk = deps.assertCommandOk ?? assertCommandOk;
 	const target = pr.url ?? String(pr.number);
-	const result = await runCommand(
-		"gh",
-		["pr", "comment", target, "--body", body],
-		{
-			cwd: config.executionPath,
-		},
-	);
-	assertCommandOk("gh", ["pr", "comment", target], result);
+	await withRetries("gh pr comment", async () => {
+		const result = await commandRunner(
+			"gh",
+			["pr", "comment", target, "--body", body],
+			{
+				cwd: config.executionPath,
+			},
+		);
+		assertOk("gh", ["pr", "comment", target], result);
+	});
 }
 
 export async function markPrReadyForReview(
