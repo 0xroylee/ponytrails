@@ -8,7 +8,7 @@ Production default: run unattended processing with `adhd-ai cron`. Use `adhd-ai 
 
 ## Operator Guide
 
-For non-technical operators, start with [NON_TECHNICAL_GUIDE.md](/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents/docs/NON_TECHNICAL_GUIDE.md).
+For non-technical operators, start with [NON_TECHNICAL_GUIDE.md](docs/NON_TECHNICAL_GUIDE.md).
 
 ## Purpose
 

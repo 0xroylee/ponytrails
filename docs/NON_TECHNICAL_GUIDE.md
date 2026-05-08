@@ -65,9 +65,9 @@ ADHD.ai runs agent stages using a configurable backend and model settings.
 
 More detail:
 
-- onboarding flow: [new-user-onboarding.md](/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents/docs/product-specs/new-user-onboarding.md)
-- operations and plan contract: [PLANS.md](/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents/docs/PLANS.md)
-- reliability behavior: [RELIABILITY.md](/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents/docs/RELIABILITY.md)
+- onboarding flow: [new-user-onboarding.md](product-specs/new-user-onboarding.md)
+- operations and plan contract: [PLANS.md](PLANS.md)
+- reliability behavior: [RELIABILITY.md](RELIABILITY.md)
 
 ## What To Check When Work Is Blocked
 
