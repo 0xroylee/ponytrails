@@ -1,9 +1,14 @@
 import type { AgentAdapter, AgentResult } from "../core/agent-adapter";
 import type { ResolvedProjectConfig } from "../core/types";
+import { getClaudeBinaryPath } from "../utils/claude-path";
 import { assertCommandOk, runCommand } from "../utils/shell";
 
 export class ClaudeCodeAdapter implements AgentAdapter {
-	constructor(private config: ResolvedProjectConfig) {}
+	private claudePath: string;
+
+	constructor(private config: ResolvedProjectConfig) {
+		this.claudePath = getClaudeBinaryPath(config.codex?.binary);
+	}
 
 	async runPlan(prompt: string): Promise<AgentResult> {
 		return this.runClaude(prompt);
@@ -20,14 +25,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 	private async runClaude(prompt: string): Promise<AgentResult> {
 		const args = ["-p", prompt, "--output-format", "json"];
 
-		const result = await runCommand("claude", args, {
+		const result = await runCommand(this.claudePath, args, {
 			cwd: this.config.executionPath,
 			streamStdout: this.config.codex.streamLogs,
 			streamStderr: this.config.codex.streamLogs,
 			stdinMode: "ignore",
 		});
 
-		assertCommandOk("claude", args, result);
+		assertCommandOk(this.claudePath, args, result);
 		const finalMessage = extractFinalMessage(result.stdout);
 		const sessionId = extractSessionId(result.stdout);
 		const usage = extractUsage(result.stdout);
@@ -43,14 +48,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 	private async runClaudeContinue(prompt: string): Promise<AgentResult> {
 		const args = ["--continue", prompt, "--output-format", "json"];
 
-		const result = await runCommand("claude", args, {
+		const result = await runCommand(this.claudePath, args, {
 			cwd: this.config.executionPath,
 			streamStdout: this.config.codex.streamLogs,
 			streamStderr: this.config.codex.streamLogs,
 			stdinMode: "ignore",
 		});
 
-		assertCommandOk("claude", args, result);
+		assertCommandOk(this.claudePath, args, result);
 		const finalMessage = extractFinalMessage(result.stdout);
 		const sessionId = extractSessionId(result.stdout);
 		const usage = extractUsage(result.stdout);

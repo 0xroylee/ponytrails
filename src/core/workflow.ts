@@ -621,11 +621,17 @@ async function handleImplementingStage(
 		if (!state.pullRequest?.branch) {
 			throw new Error("Missing pull request branch for feedback pass");
 		}
-		await updateDraftPrFromWorktree(
+		const updated = await updateDraftPrFromWorktree(
 			config,
 			state.pullRequest.branch,
 			state.issue.key,
 		);
+		if (!updated) {
+			logger.info(
+				buildIssueJobLogFields(state, "implementing"),
+				"No code changes after feedback; skipping PR update",
+			);
+		}
 	}
 
 	state.bugs = [];
