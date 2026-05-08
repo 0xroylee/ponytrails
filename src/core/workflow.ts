@@ -23,6 +23,7 @@ import { type AgentAdapter, createAgentAdapter } from "./agent-adapter";
 import { type LoadedConfig, getProjectById } from "./config";
 import { type ReviewOutcome, parseReviewOutcome } from "./review";
 import {
+	appendProjectErrorLog,
 	applyRunLease,
 	clearRunLease,
 	hasRunLeaseConflict,
@@ -30,6 +31,7 @@ import {
 	listRunStates,
 	loadRunState,
 	normalizeIssueKey,
+	projectErrorLogPath,
 	saveRunState,
 	transitionStage,
 } from "./state";
@@ -84,19 +86,75 @@ export async function runWorkflow(
 	while (true) {
 		cycle += 1;
 		let totalIssues = 0;
+		let cycleHadError = false;
 
 		for (const context of projectContexts) {
-			totalIssues += await runProjectCycle(
-				context.config,
-				config.notifications,
-				options,
-				context.linear,
-				cycle,
-				globalPolling,
-			);
+			try {
+				totalIssues += await runProjectCycle(
+					context.config,
+					config.notifications,
+					options,
+					context.linear,
+					cycle,
+					globalPolling,
+				);
+			} catch (error) {
+				if (!globalPolling.enabled || options.issueArg) {
+					throw error;
+				}
+				cycleHadError = true;
+				const message = error instanceof Error ? error.message : String(error);
+				const errorLogPath = projectErrorLogPath(
+					context.config.workspacePath,
+					context.config.id,
+				);
+				try {
+					await appendProjectErrorLog(
+						context.config.workspacePath,
+						context.config.id,
+						{
+							cycle,
+							message,
+							error: normalizeError(error),
+							context: {
+								projectName: context.config.name,
+								pollingIntervalMs: globalPolling.intervalMs,
+								issueArg: options.issueArg ?? null,
+							},
+						},
+					);
+				} catch (appendError) {
+					logger.error(
+						{
+							projectId: context.config.id,
+							cycle,
+							errorLogPath,
+							err: normalizeError(appendError),
+						},
+						"Failed to append polling error log entry",
+					);
+				}
+				logger.error(
+					{
+						projectId: context.config.id,
+						cycle,
+						errorLogPath,
+						err: normalizeError(error),
+					},
+					"Project cycle failed during polling; continuing",
+				);
+			}
 		}
 
-		if (shouldStopPolling(globalPolling, options, cycle, totalIssues)) {
+		if (
+			shouldStopPolling(
+				globalPolling,
+				options,
+				cycle,
+				totalIssues,
+				cycleHadError,
+			)
+		) {
 			return;
 		}
 
@@ -222,6 +280,7 @@ export function shouldStopPolling(
 	options: RunOptions,
 	cycle: number,
 	totalIssues: number,
+	cycleHadError = false,
 ): boolean {
 	if (!polling.enabled || options.issueArg) {
 		return true;
@@ -229,7 +288,7 @@ export function shouldStopPolling(
 	if (polling.maxCycles !== undefined && cycle >= polling.maxCycles) {
 		return true;
 	}
-	if (totalIssues === 0 && polling.exitWhenIdle) {
+	if (totalIssues === 0 && polling.exitWhenIdle && !cycleHadError) {
 		return true;
 	}
 	return false;

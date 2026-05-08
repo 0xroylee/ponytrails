@@ -96,6 +96,7 @@ describe("shouldStopPolling", () => {
 			{ poll: true },
 			2,
 			3,
+			true,
 		);
 		expect(stop).toBe(true);
 	});
@@ -126,6 +127,22 @@ describe("shouldStopPolling", () => {
 			{ poll: true },
 			1,
 			1,
+		);
+		expect(stop).toBe(false);
+	});
+
+	it("continues when idle cycle had a recoverable polling error", () => {
+		const stop = shouldStopPolling(
+			{
+				enabled: true,
+				intervalMs: 30000,
+				exitWhenIdle: true,
+				staleRunTimeoutMs: 3600000,
+			},
+			{ poll: true },
+			1,
+			0,
+			true,
 		);
 		expect(stop).toBe(false);
 	});

@@ -1,10 +1,15 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
+	appendProjectErrorLog,
 	applyRunLease,
 	clearRunLease,
 	hasRunLeaseConflict,
 	isRunLeaseExpired,
 	normalizeIssueKey,
+	projectErrorLogPath,
 	transitionStage,
 } from "../src/core/state";
 import type { RunState } from "../src/core/types";
@@ -93,5 +98,41 @@ describe("state helpers", () => {
 		expect(isRunLeaseExpired(state, 10000)).toBe(true);
 		expect(hasRunLeaseConflict(state, "worker-b", 9999)).toBe(true);
 		expect(hasRunLeaseConflict(state, "worker-a", 9999)).toBe(false);
+	});
+
+	it("builds project-scoped error log paths", () => {
+		const logPath = projectErrorLogPath("/tmp/workspace", "default");
+		expect(logPath).toBe(
+			"/tmp/workspace/.piv-loop/projects/default/errors.log",
+		);
+	});
+
+	it("appends project polling errors as JSON lines", async () => {
+		const cwd = await mkdtemp(path.join(os.tmpdir(), "adhd-state-test-"));
+		await appendProjectErrorLog(cwd, "default", {
+			cycle: 3,
+			message: "Linear API failed",
+			error: {
+				name: "Error",
+				message: "boom",
+			},
+			context: {
+				projectName: "Default",
+			},
+		});
+
+		const content = await readFile(projectErrorLogPath(cwd, "default"), "utf8");
+		const entry = JSON.parse(content.trim()) as Record<string, unknown>;
+		expect(entry.projectId).toBe("default");
+		expect(entry.cycle).toBe(3);
+		expect(entry.message).toBe("Linear API failed");
+		expect(typeof entry.recordedAt).toBe("string");
+		expect(entry.error).toEqual({
+			name: "Error",
+			message: "boom",
+		});
+		expect(entry.context).toEqual({
+			projectName: "Default",
+		});
 	});
 });
