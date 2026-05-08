@@ -576,6 +576,7 @@ export class LinearClient {
 			id: issue.id,
 			identifier: issue.identifier,
 			title: issue.title,
+			description: issue.description?.trim() || undefined,
 			url: issue.url,
 			projectId: project?.id ?? undefined,
 			teamId: issue.teamId ?? undefined,

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { BugRecord, IssueRef, PullRequestRef } from "../core/types";
+import type { RankedSkillCandidate } from "./catalog";
 
 async function loadSkillText(filePath: string): Promise<string> {
 	try {
@@ -12,8 +13,40 @@ async function loadSkillText(filePath: string): Promise<string> {
 export async function buildPlanPrompt(
 	skillPath: string,
 	issue: IssueRef,
+	options?: {
+		supplementalSkills?: RankedSkillCandidate[];
+		autoSelectWarnings?: string[];
+	},
 ): Promise<string> {
 	const skill = await loadSkillText(skillPath);
+	const supplementalSkills = options?.supplementalSkills ?? [];
+	const warnings = options?.autoSelectWarnings ?? [];
+	const issueDescription = issue.description?.trim();
+
+	const supplementalSection =
+		supplementalSkills.length > 0 || warnings.length > 0
+			? [
+					"",
+					"Auto-selected supplemental skills:",
+					...supplementalSkills.flatMap((selected, index) => {
+						const content = selected.content?.trim();
+						return [
+							`${index + 1}. ${selected.name}`,
+							`   - source: ${selected.source}`,
+							`   - score: ${selected.score}`,
+							...(selected.description
+								? [`   - description: ${selected.description}`]
+								: []),
+							...(selected.path ? [`   - path: ${selected.path}`] : []),
+							...(content ? ["   - content:", content] : []),
+						];
+					}),
+					...(warnings.length > 0
+						? ["", "Auto-selection notes:", ...warnings.map((w) => `- ${w}`)]
+						: []),
+				].join("\n")
+			: "";
+
 	return [
 		"You are the planning agent in the Agent-Driven Development Hub (ADHD.ai) workflow.",
 		"",
@@ -22,7 +55,9 @@ export async function buildPlanPrompt(
 		"",
 		`Linear issue: ${issue.key}`,
 		`Title: ${issue.title}`,
+		...(issueDescription ? [`Description: ${issueDescription}`] : []),
 		`URL: ${issue.url}`,
+		supplementalSection,
 		"",
 		"Create a concrete implementation plan and include risks and tests.",
 	].join("\n");

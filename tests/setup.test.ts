@@ -155,6 +155,40 @@ describe("setup helpers", () => {
 		});
 	});
 
+	it("reports missing auto-select database when database source is enabled", async () => {
+		const checks = await collectSetupChecks("/tmp/demo", {
+			loadConfig: async () => {
+				const config = loadedConfig({ linearApiKey: "lin_secret_123" });
+				const project = config.projects[0];
+				if (project) {
+					project.skills.autoSelect = {
+						enabled: true,
+						sources: {
+							folder: true,
+							database: true,
+						},
+						databasePath: "/tmp/demo/skills.db",
+						maxSelected: 3,
+					};
+				}
+				return config;
+			},
+			access: async (targetPath) => {
+				if (targetPath === "/tmp/demo/skills.db") {
+					throw new Error("missing");
+				}
+			},
+			readFile: async () => "",
+			runCommand: async () => okCommand(),
+		});
+
+		expect(checks).toContainEqual({
+			name: "Skill auto-select database (demo-project)",
+			status: "fail",
+			message: "/tmp/demo/skills.db does not exist or is not accessible",
+		});
+	});
+
 	it("reports secrets in tracked config", async () => {
 		const checks = await collectSetupChecks("/tmp/demo", {
 			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),

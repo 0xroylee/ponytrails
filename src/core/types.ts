@@ -99,6 +99,15 @@ export interface ProjectRuntimeConfig {
 		plan: string;
 		implement: string;
 		reviewTest: string;
+		autoSelect?: {
+			enabled: boolean;
+			sources: {
+				folder: boolean;
+				database: boolean;
+			};
+			databasePath?: string;
+			maxSelected: number;
+		};
 	};
 	dryRun: boolean;
 }
@@ -196,6 +205,7 @@ export interface LinearIssue {
 	id: string;
 	identifier: string;
 	title: string;
+	description?: string;
 	url: string;
 	projectId?: string;
 	teamId?: string;
@@ -217,6 +227,7 @@ export interface IssueRef {
 	id: string;
 	key: string;
 	title: string;
+	description?: string;
 	url: string;
 	teamId?: string;
 }

@@ -77,31 +77,52 @@ describe("loadConfig", () => {
 	});
 
 	it("loads required env values", async () => {
-		const config = await loadConfig(process.cwd());
-		expect(config.projects[0]?.linear.apiKey).toBe("linear_api_key");
-		expect(config.projects[0]?.linear.projectId).toBe("linear_project_id");
-		expect(config.projects[0]?.linear.teamId).toBe("linear_team_id");
-		expect(config.projects[0]?.linear.statusMap.assigned).toBe(
-			"linear_status_assigned",
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
 		);
-		expect(config.projects[0]?.executionPath).toBe("piv_execution_path");
-		expect(config.polling.intervalMs).toBe(30000);
-		expect(config.polling.maxCycles).toBeUndefined();
-		expect(config.polling.exitWhenIdle).toBe(true);
-		expect(config.polling.staleRunTimeoutMs).toBe(3600000);
-		expect(config.notifications.email.enabled).toBe(false);
-		expect(config.projects[0]?.skills.root).toBe(
-			path.join(process.cwd(), "skills"),
-		);
-		expect(config.projects[0]?.skills.plan).toBe(
-			path.join(process.cwd(), "skills", "piv-plan", "SKILL.md"),
-		);
-		expect(config.projects[0]?.skills.implement).toBe(
-			path.join(process.cwd(), "skills", "piv-implement", "SKILL.md"),
-		);
-		expect(config.projects[0]?.skills.reviewTest).toBe(
-			path.join(process.cwd(), "skills", "piv-review-test", "SKILL.md"),
-		);
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.linear.apiKey).toBe("linear_api_key");
+			expect(config.projects[0]?.linear.projectId).toBe("linear_project_id");
+			expect(config.projects[0]?.linear.teamId).toBe("linear_team_id");
+			expect(config.projects[0]?.linear.statusMap.assigned).toBe(
+				"linear_status_assigned",
+			);
+			expect(config.projects[0]?.executionPath).toBe("piv_execution_path");
+			expect(config.polling.intervalMs).toBe(30000);
+			expect(config.polling.maxCycles).toBeUndefined();
+			expect(config.polling.exitWhenIdle).toBe(true);
+			expect(config.polling.staleRunTimeoutMs).toBe(3600000);
+			expect(config.notifications.email.enabled).toBe(false);
+			expect(config.projects[0]?.skills.root).toBe(
+				path.join(tempDir, "skills"),
+			);
+			expect(config.projects[0]?.skills.plan).toBe(
+				path.join(tempDir, "skills", "piv-plan", "SKILL.md"),
+			);
+			expect(config.projects[0]?.skills.implement).toBe(
+				path.join(tempDir, "skills", "piv-implement", "SKILL.md"),
+			);
+			expect(config.projects[0]?.skills.reviewTest).toBe(
+				path.join(tempDir, "skills", "piv-review-test", "SKILL.md"),
+			);
+			expect(config.projects[0]?.skills.autoSelect).toEqual({
+				enabled: false,
+				sources: {
+					folder: true,
+					database: false,
+				},
+				databasePath: path.join(
+					tempDir,
+					".piv-loop",
+					"config",
+					"skills.sqlite",
+				),
+				maxSelected: 3,
+			});
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
 	});
 
 	it("loads env values from sqlite when process env is unset", async () => {
@@ -403,14 +424,28 @@ describe("loadConfig", () => {
 
 	it("disables codex sandbox by default", async () => {
 		process.env.CODEX_SANDBOX = undefined;
-		const config = await loadConfig(process.cwd());
-		expect(config.projects[0]?.codex.sandbox).toBeUndefined();
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.codex.sandbox).toBeUndefined();
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
 	});
 
 	it("enables codex sandbox when configured", async () => {
 		process.env.CODEX_SANDBOX = "read-only";
-		const config = await loadConfig(process.cwd());
-		expect(config.projects[0]?.codex.sandbox).toBe("read-only");
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.codex.sandbox).toBe("read-only");
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
 	});
 
 	it("uses codex cli default home unless CODEX_HOME is set", async () => {
@@ -604,6 +639,54 @@ describe("loadConfig", () => {
 			expect(config.projects[0]?.skills.plan).toBe(
 				path.resolve("./project-skills", "piv-plan/SKILL.md"),
 			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("supports skill auto-select configuration overrides", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  skills: {",
+				"    autoSelect: {",
+				"      enabled: true,",
+				"      sources: { folder: true, database: true },",
+				"      databasePath: './tmp/skills.db',",
+				"      maxSelected: 6",
+				"    }",
+				"  },",
+				"  projects: [",
+				"    {",
+				"      id: 'default',",
+				"      skills: {",
+				"        autoSelect: {",
+				"          sources: { folder: false, database: true },",
+				"          maxSelected: 2",
+				"        }",
+				"      }",
+				"    }",
+				"  ]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.skills.autoSelect).toEqual({
+				enabled: true,
+				sources: {
+					folder: false,
+					database: true,
+				},
+				databasePath: path.resolve(tempDir, "./tmp/skills.db"),
+				maxSelected: 2,
+			});
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}

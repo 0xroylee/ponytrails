@@ -8,6 +8,7 @@ import {
 } from "../services/github";
 import { LinearClient } from "../services/linear";
 import { sendTaskOutcomeEmail } from "../services/notifications";
+import { selectPlanningSupplementalSkills } from "../skills/catalog";
 import {
 	buildFixPrompt,
 	buildImplementPrompt,
@@ -52,6 +53,7 @@ interface WorkflowIssue {
 	id: string;
 	identifier: string;
 	title: string;
+	description?: string;
 	url: string;
 	teamId?: string;
 	state: {
@@ -486,6 +488,7 @@ async function processIssue(
 				id: issue.id,
 				key,
 				title: issue.title,
+				description: issue.description,
 				url: issue.url,
 				teamId: issue.teamId,
 			},
@@ -669,7 +672,14 @@ async function handlePlanningStage(
 	state: RunState,
 ): Promise<void> {
 	logger.info(buildIssueJobLogFields(state, "planning"), "Planning issue");
-	const prompt = await buildPlanPrompt(config.skills.plan, state.issue);
+	const supplemental = await selectPlanningSupplementalSkills(
+		config,
+		state.issue,
+	);
+	const prompt = await buildPlanPrompt(config.skills.plan, state.issue, {
+		supplementalSkills: supplemental.selected,
+		autoSelectWarnings: supplemental.warnings,
+	});
 	const result = await agent.runPlan(prompt);
 	state.codexSessionId = result.sessionId ?? state.codexSessionId;
 	state.planSummary = result.finalMessage || result.stdout;

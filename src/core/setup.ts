@@ -277,6 +277,56 @@ export async function collectSetupChecks(
 			}
 		}
 	}
+	for (const project of config.projects) {
+		const autoSelect = project.skills.autoSelect;
+		if (!autoSelect?.enabled) {
+			continue;
+		}
+
+		if (autoSelect.sources.folder) {
+			try {
+				await accessPath(project.skills.root);
+				checks.push({
+					name: `Skill auto-select folder (${project.id})`,
+					status: "pass",
+					message: project.skills.root,
+				});
+			} catch {
+				checks.push({
+					name: `Skill auto-select folder (${project.id})`,
+					status: "fail",
+					message: `${project.skills.root} does not exist or is not accessible`,
+				});
+			}
+		}
+
+		if (autoSelect.sources.database) {
+			const databasePath = autoSelect.databasePath?.trim();
+			if (!databasePath) {
+				checks.push({
+					name: `Skill auto-select database (${project.id})`,
+					status: "fail",
+					message:
+						"skills.autoSelect.databasePath is required when database source is enabled",
+				});
+				continue;
+			}
+			try {
+				await accessPath(databasePath);
+				checks.push({
+					name: `Skill auto-select database (${project.id})`,
+					status: "pass",
+					message: databasePath,
+				});
+			} catch {
+				checks.push({
+					name: `Skill auto-select database (${project.id})`,
+					status: "fail",
+					message: `${databasePath} does not exist or is not accessible`,
+				});
+			}
+		}
+	}
 
 	const commandCwd = config.projects[0]?.executionPath ?? cwd;
 	const gh = await safeRun(commandRunner, "gh", ["auth", "status"], commandCwd);

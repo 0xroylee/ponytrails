@@ -37,6 +37,7 @@ The workflow advances through planning -> implementing -> testing and synchroniz
 
 1. Linear issues are fetched and routed by project config and optional `linear.projectId`.
 2. Planning prompt is built from issue context and skill input.
-3. Implementation session applies code changes and creates/updates PR context.
-4. Review/testing session emits structured pass/fail output and bug payload.
-5. Failed verification feeds back into implementation until pass or blocked.
+3. Optional planning skill auto-selection can append supplemental skills from `skills.root` and/or a SQLite skills catalog when `skills.autoSelect.enabled` is true.
+4. Implementation session applies code changes and creates/updates PR context.
+5. Review/testing session emits structured pass/fail output and bug payload.
+6. Failed verification feeds back into implementation until pass or blocked.

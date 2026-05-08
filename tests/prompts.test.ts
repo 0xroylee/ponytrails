@@ -9,6 +9,7 @@ const issue: IssueRef = {
 	id: "lin_123",
 	key: "ENG-1",
 	title: "Fix workflow loop",
+	description: "Planning should auto-select relevant skills by issue needs.",
 	url: "https://linear.app/acme/issue/ENG-1/fix-workflow-loop",
 };
 
@@ -59,6 +60,43 @@ describe("buildPlanPrompt", () => {
 			const prompt = await buildPlanPrompt(skillPath, issue);
 			expect(prompt).toContain("COMPLEXITY: SIMPLE|COMPLEX");
 			expect(prompt).toContain("SPLIT_TASKS_JSON: [...]");
+		} finally {
+			await rm(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it("includes auto-selected supplemental skills when provided", async () => {
+		const tmpDir = await mkdtemp(path.join(os.tmpdir(), "adhd-plan-skill-"));
+		const skillPath = path.join(tmpDir, "SKILL.md");
+		await writeFile(
+			skillPath,
+			["name: adhd-plan", "description: base planning skill"].join("\n"),
+			"utf8",
+		);
+
+		try {
+			const prompt = await buildPlanPrompt(skillPath, issue, {
+				supplementalSkills: [
+					{
+						name: "linear",
+						description: "Use Linear workflows",
+						content: "name: linear\ndescription: Linear workflows",
+						path: "/tmp/skills/linear/SKILL.md",
+						tags: [],
+						source: "folder",
+						score: 9,
+					},
+				],
+				autoSelectWarnings: ["Database skill source failed: table missing"],
+			});
+
+			expect(prompt).toContain("Description: Planning should auto-select");
+			expect(prompt).toContain("Auto-selected supplemental skills:");
+			expect(prompt).toContain("1. linear");
+			expect(prompt).toContain("source: folder");
+			expect(prompt).toContain("score: 9");
+			expect(prompt).toContain("Auto-selection notes:");
+			expect(prompt).toContain("Database skill source failed");
 		} finally {
 			await rm(tmpDir, { recursive: true, force: true });
 		}
