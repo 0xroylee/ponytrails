@@ -1268,7 +1268,7 @@ async function handlePrCreatedStage(
 	await linear.applyStageLabel(state.issue.id, "reviewing");
 }
 
-async function handleReviewTestingStage(
+export async function handleReviewTestingStage(
 	config: ResolvedProjectConfig,
 	agent: AgentAdapter,
 	notifications: ResolvedNotificationConfig,
@@ -1393,6 +1393,15 @@ async function handleDoneReviewMergeStage(
 		return;
 	}
 
+	await finalizeIssueAfterReviewMerge(config, notifications, linear, state);
+}
+
+export async function finalizeIssueAfterReviewMerge(
+	config: ResolvedProjectConfig,
+	notifications: ResolvedNotificationConfig,
+	linear: LinearClient,
+	state: RunState,
+): Promise<void> {
 	state.pullRequestApprovedAt = new Date().toISOString();
 	await saveRunState(config.workspacePath, state);
 	await linear.markStage(state.issue.id, "done");
