@@ -26,6 +26,9 @@ You are the planning agent.
   - `COMPLEXITY_SCORE: 0..10` (integer)
     - `< 5`: bot review can run
     - `>= 5`: requires human review (email notification + pause automated review)
+  - `ISSUE_REFINEMENT_JSON: {"title":"...","description":"..."}`
+    - Both fields must be non-empty strings.
+    - Preserve user intent; do not invent scope or requirements.
 - Optional decomposition contract when task is too complex for one pass:
   - If `COMPLEX`, include `SPLIT_TASKS_JSON: [...]` with a non-empty JSON array.
   - Each split task object:

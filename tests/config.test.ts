@@ -539,6 +539,39 @@ describe("loadConfig", () => {
 		}
 	});
 
+	it("preserves env stage reasoning effort values when config overrides only plan", async () => {
+		process.env.CODEX_REASONING_EFFORT_IMPLEMENT = "high";
+		process.env.CODEX_REASONING_EFFORT_REVIEW_TEST = "xhigh";
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		await writeFile(
+			path.join(tempDir, "adhd-ai.config.ts"),
+			[
+				"export default {",
+				"  codex: {",
+				"    reasoningEfforts: {",
+				"      plan: 'low'",
+				"    }",
+				"  },",
+				"  projects: [{ id: 'default' }]",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.codex.reasoningEfforts).toEqual({
+				plan: "low",
+				implement: "high",
+				reviewTest: "xhigh",
+			});
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("throws on invalid codex reasoning effort env value", async () => {
 		process.env.CODEX_REASONING_EFFORT_IMPLEMENT = "fast";
 		const tempDir = await mkdtemp(

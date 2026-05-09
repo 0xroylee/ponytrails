@@ -32,6 +32,9 @@ const config: DeepPartial<AdhdAiRootConfig> = {
 		},
 	],
 	codex: {
+		reasoningEfforts: {
+			plan: "low",
+		},
 		models: {
 			plan: "gpt-5.5",
 			implement: "gpt-5.3-codex",

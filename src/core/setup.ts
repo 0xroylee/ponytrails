@@ -14,6 +14,7 @@ const LOCAL_CONFIG_FILE = "adhd-ai.local.config.ts";
 const DEFAULT_PROJECT_NAME = "Default Project";
 const DEFAULT_BASE_BRANCH = "main";
 const RTK_INSTALL_URL = "https://github.com/rtk-ai/rtk";
+const GITHUB_CLI_INSTALL_URL = "https://cli.github.com/manual/installation";
 
 export interface SetupDraft {
 	projectId: string;
@@ -26,6 +27,14 @@ export interface SetupDraft {
 	linearApiKey: string;
 	linearProjectId?: string;
 	linearTeamId?: string;
+	notifications: {
+		email: {
+			enabled: boolean;
+			resendApiKey?: string;
+			from?: string;
+			to: string[];
+		};
+	};
 	statusMap: {
 		assigned: string;
 		planning: string;
@@ -101,7 +110,7 @@ export const DEFAULT_LABEL_MAP: SetupDraft["labelMap"] = {
 };
 
 export const DEFAULT_REASONING_EFFORTS = {
-	plan: "medium",
+	plan: "low",
 	implement: "low",
 	reviewTest: "medium",
 } as const satisfies Record<string, CodexReasoningEffort>;
@@ -115,8 +124,10 @@ export function normalizeProjectId(input: string): string {
 	return normalized || "default";
 }
 
-export function renderEnvFile(draft: Pick<SetupDraft, "linearApiKey">): string {
-	return `${renderEnvEntries({ LINEAR_API_KEY: draft.linearApiKey })}\n`;
+export function renderEnvFile(
+	draft: Pick<SetupDraft, "linearApiKey" | "notifications">,
+): string {
+	return `${renderEnvEntries(buildEnvUpdates(draft))}\n`;
 }
 
 export function mergeEnvFile(
@@ -179,6 +190,13 @@ export function renderLocalConfig(draft: SetupDraft): string {
 				},
 			},
 		],
+		notifications: {
+			email: {
+				enabled: draft.notifications.email.enabled,
+				from: draft.notifications.email.from,
+				to: draft.notifications.email.to,
+			},
+		},
 		codex: draft.codex,
 		skills: {
 			root: "${cwd}/skills",
@@ -454,6 +472,10 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 		if (rtk.code !== 0) {
 			process.stdout.write(renderSetupRtkInstallPrompt());
 		}
+		const gh = await safeRun(runCommand, "gh", ["auth", "status"], cwd);
+		if (gh.code !== 0) {
+			process.stdout.write(renderSetupGitHubInstallPrompt());
+		}
 
 		const projectName = await ask(io, "Project name", DEFAULT_PROJECT_NAME);
 		const projectId = await ask(
@@ -483,6 +505,20 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 		const linearTeamId = emptyToUndefined(
 			await ask(io, "Linear team ID filter (optional)", ""),
 		);
+		const enableEmailNotifications = parseYesNo(
+			await ask(io, "Enable email notifications? (y/N)", "N"),
+		);
+		const resendApiKey = enableEmailNotifications
+			? emptyToUndefined(await ask(io, "Resend API key", ""))
+			: undefined;
+		const resendFrom = enableEmailNotifications
+			? emptyToUndefined(await ask(io, "Resend sender email", ""))
+			: undefined;
+		const resendTo = enableEmailNotifications
+			? parseRecipients(
+					await ask(io, "Resend recipients (comma-separated)", ""),
+				)
+			: [];
 		const statusMap = {
 			assigned: await ask(
 				io,
@@ -566,6 +602,14 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 			linearApiKey,
 			linearProjectId,
 			linearTeamId,
+			notifications: {
+				email: {
+					enabled: enableEmailNotifications,
+					resendApiKey,
+					from: resendFrom,
+					to: resendTo,
+				},
+			},
 			statusMap,
 			labelMap: DEFAULT_LABEL_MAP,
 			codex: {
@@ -606,11 +650,11 @@ export async function writeSetupFiles(
 	const envPath = path.join(cwd, ENV_FILE);
 	const configPath = path.join(cwd, LOCAL_CONFIG_FILE);
 	const existingEnv = await readExistingFile(envPath);
-	await writeFile(
-		envPath,
-		mergeEnvFile(existingEnv, { LINEAR_API_KEY: draft.linearApiKey }),
-	);
-	await saveSqliteEnv(cwd, { LINEAR_API_KEY: draft.linearApiKey });
+	await writeFile(envPath, mergeEnvFile(existingEnv, buildEnvUpdates(draft)));
+	await saveSqliteEnv(cwd, {
+		LINEAR_API_KEY: draft.linearApiKey,
+		RESEND_API_KEY: draft.notifications.email.resendApiKey,
+	});
 	await writeFile(configPath, renderLocalConfig(draft));
 }
 
@@ -751,10 +795,33 @@ export function renderSetupRtkInstallPrompt(): string {
 	return `RTK is required for ADHD.ai agent workflow commands.\nInstall RTK before running workflows: ${RTK_INSTALL_URL}\n`;
 }
 
+export function renderSetupGitHubInstallPrompt(): string {
+	return `GitHub CLI auth is required for ADHD.ai GitHub workflow commands.\nInstall GitHub CLI: ${GITHUB_CLI_INSTALL_URL}\nThen authenticate: gh auth login\n`;
+}
+
 function renderEnvEntries(entries: Record<string, string | undefined>): string {
 	return Object.entries(entries)
+		.filter(([, value]) => value !== undefined)
 		.map(([key, value]) => renderEnvEntry(key, value ?? ""))
 		.join("\n");
+}
+
+function buildEnvUpdates(
+	draft: Pick<SetupDraft, "linearApiKey" | "notifications">,
+): Record<string, string | undefined> {
+	const updates: Record<string, string | undefined> = {
+		LINEAR_API_KEY: draft.linearApiKey,
+	};
+	if (draft.notifications.email.resendApiKey) {
+		updates.RESEND_API_KEY = draft.notifications.email.resendApiKey;
+	}
+	if (draft.notifications.email.from) {
+		updates.RESEND_FROM = draft.notifications.email.from;
+	}
+	if (draft.notifications.email.to.length > 0) {
+		updates.RESEND_TO = draft.notifications.email.to.join(",");
+	}
+	return updates;
 }
 
 function renderEnvEntry(key: string, value: string): string {
@@ -788,6 +855,13 @@ function resolveUserPath(input: string): string {
 function emptyToUndefined(input: string): string | undefined {
 	const value = input.trim();
 	return value ? value : undefined;
+}
+
+function parseRecipients(input: string): string[] {
+	return input
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
 }
 
 function normalizeSandbox(

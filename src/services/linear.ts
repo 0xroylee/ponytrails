@@ -232,6 +232,20 @@ export class LinearClient {
 		await this.client.updateIssue(issueId, { stateId });
 	}
 
+	async updateIssueDetails(
+		issueId: string,
+		title: string,
+		description: string,
+	): Promise<void> {
+		if (this.config.dryRun) {
+			return;
+		}
+		await this.client.updateIssue(issueId, {
+			title,
+			description,
+		});
+	}
+
 	async createTodoIssueFromPlan(
 		parentIssue: ParentIssueRef,
 		task: PlannedSplitTask,

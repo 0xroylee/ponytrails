@@ -14,6 +14,7 @@ import {
 	normalizeProjectId,
 	renderEnvFile,
 	renderLocalConfig,
+	renderSetupGitHubInstallPrompt,
 	renderSetupRtkInstallPrompt,
 	writeSetupFiles,
 } from "../src/core/setup";
@@ -28,6 +29,14 @@ const draft: SetupDraft = {
 	repoName: "demo",
 	baseBranch: "main",
 	linearApiKey: "lin_secret_123",
+	notifications: {
+		email: {
+			enabled: true,
+			resendApiKey: "re_secret_123",
+			from: "adhd-ai@example.com",
+			to: ["alerts@example.com", "ops@example.com"],
+		},
+	},
 	statusMap: DEFAULT_STATUS_MAP,
 	labelMap: DEFAULT_LABEL_MAP,
 	codex: {
@@ -60,8 +69,15 @@ describe("setup helpers", () => {
 		const env = renderEnvFile(draft);
 		const localConfig = renderLocalConfig(draft);
 		expect(env).toContain("LINEAR_API_KEY=lin_secret_123");
+		expect(env).toContain("RESEND_API_KEY=re_secret_123");
 		expect(localConfig).not.toContain("lin_secret_123");
+		expect(localConfig).not.toContain("re_secret_123");
 		expect(localConfig).toContain("demo-project");
+		expect(localConfig).toContain('"enabled": true');
+		expect(localConfig).toContain('"from": "adhd-ai@example.com"');
+		expect(localConfig).toContain('"to": [');
+		expect(localConfig).toContain('"alerts@example.com"');
+		expect(localConfig).toContain('"ops@example.com"');
 		expect(localConfig).toContain('"root": `${cwd}/skills`');
 		expect(localConfig).toContain('"plan": "piv-plan/SKILL.md"');
 		expect(localConfig).toContain('"reasoningEfforts": {');
@@ -70,6 +86,10 @@ describe("setup helpers", () => {
 
 	it("uses low as default implementation reasoning effort", () => {
 		expect(DEFAULT_REASONING_EFFORTS.implement).toBe("low");
+	});
+
+	it("uses low as default planning reasoning effort", () => {
+		expect(DEFAULT_REASONING_EFFORTS.plan).toBe("low");
 	});
 
 	it("merges env updates without dropping unrelated values", () => {
@@ -87,10 +107,16 @@ describe("setup helpers", () => {
 			await writeSetupFiles(tempDir, draft);
 			const sqliteEnv = await loadSqliteEnv(tempDir);
 			expect(sqliteEnv?.LINEAR_API_KEY).toBe("lin_secret_123");
+			expect(sqliteEnv?.RESEND_API_KEY).toBe("re_secret_123");
 
 			const envPath = path.join(tempDir, ".env");
 			const envContent = await readFile(envPath, "utf8");
 			expect(envContent).toContain("LINEAR_API_KEY=lin_secret_123");
+			expect(envContent).toContain("RESEND_API_KEY=re_secret_123");
+			expect(envContent).toContain("RESEND_FROM=adhd-ai@example.com");
+			expect(envContent).toContain(
+				'RESEND_TO="alerts@example.com,ops@example.com"',
+			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
@@ -244,6 +270,12 @@ describe("setup helpers", () => {
 	it("renders setup rtk install prompt", () => {
 		expect(renderSetupRtkInstallPrompt()).toContain(
 			"Install RTK before running workflows: https://github.com/rtk-ai/rtk",
+		);
+	});
+
+	it("renders setup github install prompt", () => {
+		expect(renderSetupGitHubInstallPrompt()).toContain(
+			"Then authenticate: gh auth login",
 		);
 	});
 });
