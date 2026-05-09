@@ -26,6 +26,7 @@ import {
 	parsePlannerDecision,
 	readyPullRequestAfterPassingReview,
 	resolvePollingSettings,
+	resolveReviewFailureStage,
 	resolveReviewModeForComplexityScore,
 	resolveReviewOnlyBootstrapStage,
 	routeProjectsForIssueProjectId,
@@ -942,6 +943,20 @@ describe("resolveReviewModeForComplexityScore", () => {
 	it("uses human review for threshold and above", () => {
 		expect(resolveReviewModeForComplexityScore(5)).toBe("human");
 		expect(resolveReviewModeForComplexityScore(10)).toBe("human");
+	});
+});
+
+describe("resolveReviewFailureStage", () => {
+	it("routes to implementing when codex session is present", () => {
+		expect(resolveReviewFailureStage({ codexSessionId: "session-1" })).toBe(
+			"implementing",
+		);
+	});
+
+	it("routes to reviewing when codex session is missing", () => {
+		expect(resolveReviewFailureStage({ codexSessionId: undefined })).toBe(
+			"reviewing",
+		);
 	});
 });
 
