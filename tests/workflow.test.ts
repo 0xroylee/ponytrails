@@ -35,6 +35,7 @@ import {
 	selectReviewOnlyIssueKeys,
 	selectStaleRunIssueKeys,
 	shouldRetryRunStage,
+	shouldSkipReviewOnlyRunState,
 	shouldStopPolling,
 	withExecutionPathLock,
 } from "../src/core/workflow";
@@ -958,6 +959,35 @@ describe("resolveReviewFailureStage", () => {
 		expect(resolveReviewFailureStage({ codexSessionId: undefined })).toBe(
 			"human_review",
 		);
+	});
+});
+
+describe("shouldSkipReviewOnlyRunState", () => {
+	it("skips existing human_review states in review-only mode", () => {
+		expect(
+			shouldSkipReviewOnlyRunState(
+				{ stage: "human_review" },
+				{ reviewOnly: true },
+			),
+		).toBe(true);
+	});
+
+	it("does not skip non-human-review states in review-only mode", () => {
+		expect(
+			shouldSkipReviewOnlyRunState(
+				{ stage: "reviewing" },
+				{ reviewOnly: true },
+			),
+		).toBe(false);
+	});
+
+	it("does not skip when review-only mode is disabled", () => {
+		expect(
+			shouldSkipReviewOnlyRunState(
+				{ stage: "human_review" },
+				{ reviewOnly: false },
+			),
+		).toBe(false);
 	});
 });
 

@@ -542,6 +542,13 @@ export function isReviewOnlyExecutableStage(stage: WorkflowStage): boolean {
 	return stage === "pr_created" || stage === "reviewing" || stage === "testing";
 }
 
+export function shouldSkipReviewOnlyRunState(
+	state: Pick<RunState, "stage"> | null,
+	options: Pick<RunOptions, "reviewOnly">,
+): boolean {
+	return options.reviewOnly === true && state?.stage === "human_review";
+}
+
 export function resolveReviewFailureStage(
 	state: Pick<RunState, "codexSessionId">,
 ): Extract<WorkflowStage, "implementing" | "human_review"> {
@@ -762,6 +769,13 @@ async function processIssue(
 	const key = normalizeIssueKey(issue.identifier);
 	const issueLogger = logger.child({ projectId: config.id, issueKey: key });
 	const existing = await loadRunState(config.workspacePath, config.id, key);
+	if (shouldSkipReviewOnlyRunState(existing, options)) {
+		issueLogger.info(
+			{ stage: existing?.stage },
+			"Skipping review-only issue parked for manual review",
+		);
+		return;
+	}
 	const isAssignedState = await linear.isAssignedState(issue.state.id);
 	if (!existing && !isAssignedState && !options.reviewOnly) {
 		issueLogger.info(
@@ -806,7 +820,11 @@ async function processIssue(
 	) {
 		runState.pullRequest = issue.pullRequest;
 	}
-	if (options.reviewOnly && !isReviewOnlyExecutableStage(runState.stage)) {
+	if (
+		options.reviewOnly &&
+		runState.stage !== "human_review" &&
+		!isReviewOnlyExecutableStage(runState.stage)
+	) {
 		runState.stage = resolveReviewOnlyBootstrapStage(
 			issue.state,
 			config.linear.statusMap,
