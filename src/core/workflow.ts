@@ -50,6 +50,7 @@ import type {
 	AgentChatLogEntry,
 	AgentChatLogRole,
 	CodexUsageRecord,
+	IssueRef,
 	PlannedSplitTask,
 	PollingConfig,
 	ResolvedNotificationConfig,
@@ -873,6 +874,7 @@ async function handlePlanningStage(
 	state.codexSessionId = result.sessionId ?? state.codexSessionId;
 	state.planSummary = result.finalMessage || result.stdout;
 	appendCodexUsage(state, "planning", result.usage);
+	await applyPlannerIssueRefinement(linear, state.issue, state.planSummary);
 
 	const parsedPlan = parsePlannerDecision(state.planSummary);
 	state.complexityScore = parsedPlan.complexityScore;
@@ -1308,6 +1310,11 @@ export interface PlannerDecision {
 	complexityScore: number;
 }
 
+export interface PlannerIssueRefinement {
+	title: string;
+	description: string;
+}
+
 export function parsePlannerDecision(planSummary: string): PlannerDecision {
 	const complexity = parsePlannerComplexity(planSummary);
 	const complexityScore = parsePlannerComplexityScore(planSummary);
@@ -1359,6 +1366,90 @@ export function parsePlannerComplexityScore(planSummary: string): number {
 		);
 	}
 	return score;
+}
+
+export function parsePlannerIssueRefinement(
+	planSummary: string,
+): PlannerIssueRefinement | null {
+	const marker = /\bISSUE_REFINEMENT_JSON\s*:/i;
+	const markerMatch = marker.exec(planSummary);
+	if (!markerMatch) {
+		return null;
+	}
+
+	const markerStart = markerMatch.index + markerMatch[0].length;
+	const rawPayload = planSummary.slice(markerStart).trim();
+	if (!rawPayload) {
+		throw new Error(
+			"Planner included ISSUE_REFINEMENT_JSON marker but no JSON payload.",
+		);
+	}
+
+	const jsonSource = unwrapFencedCodeBlock(rawPayload);
+	const jsonObjectText = extractFirstJsonObject(jsonSource);
+	if (!jsonObjectText) {
+		throw new Error(
+			"ISSUE_REFINEMENT_JSON must contain a JSON object with title and description.",
+		);
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(jsonObjectText);
+	} catch (error) {
+		throw new Error(
+			`Failed to parse ISSUE_REFINEMENT_JSON: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+		throw new Error("ISSUE_REFINEMENT_JSON must be a JSON object.");
+	}
+
+	const record = parsed as Record<string, unknown>;
+	const title =
+		typeof record.title === "string" ? record.title.trim() : undefined;
+	const description =
+		typeof record.description === "string"
+			? record.description.trim()
+			: undefined;
+	if (!title) {
+		throw new Error("ISSUE_REFINEMENT_JSON.title must be a non-empty string.");
+	}
+	if (!description) {
+		throw new Error(
+			"ISSUE_REFINEMENT_JSON.description must be a non-empty string.",
+		);
+	}
+
+	return { title, description };
+}
+
+export async function applyPlannerIssueRefinement(
+	linear: Pick<LinearClient, "updateIssueDetails">,
+	issue: IssueRef,
+	planSummary: string,
+): Promise<boolean> {
+	const refinement = parsePlannerIssueRefinement(planSummary);
+	if (!refinement) {
+		return false;
+	}
+
+	const currentDescription = issue.description?.trim() ?? "";
+	if (
+		issue.title.trim() === refinement.title &&
+		currentDescription === refinement.description
+	) {
+		return false;
+	}
+
+	await linear.updateIssueDetails(
+		issue.id,
+		refinement.title,
+		refinement.description,
+	);
+	issue.title = refinement.title;
+	issue.description = refinement.description;
+	return true;
 }
 
 export function resolveReviewModeForComplexityScore(
@@ -1534,6 +1625,51 @@ function extractFirstJsonArray(input: string): string | null {
 			continue;
 		}
 		if (char === "]") {
+			depth -= 1;
+			if (depth === 0) {
+				return input.slice(start, i + 1);
+			}
+		}
+	}
+	return null;
+}
+
+function extractFirstJsonObject(input: string): string | null {
+	const start = input.indexOf("{");
+	if (start === -1) {
+		return null;
+	}
+	let depth = 0;
+	let inString = false;
+	let escaped = false;
+	for (let i = start; i < input.length; i += 1) {
+		const char = input[i];
+		if (!char) {
+			continue;
+		}
+		if (inString) {
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+			if (char === "\\") {
+				escaped = true;
+				continue;
+			}
+			if (char === '"') {
+				inString = false;
+			}
+			continue;
+		}
+		if (char === '"') {
+			inString = true;
+			continue;
+		}
+		if (char === "{") {
+			depth += 1;
+			continue;
+		}
+		if (char === "}") {
 			depth -= 1;
 			if (depth === 0) {
 				return input.slice(start, i + 1);

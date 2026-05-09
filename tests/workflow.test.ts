@@ -8,12 +8,14 @@ import {
 	isRunLeaseExpired,
 } from "../src/core/state";
 import type {
+	IssueRef,
 	PollingConfig,
 	ResolvedProjectConfig,
 	RunState,
 } from "../src/core/types";
 import {
 	appendCodexUsage,
+	applyPlannerIssueRefinement,
 	buildIssueJobLogFields,
 	buildPrioritizedIssueQueue,
 	buildRunLeaseOwnerId,
@@ -23,6 +25,7 @@ import {
 	normalizeFailedReviewBugs,
 	parsePlannerComplexityScore,
 	parsePlannerDecision,
+	parsePlannerIssueRefinement,
 	readyPullRequestAfterPassingReview,
 	resolvePollingSettings,
 	resolveReviewModeForComplexityScore,
@@ -839,6 +842,129 @@ describe("parsePlannerComplexityScore", () => {
 
 	it("defaults to conservative score when missing", () => {
 		expect(parsePlannerComplexityScore("no score marker")).toBe(4);
+	});
+});
+
+describe("parsePlannerIssueRefinement", () => {
+	it("returns null when refinement marker is missing", () => {
+		expect(parsePlannerIssueRefinement("no refinement provided")).toBeNull();
+	});
+
+	it("parses valid refinement payload", () => {
+		const result = parsePlannerIssueRefinement(
+			[
+				"ISSUE_REFINEMENT_JSON:",
+				"```json",
+				JSON.stringify(
+					{
+						title: "Refined issue title",
+						description: "Refined issue description",
+					},
+					null,
+					2,
+				),
+				"```",
+			].join("\n"),
+		);
+		expect(result).toEqual({
+			title: "Refined issue title",
+			description: "Refined issue description",
+		});
+	});
+
+	it("throws when refinement marker is present but object payload is missing", () => {
+		expect(() =>
+			parsePlannerIssueRefinement(
+				["ISSUE_REFINEMENT_JSON:", "```json", "{", "```"].join("\n"),
+			),
+		).toThrow("must contain a JSON object");
+	});
+
+	it("throws when title or description is empty", () => {
+		expect(() =>
+			parsePlannerIssueRefinement(
+				[
+					"ISSUE_REFINEMENT_JSON:",
+					JSON.stringify({ title: "", description: "desc" }),
+				].join("\n"),
+			),
+		).toThrow("title must be a non-empty string");
+
+		expect(() =>
+			parsePlannerIssueRefinement(
+				[
+					"ISSUE_REFINEMENT_JSON:",
+					JSON.stringify({ title: "Title", description: "   " }),
+				].join("\n"),
+			),
+		).toThrow("description must be a non-empty string");
+	});
+});
+
+describe("applyPlannerIssueRefinement", () => {
+	it("updates Linear issue details and mutates run-state issue when changed", async () => {
+		const updateIssueDetails = mock(async () => {});
+		const issue: IssueRef = {
+			id: "lin_1",
+			key: "ROY-1",
+			title: "Raw issue",
+			description: "Raw description",
+			url: "https://linear.app/roy/issue/ROY-1/raw-issue",
+		};
+
+		const changed = await applyPlannerIssueRefinement(
+			{ updateIssueDetails },
+			issue,
+			[
+				"ISSUE_REFINEMENT_JSON:",
+				JSON.stringify({
+					title: "Refined issue",
+					description: "Refined description",
+				}),
+			].join("\n"),
+		);
+
+		expect(changed).toBe(true);
+		expect(updateIssueDetails).toHaveBeenCalledTimes(1);
+		expect(updateIssueDetails).toHaveBeenCalledWith(
+			"lin_1",
+			"Refined issue",
+			"Refined description",
+		);
+		expect(issue.title).toBe("Refined issue");
+		expect(issue.description).toBe("Refined description");
+	});
+
+	it("skips update when refinement marker is absent or values are unchanged", async () => {
+		const updateIssueDetails = mock(async () => {});
+		const issue: IssueRef = {
+			id: "lin_2",
+			key: "ROY-2",
+			title: "Existing title",
+			description: "Existing description",
+			url: "https://linear.app/roy/issue/ROY-2/existing-title",
+		};
+
+		const noMarkerChanged = await applyPlannerIssueRefinement(
+			{ updateIssueDetails },
+			issue,
+			"Scope summary only.",
+		);
+		const unchangedChanged = await applyPlannerIssueRefinement(
+			{ updateIssueDetails },
+			issue,
+			[
+				"ISSUE_REFINEMENT_JSON:",
+				JSON.stringify({
+					title: "Existing title",
+					description: "Existing description",
+				}),
+			].join("\n"),
+		);
+
+		expect(noMarkerChanged).toBe(false);
+		expect(unchangedChanged).toBe(false);
+		expect(updateIssueDetails).toHaveBeenCalledTimes(0);
 	});
 });
 

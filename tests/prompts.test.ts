@@ -62,6 +62,7 @@ describe("buildPlanPrompt", () => {
 			expect(prompt).toContain("COMPLEXITY: SIMPLE|COMPLEX");
 			expect(prompt).toContain("COMPLEXITY_SCORE: 0..10");
 			expect(prompt).toContain("SPLIT_TASKS_JSON: [...]");
+			expect(prompt).toContain("ISSUE_REFINEMENT_JSON");
 			expect(prompt).toContain(
 				"When including SPLIT_TASKS_JSON, write action-oriented task titles",
 			);
@@ -97,6 +98,7 @@ describe("buildPlanPrompt", () => {
 
 			expect(prompt).toContain("Description: Planning should auto-select");
 			expect(prompt).toContain("Auto-selected supplemental skills:");
+			expect(prompt).toContain("Include ISSUE_REFINEMENT_JSON");
 			expect(prompt).toContain("1. linear");
 			expect(prompt).toContain("source: folder");
 			expect(prompt).toContain("score: 9");

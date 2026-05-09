@@ -59,6 +59,7 @@ export async function buildPlanPrompt(
 		`URL: ${issue.url}`,
 		supplementalSection,
 		"",
+		"Include ISSUE_REFINEMENT_JSON with a refined title and description that preserve original user intent and do not invent scope.",
 		"When including SPLIT_TASKS_JSON, write action-oriented task titles and clear descriptions that include expected behavior, implementation scope, and tests.",
 		"Create a concrete implementation plan and include risks and tests.",
 	].join("\n");
