@@ -72,6 +72,10 @@ describe("setup helpers", () => {
 		expect(DEFAULT_REASONING_EFFORTS.implement).toBe("low");
 	});
 
+	it("uses low as default planning reasoning effort", () => {
+		expect(DEFAULT_REASONING_EFFORTS.plan).toBe("low");
+	});
+
 	it("merges env updates without dropping unrelated values", () => {
 		const merged = mergeEnvFile("KEEP_ME=yes\nLINEAR_API_KEY=old\n", {
 			LINEAR_API_KEY: "new secret",

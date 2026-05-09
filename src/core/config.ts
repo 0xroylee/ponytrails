@@ -721,6 +721,11 @@ function mergeRuntime(
 			...base.codex,
 			...(rootDefaults.codex ?? {}),
 			...(project.codex ?? {}),
+			reasoningEfforts: {
+				...(base.codex.reasoningEfforts ?? {}),
+				...(rootDefaults.codex?.reasoningEfforts ?? {}),
+				...(project.codex?.reasoningEfforts ?? {}),
+			},
 		},
 		skills: {
 			root: skillRoot,
