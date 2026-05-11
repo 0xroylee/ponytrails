@@ -283,9 +283,38 @@ describe("codex adapter", () => {
 				"prompt",
 			],
 		);
-		expect(invocation.args).toContain("/tmp/state:/workspace");
 		expect(invocation.args).toContain("/tmp/repo:/workspace/repo");
+	});
+
+	it("uses mounted workspace path when executionPath equals workspacePath", () => {
+		const invocation = buildCodexRuntimeInvocation(
+			{
+				...config,
+				workspacePath: "/tmp/work",
+				executionPath: "/tmp/work",
+				codex: {
+					...config.codex,
+					docker: {
+						enabled: true,
+						image: "codex:latest",
+					},
+				},
+			},
+			[
+				"exec",
+				"--cd",
+				"/tmp/work",
+				"--output-last-message",
+				"/tmp/work/.piv-loop/tmp/out.txt",
+				"prompt",
+			],
+		);
+		expect(invocation.command).toBe("docker");
+		expect(invocation.args).toContain("-w");
+		expect(invocation.args).toContain("/workspace");
+		expect(invocation.args).not.toContain("/workspace/repo");
 		expect(invocation.args).toContain("/workspace/.piv-loop/tmp/out.txt");
+		expect(invocation.args).not.toContain("/tmp/work:/workspace/repo");
 	});
 
 	it("supports resume args by setting docker working directory", () => {
@@ -309,9 +338,9 @@ describe("codex adapter", () => {
 				"prompt",
 			],
 		);
-		const workdirIndex = invocation.args.indexOf("-w");
-		expect(workdirIndex).toBeGreaterThanOrEqual(0);
-		expect(invocation.args[workdirIndex + 1]).toBe("/workspace/repo");
+		expect(invocation.command).toBe("docker");
+		expect(invocation.args).toContain("-w");
+		expect(invocation.args).toContain("/workspace/repo");
 		expect(invocation.args).toContain("/workspace/.piv-loop/tmp/out.txt");
 	});
 });

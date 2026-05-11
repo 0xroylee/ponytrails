@@ -33,9 +33,18 @@ export function buildCodexRuntimeInvocation(
 		dockerConfig.workspacePath,
 		"/workspace",
 	);
+	const defaultContainerExecution = isDescendantPath(
+		config.executionPath,
+		config.workspacePath,
+	)
+		? joinContainerPath(
+				containerWorkspace,
+				path.relative(config.workspacePath, config.executionPath),
+			)
+		: path.posix.join(containerWorkspace, "repo");
 	const containerExecution = normalizeContainerPath(
 		dockerConfig.executionPath,
-		path.posix.join(containerWorkspace, "repo"),
+		defaultContainerExecution,
 	);
 	const containerCodexHome = normalizeContainerPath(
 		dockerConfig.codexHomePath,
@@ -148,4 +157,9 @@ function isDescendantPath(target: string, parent: string): boolean {
 
 function toPosix(value: string): string {
 	return value.split(path.sep).join(path.posix.sep);
+}
+
+function joinContainerPath(basePath: string, relativePath: string): string {
+	const normalizedRel = toPosix(relativePath);
+	return normalizedRel ? path.posix.join(basePath, normalizedRel) : basePath;
 }
