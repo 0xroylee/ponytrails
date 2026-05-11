@@ -1,4 +1,4 @@
-import type { AgentResult } from "../agent-adapters";
+import type { AgentResult } from "../integrations/agent-adapters";
 import { logger, normalizeError } from "../utils/logger";
 import { appendAgentChatLog } from "./state";
 import type { AgentChatLogEntry, AgentChatLogRole, RunState } from "./types";

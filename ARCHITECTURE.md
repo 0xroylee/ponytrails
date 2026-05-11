@@ -8,13 +8,13 @@ ADHD.ai is a multi-project orchestration hub that pulls eligible Linear issues a
 
 1. `src/core/config.ts` is the only runtime config resolver for env vars and config files.
 2. `src/core/workflow.ts` owns stage transitions, retries, and orchestration order.
-3. Integration modules stay isolated under `src/services/` and `src/agent-adapters/`:
-   - `src/services/linear.ts`
-   - `src/services/github.ts`
-   - `src/agent-adapters/codex.ts`
-   - `src/agent-adapters/claude-code.ts`
-   - `src/services/cron.ts`
-   - `src/services/notifications.ts`
+3. Integration modules stay isolated under `src/integrations/` and `src/integrations/agent-adapters/`:
+   - `src/integrations/linear/linear.ts`
+   - `src/integrations/github/github.ts`
+   - `src/integrations/agent-adapters/codex.ts`
+   - `src/integrations/agent-adapters/claude-code.ts`
+   - `src/integrations/cron/cron.ts`
+   - `src/integrations/notifications/notifications.ts`
 4. `src/core/state.ts` owns run-state paths and legacy fallback behavior.
 5. `src/args.ts` and `src/index.ts` own CLI parsing and command dispatch with command handlers in `src/commands/`.
 
@@ -40,7 +40,7 @@ flowchart TD
     complexity -->|Yes| implementing[Implementation Agent]
     complexity -->|No| humanReview[Human Review Pause]
 
-    implementing --> github[src/services/github.ts<br/>branch + draft PR updates]
+    implementing --> github[src/integrations/github/github.ts<br/>branch + draft PR updates]
     github --> reviewTesting[Review/Testing Agent]
 
     reviewTesting --> reviewPass{RESULT: PASS?}
@@ -50,15 +50,15 @@ flowchart TD
     workflow --> blocked[Blocked]
     humanReview --> reviewingStage[Reviewing Stage in Linear]
 
-    workflow --> linearSvc[src/services/linear.ts<br/>status + comments + child tasks]
-    workflow --> notify[src/services/notifications.ts<br/>human review and outcome email]
+    workflow --> linearSvc[src/integrations/linear/linear.ts<br/>status + comments + child tasks]
+    workflow --> notify[src/integrations/notifications/notifications.ts<br/>human review and outcome email]
     workflow --> state[src/core/state.ts<br/>run state + leases]
 
     state --> runFiles[.piv-loop/projects/<project-id>/runs/*.json]
     state --> chatLogs[.piv-loop/projects/<project-id>/chat-logs/*.json]
 
-    planning --> codexAdapter[src/agent-adapters/codex.ts]
-    planning --> claudeAdapter[src/agent-adapters/claude-code.ts]
+    planning --> codexAdapter[src/integrations/agent-adapters/codex.ts]
+    planning --> claudeAdapter[src/integrations/agent-adapters/claude-code.ts]
     implementing --> codexAdapter
     implementing --> claudeAdapter
     reviewTesting --> codexAdapter

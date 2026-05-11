@@ -1,10 +1,10 @@
-import type { AgentAdapter } from "../agent-adapters";
+import type { AgentAdapter } from "../integrations/agent-adapters";
 import {
 	createDraftPrFromWorktree,
 	issueBranchName,
 	prepareImplementationBranch,
 	updateDraftPrFromWorktree,
-} from "../services/github";
+} from "../integrations/github";
 import { buildFixPrompt, buildImplementPrompt } from "../skills/prompts";
 import { buildImplementationComment } from "../utils/comments";
 import type {

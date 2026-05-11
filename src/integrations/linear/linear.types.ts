@@ -1,4 +1,4 @@
-import type { PlannedSplitTask, ResolvedProjectConfig } from "../core/types";
+import type { PlannedSplitTask, ResolvedProjectConfig } from "../../core/types";
 
 export type WorkflowLabelStage =
 	keyof ResolvedProjectConfig["linear"]["labelMap"];

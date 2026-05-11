@@ -1,8 +1,11 @@
-import type { commentOnPr, squashMergePullRequest } from "../services/github";
+import type {
+	commentOnPr,
+	squashMergePullRequest,
+} from "../integrations/github";
 import type {
 	sendHumanReviewRequiredEmail,
 	sendTaskOutcomeEmail,
-} from "../services/notifications";
+} from "../integrations/notifications";
 
 export interface IntegrationWrapperDeps {
 	commentOnPr?: typeof commentOnPr;

@@ -1,6 +1,6 @@
-import type { AgentAdapter } from "../agent-adapters";
-import { issueBranchName } from "../services/github";
-import { sortIssuesByPriority } from "../services/linear";
+import type { AgentAdapter } from "../integrations/agent-adapters";
+import { issueBranchName } from "../integrations/github";
+import { sortIssuesByPriority } from "../integrations/linear";
 import { buildFixPrompt, buildImplementPrompt } from "../skills/prompts";
 import { buildImplementationComment } from "../utils/comments";
 import { logger, normalizeError } from "../utils/logger";

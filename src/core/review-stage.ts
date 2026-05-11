@@ -1,5 +1,5 @@
-import type { AgentAdapter } from "../agent-adapters";
-import { markPrReadyForReview } from "../services/github";
+import type { AgentAdapter } from "../integrations/agent-adapters";
+import { markPrReadyForReview } from "../integrations/github";
 import { buildReviewPrompt } from "../skills/prompts";
 import { buildReviewComment } from "../utils/comments";
 import type { ReviewOutcome } from "./review";

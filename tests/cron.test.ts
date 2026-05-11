@@ -5,7 +5,7 @@ import {
 	computeNextCronRunAt,
 	runCronSchedulerCycle,
 	selectCronJobs,
-} from "../src/services/cron";
+} from "../src/integrations/cron";
 
 describe("computeNextCronRunAt", () => {
 	it("computes minute schedules", () => {

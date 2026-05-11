@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { LoadedConfig } from "../src/core/config";
 import type { CronJobConfig } from "../src/core/types";
-import { runCronJobOnce } from "../src/services/cron";
+import { runCronJobOnce } from "../src/integrations/cron";
 
 describe("runCronJobOnce", () => {
 	it("runs the selected job immediately", async () => {

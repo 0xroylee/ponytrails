@@ -4,13 +4,13 @@ import {
 	type IssueLabel as LinearSdkIssueLabel,
 	type WorkflowState as LinearSdkWorkflowState,
 } from "@linear/sdk";
-import { normalizeIssueKey } from "../core/state";
+import { normalizeIssueKey } from "../../core/state";
 import type {
 	LinearIssue,
 	PlannedSplitTask,
 	ResolvedProjectConfig,
 	WorkflowStage,
-} from "../core/types";
+} from "../../core/types";
 import type {
 	BuildTodoIssueInput,
 	CreatedLinearIssueRef,

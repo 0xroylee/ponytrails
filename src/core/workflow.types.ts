@@ -1,5 +1,5 @@
-import type { AgentAdapter } from "../agent-adapters";
-import type { LinearClient } from "../services/linear";
+import type { AgentAdapter } from "../integrations/agent-adapters";
+import type { LinearClient } from "../integrations/linear";
 import type {
 	PullRequestRef,
 	ResolvedNotificationEmailConfig,

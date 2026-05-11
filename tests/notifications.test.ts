@@ -5,7 +5,7 @@ import {
 	buildTaskOutcomeEmailPayload,
 	sendHumanReviewRequiredEmail,
 	sendTaskOutcomeEmail,
-} from "../src/services/notifications";
+} from "../src/integrations/notifications";
 
 const originalFetch = globalThis.fetch;
 

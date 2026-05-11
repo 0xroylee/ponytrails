@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
+import type { ResolvedProjectConfig } from "../src/core/types";
 import {
 	CodexAdapter,
 	extractSessionId,
 	extractUsage,
-} from "../src/agent-adapters/codex";
-import { buildCodexRuntimeInvocation } from "../src/agent-adapters/codex-docker";
-import type { ResolvedProjectConfig } from "../src/core/types";
+} from "../src/integrations/agent-adapters/codex";
+import { buildCodexRuntimeInvocation } from "../src/integrations/agent-adapters/codex-docker";
 
 const config: ResolvedProjectConfig = {
 	id: "default",

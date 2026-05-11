@@ -2,7 +2,6 @@ import { describe, expect, it, mock } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AgentAdapter } from "../src/agent-adapters";
 import { handlePlanningStage } from "../src/core/plan";
 import {
 	agentChatLogPath,
@@ -50,6 +49,7 @@ import {
 	withExecutionPathLock,
 } from "../src/core/workflow";
 import { processIssueQueueBounded } from "../src/core/workflow-queue";
+import type { AgentAdapter } from "../src/integrations/agent-adapters";
 
 describe("resolvePollingSettings", () => {
 	const polling: PollingConfig = {

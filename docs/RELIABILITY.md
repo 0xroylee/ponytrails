@@ -7,6 +7,12 @@
 3. Status reads require explicit project id context.
 4. Default non-project invocation runs against the first configured project.
 
+## Integration Boundary Layout
+
+1. External integrations are organized under `src/integrations/` by domain (`linear/`, `github/`, `cron/`, `notifications/`).
+2. Agent runtime adapters are isolated in `src/integrations/agent-adapters/`.
+3. Workflow sequencing remains in `src/core/workflow.ts` and related stage/orchestrator modules.
+
 ## Parallel Processing Safety Model
 
 ADHD.ai combines queue behavior, per-issue leases, and execution-path locking to reduce duplicate work and checkout conflicts.

@@ -1,9 +1,9 @@
-import { commentOnPr, squashMergePullRequest } from "../services/github";
-import type { LinearClient } from "../services/linear";
+import { commentOnPr, squashMergePullRequest } from "../integrations/github";
+import type { LinearClient } from "../integrations/linear";
 import {
 	sendHumanReviewRequiredEmail,
 	sendTaskOutcomeEmail,
-} from "../services/notifications";
+} from "../integrations/notifications";
 import { logger, normalizeError } from "../utils/logger";
 import type { IntegrationWrapperDeps } from "./integration-wrappers.types";
 import type {

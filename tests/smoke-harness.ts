@@ -1,7 +1,6 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AgentAdapter, AgentResult } from "../src/agent-adapters";
 import type { LoadedConfig } from "../src/core/config";
 import { loadRunState, saveRunState } from "../src/core/state";
 import type {
@@ -15,6 +14,10 @@ import {
 	type WorkflowRuntime,
 	createWorkflowRuntime,
 } from "../src/core/workflow-runtime";
+import type {
+	AgentAdapter,
+	AgentResult,
+} from "../src/integrations/agent-adapters";
 import { pr, project } from "./smoke-fixtures";
 
 export interface SmokeHarness {

@@ -1,4 +1,4 @@
-import type { assertCommandOk, runCommand } from "../utils/shell";
+import type { assertCommandOk, runCommand } from "../../utils/shell";
 
 export interface GithubCommandDeps {
 	runCommand?: typeof runCommand;

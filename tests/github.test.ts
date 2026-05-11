@@ -10,7 +10,7 @@ import {
 	getPullRequestMergeStatus,
 	issueBranchName,
 	squashMergePullRequest,
-} from "../src/services/github";
+} from "../src/integrations/github";
 import type { CommandResult } from "../src/utils/shell";
 
 describe("buildBugIssueBody", () => {

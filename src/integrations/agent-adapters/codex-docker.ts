@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { ResolvedProjectConfig } from "../core/types";
+import type { ResolvedProjectConfig } from "../../core/types";
 
 export interface CodexRuntimeInvocation {
 	command: string;

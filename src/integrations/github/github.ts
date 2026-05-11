@@ -2,8 +2,8 @@ import type {
 	BugRecord,
 	PullRequestRef,
 	ResolvedProjectConfig,
-} from "../core/types";
-import { assertCommandOk, runCommand } from "../utils/shell";
+} from "../../core/types";
+import { assertCommandOk, runCommand } from "../../utils/shell";
 import type {
 	GithubCommandDeps,
 	PrListEntry,

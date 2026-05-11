@@ -1,4 +1,4 @@
-import { createAgentAdapter } from "../agent-adapters";
+import { createAgentAdapter } from "../integrations/agent-adapters";
 import {
 	commentOnPr,
 	createDraftPrFromWorktree,
@@ -9,12 +9,12 @@ import {
 	prepareImplementationBranch,
 	squashMergePullRequest,
 	updateDraftPrFromWorktree,
-} from "../services/github";
-import { LinearClient } from "../services/linear";
+} from "../integrations/github";
+import { LinearClient } from "../integrations/linear";
 import {
 	sendHumanReviewRequiredEmail,
 	sendTaskOutcomeEmail,
-} from "../services/notifications";
+} from "../integrations/notifications";
 import type { WorkflowRuntime } from "./workflow.types";
 export type { WorkflowLinearClient, WorkflowRuntime } from "./workflow.types";
 

@@ -1,5 +1,8 @@
-import type { ResolvedNotificationEmailConfig, RunState } from "../core/types";
-import { appendStatusEmoji } from "../utils/status";
+import type {
+	ResolvedNotificationEmailConfig,
+	RunState,
+} from "../../core/types";
+import { appendStatusEmoji } from "../../utils/status";
 import type {
 	NotificationEmailPayload,
 	NotificationOutcome,

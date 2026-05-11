@@ -1,5 +1,5 @@
-import type { AgentAdapter } from "../agent-adapters";
-import { sortIssuesByPriority } from "../services/linear";
+import type { AgentAdapter } from "../integrations/agent-adapters";
+import { sortIssuesByPriority } from "../integrations/linear";
 import { logger, normalizeError } from "../utils/logger";
 import { runAgentWithChatLog } from "./agent-chat-log";
 import { type LoadedConfig, getProjectById } from "./config";

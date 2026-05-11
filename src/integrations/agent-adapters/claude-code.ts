@@ -1,7 +1,7 @@
-import type { ResolvedProjectConfig } from "../core/types";
-import { getClaudeBinaryPath } from "../utils/claude-path";
-import { logger, normalizeError } from "../utils/logger";
-import { assertCommandOk, runCommand } from "../utils/shell";
+import type { ResolvedProjectConfig } from "../../core/types";
+import { getClaudeBinaryPath } from "../../utils/claude-path";
+import { logger, normalizeError } from "../../utils/logger";
+import { assertCommandOk, runCommand } from "../../utils/shell";
 import type { AgentAdapter, AgentResult } from "./types";
 
 export class ClaudeCodeAdapter implements AgentAdapter {

@@ -1,8 +1,8 @@
 import path from "node:path";
-import type { LoadedConfig } from "../core/config";
-import type { CronJobConfig, RunOptions } from "../core/types";
-import { runWorkflow } from "../core/workflow";
-import { logger, normalizeError } from "../utils/logger";
+import type { LoadedConfig } from "../../core/config";
+import type { CronJobConfig, RunOptions } from "../../core/types";
+import { runWorkflow } from "../../core/workflow";
+import { logger, normalizeError } from "../../utils/logger";
 import type {
 	CronJobRunDependencies,
 	RunCronJobOnceOptions,

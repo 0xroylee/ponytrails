@@ -4,7 +4,7 @@ import { getProjectById } from "../../core/config";
 import { runSetupCheck, runSetupWizard } from "../../core/setup";
 import { loadRunState, normalizeIssueKey } from "../../core/state";
 import { runWorkflow } from "../../core/workflow";
-import { runCronJobOnce, runCronScheduler } from "../../services/cron";
+import { runCronJobOnce, runCronScheduler } from "../../integrations/cron";
 import { formatWorkflowStageDisplay } from "../../utils/status";
 import {
 	addSkill,

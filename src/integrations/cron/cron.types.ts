@@ -1,5 +1,5 @@
-import type { LoadedConfig } from "../core/config";
-import type { CronJobConfig, RunOptions } from "../core/types";
+import type { LoadedConfig } from "../../core/config";
+import type { CronJobConfig, RunOptions } from "../../core/types";
 
 export interface RunCronOptions {
 	jobId?: string;

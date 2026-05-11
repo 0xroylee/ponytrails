@@ -12,7 +12,7 @@ import {
 	resolveSplitTaskTeamId,
 	shouldSkipDoneStageRegression,
 	sortIssuesByPriority,
-} from "../src/services/linear";
+} from "../src/integrations/linear";
 
 function createIssue(
 	identifier: string,

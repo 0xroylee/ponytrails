@@ -1,5 +1,5 @@
-import type { AgentAdapter } from "../agent-adapters";
-import { issueBranchName } from "../services/github";
+import type { AgentAdapter } from "../integrations/agent-adapters";
+import { issueBranchName } from "../integrations/github";
 import { buildFixPrompt, buildImplementPrompt } from "../skills/prompts";
 import { buildImplementationComment } from "../utils/comments";
 import { logger } from "../utils/logger";
