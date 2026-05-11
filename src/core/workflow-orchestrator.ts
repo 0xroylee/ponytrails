@@ -612,34 +612,29 @@ async function processIssue(
 
 	let leaseAcquired = false;
 	try {
-		await withExecutionPathLock(config.executionPath, async () => {
-			leaseAcquired = await tryAcquireRunLease(
-				config.workspacePath,
-				runState,
-				leaseOwnerId,
-				leaseTimeoutMs,
-			);
-			if (!leaseAcquired) {
-				issueLogger.info(
-					{ leaseOwnerId, currentLeaseOwnerId: runState.lease?.ownerId },
-					"Skipping issue because it is already leased by another worker",
-				);
-				return;
-			}
-			await executeIssue(
-				config,
-				notifications,
-				linear,
-				runState,
-				options,
-				leaseOwnerId,
-				leaseTimeoutMs,
-				runtime,
-			);
-		});
+		leaseAcquired = await tryAcquireRunLease(
+			config.workspacePath,
+			runState,
+			leaseOwnerId,
+			leaseTimeoutMs,
+		);
 		if (!leaseAcquired) {
+			issueLogger.info(
+				{ leaseOwnerId, currentLeaseOwnerId: runState.lease?.ownerId },
+				"Skipping issue because it is already leased by another worker",
+			);
 			return;
 		}
+		await executeIssue(
+			config,
+			notifications,
+			linear,
+			runState,
+			options,
+			leaseOwnerId,
+			leaseTimeoutMs,
+			runtime,
+		);
 		issueLogger.info({ stage: runState.stage }, "Issue workflow finished");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
