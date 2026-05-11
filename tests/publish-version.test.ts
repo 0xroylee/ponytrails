@@ -23,12 +23,12 @@ describe("runPublishVersion", () => {
 
 		expect(calls).toEqual([
 			{ command: "git", args: ["status", "--porcelain"] },
-			{ command: "bunx", args: ["@changesets/cli", "version"] },
+			{ command: "bun", args: ["run", "changeset", "version"] },
 			{ command: "bun", args: ["run", "check"] },
 			{ command: "bun", args: ["run", "typecheck"] },
 			{ command: "bun", args: ["test"] },
 			{ command: "bun", args: ["run", "build"] },
-			{ command: "bunx", args: ["@changesets/cli", "publish"] },
+			{ command: "bun", args: ["run", "changeset", "publish"] },
 		]);
 	});
 
@@ -62,7 +62,7 @@ describe("runPublishVersion", () => {
 		);
 		expect(calls).toEqual([
 			"git status --porcelain",
-			"bunx @changesets/cli version",
+			"bun run changeset version",
 			"bun run check",
 			"bun run typecheck",
 		]);

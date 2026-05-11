@@ -20,7 +20,7 @@ describe("package metadata for npm publish prep", () => {
 		expect(packageJson.scripts?.["publish:version"]).toBe(
 			"bun run ./scripts/publish-version.ts",
 		);
-		expect(packageJson.scripts?.changeset).toBe("bunx @changesets/cli");
+		expect(packageJson.scripts?.changeset).toBe("changeset");
 		expect(packageJson.devDependencies?.["@changesets/cli"]).toBeDefined();
 		expect(packageJson.scripts?.["prepare:publish"]).toContain("bun run check");
 		expect(packageJson.scripts?.["prepare:publish"]).toContain(
