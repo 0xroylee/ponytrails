@@ -5,7 +5,7 @@ import type {
 	ResolvedProjectConfig,
 } from "../core/types";
 import { assertCommandOk, runCommand } from "../utils/shell";
-import type { AgentAdapter, AgentResult } from "./index";
+import type { AgentAdapter, AgentResult } from "./types";
 
 export class CodexAdapter implements AgentAdapter {
 	constructor(private config: ResolvedProjectConfig) {}
