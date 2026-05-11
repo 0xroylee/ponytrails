@@ -551,6 +551,7 @@ export class LinearClient {
 
 		const statusMap = this.config.linear.statusMap;
 		this.resolvedStatusMap = {
+			backlog: this.resolveStatusValue("backlog", statusMap.backlog, states),
 			assigned: this.resolveStatusValue("assigned", statusMap.assigned, states),
 			planning: this.resolveStatusValue("planning", statusMap.planning, states),
 			implementing: this.resolveStatusValue(

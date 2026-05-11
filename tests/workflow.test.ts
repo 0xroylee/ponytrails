@@ -2,10 +2,13 @@ import { describe, expect, it, mock } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { AgentAdapter } from "../src/agent-adapters";
+import { handlePlanningStage } from "../src/core/plan";
 import {
 	agentChatLogPath,
 	applyRunLease,
 	isRunLeaseExpired,
+	transitionStage,
 } from "../src/core/state";
 import type {
 	IssueRef,
@@ -1138,6 +1141,78 @@ describe("parsePlannerDecision", () => {
 	});
 });
 
+describe("handlePlanningStage", () => {
+	it("moves the parent issue to backlog after creating split sub-issues", async () => {
+		const config = createProject("default");
+		const state = createRunState("ROY-80", "planning", Date.now());
+		const planSummary = [
+			"COMPLEXITY: COMPLEX",
+			"COMPLEXITY_SCORE: 7",
+			"SPLIT_TASKS_JSON:",
+			JSON.stringify([{ title: "Extract API layer" }]),
+		].join("\n");
+		const agent: AgentAdapter = {
+			runPlan: mock(async () => ({
+				finalMessage: planSummary,
+				stdout: "",
+			})),
+			resume: mock(async () => ({ finalMessage: "", stdout: "" })),
+			runReview: mock(async () => ({ finalMessage: "", stdout: "" })),
+		};
+		const createTodoIssueFromPlan = mock(async () => ({
+			id: "lin_child",
+			identifier: "ROY-81",
+			title: "[ROY-80] Extract API layer",
+			url: "https://linear.app/acme/issue/ROY-81/extract-api-layer",
+		}));
+		const markStage = mock(async () => {});
+		const clearWorkflowStageLabels = mock(async () => {});
+		const comment = mock(async () => {});
+		const safeNotifyTaskOutcome = mock(async () => {});
+
+		await handlePlanningStage(
+			config,
+			agent,
+			{ email: { enabled: false, to: [] } },
+			{
+				createTodoIssueFromPlan,
+				markStage,
+				clearWorkflowStageLabels,
+				comment,
+				updateIssueDetails: mock(async () => {}),
+			} as never,
+			state,
+			{
+				runAgentWithChatLog: async ({ invoke }) => invoke(),
+				appendCodexUsage: () => {},
+				saveRunState: mock(async () => {}),
+				transitionStage,
+				safeNotifyTaskOutcome,
+				loggerInfo: () => {},
+				buildIssueJobLogFields: () => ({}),
+			},
+		);
+
+		expect(createTodoIssueFromPlan).toHaveBeenCalledWith(state.issue, {
+			title: "Extract API layer",
+			description: undefined,
+			labels: undefined,
+			priority: undefined,
+		});
+		expect(state.stage).toBe("done");
+		expect(markStage).toHaveBeenCalledWith(state.issue.id, "backlog");
+		expect(markStage).not.toHaveBeenCalledWith(state.issue.id, "done");
+		expect(clearWorkflowStageLabels).toHaveBeenCalledWith(state.issue.id);
+		const commentCalls = comment.mock.calls as unknown as [string, string][];
+		expect(commentCalls[0]?.[1]).toContain("moved the parent issue to Backlog");
+		expect(safeNotifyTaskOutcome).toHaveBeenCalledWith(
+			{ email: { enabled: false, to: [] } },
+			state,
+			"done",
+		);
+	});
+});
+
 describe("parsePlannerComplexityScore", () => {
 	it("parses explicit score", () => {
 		expect(parsePlannerComplexityScore("COMPLEXITY_SCORE: 3")).toBe(3);
@@ -1370,6 +1445,7 @@ function createProject(
 			requiredLabel: undefined,
 			pollLimit: 10,
 			statusMap: {
+				backlog: "Backlog",
 				assigned: "Todo",
 				planning: "In Progress",
 				implementing: "In Progress",

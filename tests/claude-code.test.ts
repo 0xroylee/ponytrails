@@ -16,6 +16,7 @@ const baseConfig: ResolvedProjectConfig = {
 		apiUrl: "https://api.linear.app/graphql",
 		pollLimit: 10,
 		statusMap: {
+			backlog: "z",
 			assigned: "a",
 			planning: "b",
 			implementing: "c",

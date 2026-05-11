@@ -36,6 +36,7 @@ export interface SetupDraft {
 		};
 	};
 	statusMap: {
+		backlog: string;
 		assigned: string;
 		planning: string;
 		implementing: string;
@@ -93,6 +94,7 @@ interface GitHubDefaults {
 }
 
 export const DEFAULT_STATUS_MAP: SetupDraft["statusMap"] = {
+	backlog: "Backlog",
 	assigned: "Todo",
 	planning: "In Progress",
 	implementing: "In Progress",
@@ -520,6 +522,7 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 				)
 			: [];
 		const statusMap = {
+			backlog: await ask(io, "Status for backlog", DEFAULT_STATUS_MAP.backlog),
 			assigned: await ask(
 				io,
 				"Status for assigned work",

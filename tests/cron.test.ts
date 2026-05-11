@@ -217,6 +217,7 @@ function createLoadedConfig(jobs: CronJobConfig[]): LoadedConfig {
 					apiUrl: "https://api.linear.app/graphql",
 					pollLimit: 10,
 					statusMap: {
+						backlog: "Backlog",
 						assigned: "Todo",
 						planning: "In Progress",
 						implementing: "In Progress",

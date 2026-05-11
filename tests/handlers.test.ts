@@ -89,6 +89,7 @@ function createProject(
 			requiredLabel: undefined,
 			pollLimit: 10,
 			statusMap: {
+				backlog: "Backlog",
 				assigned: "Todo",
 				planning: "In Progress",
 				implementing: "In Progress",

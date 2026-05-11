@@ -11,6 +11,7 @@ export type WorkflowStage =
 	| "failed";
 
 export interface LinearStatusMap {
+	backlog: string;
 	assigned: string;
 	planning: string;
 	implementing: string;

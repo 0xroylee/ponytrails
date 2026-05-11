@@ -8,6 +8,7 @@ const envKeys = [
 	"LINEAR_API_KEY",
 	"LINEAR_PROJECT_ID",
 	"LINEAR_TEAM_ID",
+	"LINEAR_STATUS_BACKLOG",
 	"LINEAR_STATUS_ASSIGNED",
 	"LINEAR_STATUS_PLANNING",
 	"LINEAR_STATUS_IMPLEMENTING",
@@ -99,6 +100,9 @@ describe("loadConfig", () => {
 			expect(config.projects[0]?.linear.apiKey).toBe("linear_api_key");
 			expect(config.projects[0]?.linear.projectId).toBe("linear_project_id");
 			expect(config.projects[0]?.linear.teamId).toBe("linear_team_id");
+			expect(config.projects[0]?.linear.statusMap.backlog).toBe(
+				"linear_status_backlog",
+			);
 			expect(config.projects[0]?.linear.statusMap.assigned).toBe(
 				"linear_status_assigned",
 			);

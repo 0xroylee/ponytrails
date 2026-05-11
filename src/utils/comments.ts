@@ -69,7 +69,7 @@ export function buildPlanSplitComment(
 		`ADHD.ai plan for ${issueKey}`,
 		"",
 		"Planning marked this task as too complex for a single implementation pass.",
-		"Created split tasks in Todo and marked the parent issue done.",
+		"Created split tasks in Todo and moved the parent issue to Backlog.",
 		"",
 		formatCodexUsageLine(options?.usage),
 		"",

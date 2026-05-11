@@ -143,7 +143,7 @@ export async function handlePlanningStage(
 	state.splitTasks = createdTasks;
 	Object.assign(state, deps.transitionStage(state, "done"));
 	await deps.saveRunState(config.workspacePath, state);
-	await linear.markStage(state.issue.id, "done");
+	await linear.markStage(state.issue.id, "backlog");
 	await linear.clearWorkflowStageLabels(state.issue.id);
 	await linear.comment(
 		state.issue.id,

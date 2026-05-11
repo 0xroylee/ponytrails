@@ -54,6 +54,7 @@ export function buildEnvBase(
 			requiredLabel: env.LINEAR_REQUIRED_LABEL,
 			pollLimit: Number(env.PIV_POLL_LIMIT ?? "10"),
 			statusMap: {
+				backlog: env.LINEAR_STATUS_BACKLOG ?? "Backlog",
 				assigned: env.LINEAR_STATUS_ASSIGNED ?? "Todo",
 				planning: env.LINEAR_STATUS_PLANNING ?? "In Progress",
 				implementing: env.LINEAR_STATUS_IMPLEMENTING ?? "In Progress",

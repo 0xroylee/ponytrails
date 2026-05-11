@@ -573,6 +573,7 @@ function createProjectConfig(): ResolvedProjectConfig {
 			apiUrl: "https://api.linear.app/graphql",
 			pollLimit: 10,
 			statusMap: {
+				backlog: "Backlog",
 				assigned: "Todo",
 				planning: "Planning",
 				implementing: "Implementing",
