@@ -20,19 +20,19 @@ Planning output should remain concise and implementation-focused, including:
 
 ## Parallel Processing Operating Guidance
 
-1. Use `--concurrency <N>` only when your project run can safely process multiple issue jobs in parallel.
-2. If omitted, concurrency defaults to sequential issue processing (`1`).
-3. Cron jobs can set the same bound with `run.concurrency`.
+1. This branch does not currently expose user-configurable issue concurrency controls.
+2. Standard runs process issue queues sequentially per project.
+3. Review-only runs schedule issue tasks in parallel, and each task still acquires per-issue leases and passes through the in-process execution-path lock.
 4. Per-issue leases prevent duplicate processing of the same issue key, but they do not serialize all repository mutations across separate ADHD.ai processes.
 
 Safe usage patterns:
 
 1. Shared `executionPath` in a single ADHD.ai process:
-   use bounded concurrency with normal runs; execution-path locking serializes non-review-only issue execution in-process.
+   execution-path locking serializes issue execution in-process and helps avoid concurrent checkout mutation.
 2. Shared `executionPath` across multiple ADHD.ai processes:
-   prefer `--concurrency 1` per process or avoid this layout; process-local locks do not coordinate between processes.
+   avoid this layout when possible; process-local locks do not coordinate between processes.
 3. Isolated worktrees or distinct `executionPath` per project/process:
-   preferred for multi-project unattended automation, especially when parallel runs are expected.
+   preferred for multi-project unattended automation.
 4. Shared `workspacePath` state directories:
    ensure project IDs remain distinct and operator ownership is clear; per-issue leases are scoped by project run-state files.
 
@@ -61,7 +61,7 @@ Run it manually with:
 
 Per-issue leases still prevent duplicate workers from processing the same issue concurrently.
 
-If you add `run.concurrency` to review-only jobs, keep execution-path isolation in mind for any workflow that may still mutate local state or git metadata in your environment.
+Review-only jobs can still touch local state and git metadata via downstream stages; keep execution-path isolation in mind for unattended automation layouts.
 
 ## Quality Commands
 

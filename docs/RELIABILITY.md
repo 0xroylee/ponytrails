@@ -9,13 +9,13 @@
 
 ## Parallel Processing Safety Model
 
-ADHD.ai combines bounded queue concurrency, per-issue leases, and execution-path locking to reduce duplicate work and checkout conflicts.
+ADHD.ai combines queue behavior, per-issue leases, and execution-path locking to reduce duplicate work and checkout conflicts.
 
-### 1) Bounded Queue Concurrency
+### 1) Queue Processing Behavior
 
-1. Issue execution concurrency is bounded by `--concurrency` (CLI) or `run.concurrency` (cron jobs).
-2. Missing or invalid concurrency values fall back to `1` (sequential processing).
-3. The bound applies per project run cycle; it does not imply cross-process or cross-host coordination.
+1. Standard runs process issues sequentially within each project cycle.
+2. Review-only runs enqueue all candidate issues and schedule them via `Promise.all(...)`.
+3. This branch does not expose a user-facing concurrency control (no `--concurrency` flag and no `run.concurrency` cron option).
 
 ### 2) Per-Issue Lease (Persisted Run-State Lock)
 
@@ -33,15 +33,15 @@ ADHD.ai combines bounded queue concurrency, per-issue leases, and execution-path
 
 ### 4) Execution-Path Locking
 
-1. Standard (non-review-only) issue execution is serialized by `executionPath` inside the running ADHD.ai process.
+1. Issue execution is serialized by `executionPath` inside the running ADHD.ai process.
 2. This avoids concurrent checkout/branch mutation in the same execution directory when multiple workers are active.
 3. The lock is process-local and in-memory; it is not a distributed lock across separate ADHD.ai processes.
-4. Review-only runs rely on bounded concurrency plus per-issue leases and do not use the same full execution-path lock path.
+4. Review-only runs still pass through this same execution-path lock when each issue task executes.
 
 ### 5) Safety Envelope Summary
 
 1. Per-issue leases protect against duplicate processing of the same issue key.
-2. Execution-path locking reduces repository mutation conflicts for normal implement/review loops in one process.
+2. Execution-path locking reduces repository mutation conflicts for implement/review loops in one process.
 3. Multiple independent ADHD.ai processes still require operator isolation strategy (for example isolated execution paths/worktrees).
 
 ## Polling and Recovery
