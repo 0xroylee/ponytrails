@@ -222,7 +222,7 @@ export function resolveSplitTaskTeamId(
 }
 
 export class LinearClient {
-	private readonly client: LinearSdkClientInstance;
+	private client: LinearSdkClientInstance | null = null;
 	private resolvedStatusMap:
 		| ResolvedProjectConfig["linear"]["statusMap"]
 		| null = null;
@@ -236,11 +236,8 @@ export class LinearClient {
 	private issueLabelsCache: LinearLabelRecord[] | null = null;
 
 	constructor(private readonly config: ResolvedProjectConfig) {
-		const LinearSdkClient = resolveLinearSdkClient();
-		this.client = new LinearSdkClient({
-			apiKey: config.linear.apiKey,
-			apiUrl: config.linear.apiUrl,
-		});
+		// Keep construction lightweight so tests can stub getClient without
+		// requiring the optional SDK module to resolve up front.
 	}
 
 	async fetchWork(issueArg?: string): Promise<LinearIssue[]> {
@@ -1108,6 +1105,13 @@ export class LinearClient {
 			nodes: LinearSdkIssueLabel[];
 		}>;
 	}> {
+		if (!this.client) {
+			const LinearSdkClient = resolveLinearSdkClient();
+			this.client = new LinearSdkClient({
+				apiKey: this.config.linear.apiKey,
+				apiUrl: this.config.linear.apiUrl,
+			});
+		}
 		return this.client as Awaited<ReturnType<LinearClient["getClient"]>>;
 	}
 
