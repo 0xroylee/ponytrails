@@ -4,6 +4,7 @@ import type {
 	RunState,
 	WorkflowStage,
 } from "../../core/types";
+import { sortIssuesByPriority } from "../../integrations/linear";
 import { normalizeIssueKey } from "./state";
 import type {
 	ReviewOnlyQueueBuildResult,
@@ -39,7 +40,9 @@ export function buildPrioritizedIssueQueue<T extends WorkflowQueueIssue>(
 	assignedIssues: T[],
 	staleRetryIssues: T[],
 ): T[] {
-	return dedupeIssuesByKey([...assignedIssues, ...staleRetryIssues]);
+	return sortIssuesByPriority(
+		dedupeIssuesByKey([...assignedIssues, ...staleRetryIssues]),
+	) as T[];
 }
 
 export function selectIssueQueueForCycle<T extends WorkflowQueueIssue>(
