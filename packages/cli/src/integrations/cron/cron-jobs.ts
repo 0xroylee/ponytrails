@@ -75,6 +75,11 @@ export function applyCronJobSkillOverrides(
 				overrides.reviewTest,
 				project.skills.reviewTest,
 			),
+			githubComment: resolveJobSkillPath(
+				project.skills.root,
+				overrides.githubComment,
+				project.skills.githubComment,
+			),
 		},
 	}));
 

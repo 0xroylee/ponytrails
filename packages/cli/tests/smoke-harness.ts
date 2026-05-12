@@ -118,6 +118,7 @@ export class FakeAgent implements AgentAdapter {
 	plans: Array<AgentResult | Error> = [];
 	resumes: Array<AgentResult | Error> = [];
 	reviews: Array<AgentResult | Error> = [];
+	githubComments: Array<AgentResult | Error> = [];
 	delayMs = 0;
 
 	async runPlan(): Promise<AgentResult> {
@@ -128,6 +129,9 @@ export class FakeAgent implements AgentAdapter {
 	}
 	async runReview(): Promise<AgentResult> {
 		return this.next(this.reviews);
+	}
+	async runGithubComment(): Promise<AgentResult> {
+		return this.next(this.githubComments);
 	}
 	private next(queue: Array<AgentResult | Error>, sessionId?: string) {
 		const result = queue.shift() ?? { finalMessage: "", stdout: "", sessionId };

@@ -156,6 +156,17 @@ describe("state helpers", () => {
 		);
 	});
 
+	it("builds chat log paths for github-comment role", () => {
+		const file = agentChatLogPath(
+			"/tmp/workspace",
+			"default",
+			"github-comment",
+			"skills/piv-github-comment/SKILL.md",
+		);
+
+		expect(file).toContain("/github-comment/");
+	});
+
 	it("retains only the latest agent chat log entries", async () => {
 		const cwd = await mkdtemp(path.join(os.tmpdir(), "adhd-chat-log-test-"));
 		const totalEntries = AGENT_CHAT_LOG_RETENTION + 5;

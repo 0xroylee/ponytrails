@@ -207,6 +207,7 @@ function resolveCronSkillOverrides(
 		plan?: unknown;
 		implement?: unknown;
 		reviewTest?: unknown;
+		githubComment?: unknown;
 	};
 	return {
 		plan: normalizeSkillOverridePath(
@@ -220,6 +221,10 @@ function resolveCronSkillOverrides(
 		reviewTest: normalizeSkillOverridePath(
 			parsed.reviewTest,
 			`${fieldPath}[${index}].skills.reviewTest`,
+		),
+		githubComment: normalizeSkillOverridePath(
+			parsed.githubComment,
+			`${fieldPath}[${index}].skills.githubComment`,
 		),
 	};
 }

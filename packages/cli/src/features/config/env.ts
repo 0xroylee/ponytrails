@@ -87,6 +87,7 @@ export function buildEnvBase(
 				plan: env.CODEX_MODEL_PLAN,
 				implement: env.CODEX_MODEL_IMPLEMENT,
 				reviewTest: env.CODEX_MODEL_REVIEW_TEST,
+				githubComment: env.CODEX_MODEL_GITHUB_COMMENT,
 			},
 			reasoningEfforts: {
 				plan: normalizeReasoningEffortValue(
@@ -101,6 +102,10 @@ export function buildEnvBase(
 					env.CODEX_REASONING_EFFORT_REVIEW_TEST,
 					"CODEX_REASONING_EFFORT_REVIEW_TEST",
 				),
+				githubComment: normalizeReasoningEffortValue(
+					env.CODEX_REASONING_EFFORT_GITHUB_COMMENT,
+					"CODEX_REASONING_EFFORT_GITHUB_COMMENT",
+				),
 			},
 			fastModes: {
 				plan: normalizeBooleanEnvValue(
@@ -114,6 +119,10 @@ export function buildEnvBase(
 				reviewTest: normalizeBooleanEnvValue(
 					env.CODEX_FAST_MODE_REVIEW_TEST,
 					"CODEX_FAST_MODE_REVIEW_TEST",
+				),
+				githubComment: normalizeBooleanEnvValue(
+					env.CODEX_FAST_MODE_GITHUB_COMMENT,
+					"CODEX_FAST_MODE_GITHUB_COMMENT",
 				),
 			},
 			sandbox,
@@ -135,6 +144,7 @@ export function buildEnvBase(
 			plan: path.join("piv-plan", "SKILL.md"),
 			implement: path.join("piv-implement", "SKILL.md"),
 			reviewTest: path.join("piv-review-test", "SKILL.md"),
+			githubComment: path.join("piv-github-comment", "SKILL.md"),
 			autoSelect: {
 				enabled: false,
 				sources: { folder: true, database: false },

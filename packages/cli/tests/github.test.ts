@@ -812,6 +812,7 @@ function createProjectConfig(): ResolvedProjectConfig {
 			plan: "/tmp/plan.md",
 			implement: "/tmp/implement.md",
 			reviewTest: "/tmp/review.md",
+			githubComment: "/tmp/github-comment.md",
 		},
 		workflow: {
 			issueConcurrency: 1,

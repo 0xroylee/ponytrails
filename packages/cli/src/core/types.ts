@@ -84,16 +84,19 @@ export interface ProjectRuntimeConfig {
 			plan?: string;
 			implement?: string;
 			reviewTest?: string;
+			githubComment?: string;
 		};
 		reasoningEfforts?: {
 			plan?: CodexReasoningEffort;
 			implement?: CodexReasoningEffort;
 			reviewTest?: CodexReasoningEffort;
+			githubComment?: CodexReasoningEffort;
 		};
 		fastModes?: {
 			plan?: boolean;
 			implement?: boolean;
 			reviewTest?: boolean;
+			githubComment?: boolean;
 		};
 		plugins?: string[];
 		skillsets?: string[];
@@ -131,6 +134,7 @@ export interface ProjectRuntimeConfig {
 		plan: string;
 		implement: string;
 		reviewTest: string;
+		githubComment: string;
 		autoSelect?: {
 			enabled: boolean;
 			sources: {
@@ -194,6 +198,7 @@ export interface CronJobSkillOverrides {
 	plan?: string;
 	implement?: string;
 	reviewTest?: string;
+	githubComment?: string;
 }
 
 export interface CronJobConfig {
@@ -311,7 +316,11 @@ export interface CodexUsageRecord {
 	recordedAt: string;
 }
 
-export type AgentChatLogRole = "planning" | "implementing" | "review-testing";
+export type AgentChatLogRole =
+	| "planning"
+	| "implementing"
+	| "review-testing"
+	| "github-comment";
 
 export interface AgentChatLogUsage {
 	inputTokens?: number;

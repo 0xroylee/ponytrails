@@ -152,3 +152,35 @@ export async function buildFixPrompt(
 		"Address every bug, update the existing branch/PR, run relevant tests, and end with a concise summary.",
 	].join("\n");
 }
+
+export async function buildGithubCommentPrompt(
+	skillPath: string,
+	issue: IssueRef,
+	pr: PullRequestRef,
+	input: {
+		passed: boolean;
+		summary: string;
+		bugs: BugRecord[];
+	},
+): Promise<string> {
+	const skill = await loadSkillText(skillPath);
+	return [
+		"You are the github-comment agent in the Agent-Driven Development Hub (ADHD.ai) workflow.",
+		"ADHD.ai already refreshed the repository base branch before launching you; do not run git fetch or git pull.",
+		"",
+		"Use this skill:",
+		skill,
+		"",
+		`Linear issue: ${issue.key}`,
+		`PR: ${pr.url ?? pr.branch}`,
+		"",
+		`Review result: ${input.passed ? "PASS" : "FAIL"}`,
+		"Review summary:",
+		input.summary || "(none)",
+		"",
+		"Bugs (BUGS_JSON):",
+		JSON.stringify(input.bugs, null, 2),
+		"",
+		"Return only the final Markdown PR comment body.",
+	].join("\n");
+}

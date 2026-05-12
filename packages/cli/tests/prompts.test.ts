@@ -5,6 +5,7 @@ import path from "node:path";
 import type { IssueRef, PullRequestRef } from "../src/core/types";
 import {
 	buildFixPrompt,
+	buildGithubCommentPrompt,
 	buildImplementPrompt,
 	buildPlanPrompt,
 	buildReviewPrompt,
@@ -104,6 +105,27 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("## Review Guidelines");
 		expect(prompt).toContain("Do not fail solely for style");
 		expect(prompt).toContain("When reporting `RESULT: PASS`");
+	});
+});
+
+describe("buildGithubCommentPrompt", () => {
+	it("builds a github-comment prompt with review outcome and bugs", async () => {
+		const prompt = await buildGithubCommentPrompt(
+			"/tmp/missing-skill-file.md",
+			issue,
+			pr,
+			{
+				passed: false,
+				summary: "Regression found in review.",
+				bugs: [{ title: "Bug A", body: "Fix the regression path." }],
+			},
+		);
+
+		expect(prompt).toContain("You are the github-comment agent");
+		expect(prompt).toContain("Review result: FAIL");
+		expect(prompt).toContain("Regression found in review.");
+		expect(prompt).toContain('"title": "Bug A"');
+		expect(prompt).toContain("Return only the final Markdown PR comment body.");
 	});
 });
 

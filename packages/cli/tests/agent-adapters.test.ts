@@ -41,7 +41,13 @@ function createConfig(
 		github: { useGhCli: true, defaultBugLabel: "bug" },
 		codex: { binary: process.execPath, streamLogs: false },
 		agent: backend ? { backend } : undefined,
-		skills: { root: "r", plan: "p", implement: "i", reviewTest: "r" },
+		skills: {
+			root: "r",
+			plan: "p",
+			implement: "i",
+			reviewTest: "r",
+			githubComment: "g",
+		},
 		workflow: { issueConcurrency: 1 },
 		dryRun: false,
 	};

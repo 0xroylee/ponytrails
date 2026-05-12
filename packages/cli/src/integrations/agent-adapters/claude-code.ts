@@ -23,6 +23,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		return this.runClaude(prompt);
 	}
 
+	async runGithubComment(prompt: string): Promise<AgentResult> {
+		return this.runClaude(prompt);
+	}
+
 	private buildModelArgs(): string[] {
 		const model = this.config.agent?.model;
 		if (!model) return [];

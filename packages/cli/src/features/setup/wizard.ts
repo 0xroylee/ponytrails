@@ -191,11 +191,13 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 					plan: planReasoningEffort,
 					implement: implementReasoningEffort,
 					reviewTest: reviewReasoningEffort,
+					githubComment: reviewReasoningEffort,
 				},
 				models: {
 					plan: planModel,
 					implement: implementModel,
 					reviewTest: reviewModel,
+					githubComment: reviewModel,
 				},
 				plugins: enablePlugins
 					? ["github@openai-curated", "linear@openai-curated"]

@@ -90,6 +90,7 @@ export function project(
 			plan: "skills/piv-plan/SKILL.md",
 			implement: "skills/piv-implement/SKILL.md",
 			reviewTest: "skills/piv-review-test/SKILL.md",
+			githubComment: "skills/piv-github-comment/SKILL.md",
 		},
 		workflow: {
 			issueConcurrency: 1,

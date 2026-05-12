@@ -974,6 +974,7 @@ describe("review pass stage transitions", () => {
 				stdout: "",
 				usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
 			}),
+			runGithubComment: async () => ({ finalMessage: "", stdout: "" }),
 		};
 		const markStage = mock(async () => {});
 		const applyStageLabel = mock(async () => {});
@@ -1257,6 +1258,7 @@ describe("handlePlanningStage", () => {
 			})),
 			resume: mock(async () => ({ finalMessage: "", stdout: "" })),
 			runReview: mock(async () => ({ finalMessage: "", stdout: "" })),
+			runGithubComment: mock(async () => ({ finalMessage: "", stdout: "" })),
 		};
 		const createTodoIssueFromPlan = mock(async () => ({
 			id: "lin_child",
@@ -1745,6 +1747,7 @@ function createProject(
 			plan: "/tmp/plan.md",
 			implement: "/tmp/implement.md",
 			reviewTest: "/tmp/review.md",
+			githubComment: "/tmp/github-comment.md",
 		},
 		workflow: {
 			issueConcurrency: 1,

@@ -70,6 +70,32 @@ export class CodexAdapter implements AgentAdapter {
 		);
 	}
 
+	async runGithubComment(prompt: string): Promise<AgentResult> {
+		const model =
+			this.config.codex.models?.githubComment ??
+			this.config.codex.models?.reviewTest ??
+			this.config.codex.models?.implement ??
+			this.config.codex.model;
+		const reasoningEffort =
+			this.config.codex.reasoningEfforts?.githubComment ??
+			this.config.codex.reasoningEfforts?.reviewTest ??
+			this.config.codex.reasoningEfforts?.implement ??
+			this.config.codex.reasoningEffort;
+		const fastModeEnabled =
+			this.config.codex.fastModes?.githubComment ??
+			this.config.codex.fastModes?.reviewTest ??
+			this.config.codex.fastModes?.implement;
+		return this.runCodex(
+			this.buildExecArgs(
+				prompt,
+				await this.nextOutputFile(),
+				model,
+				reasoningEffort,
+				fastModeEnabled,
+			),
+		);
+	}
+
 	private buildExecArgs(
 		prompt: string,
 		outputFile: string,

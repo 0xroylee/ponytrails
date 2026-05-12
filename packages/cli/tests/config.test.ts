@@ -25,12 +25,15 @@ const envKeys = [
 	"CODEX_REASONING_EFFORT_PLAN",
 	"CODEX_REASONING_EFFORT_IMPLEMENT",
 	"CODEX_REASONING_EFFORT_REVIEW_TEST",
+	"CODEX_REASONING_EFFORT_GITHUB_COMMENT",
 	"CODEX_FAST_MODE_PLAN",
 	"CODEX_FAST_MODE_IMPLEMENT",
 	"CODEX_FAST_MODE_REVIEW_TEST",
+	"CODEX_FAST_MODE_GITHUB_COMMENT",
 	"CODEX_MODEL_PLAN",
 	"CODEX_MODEL_IMPLEMENT",
 	"CODEX_MODEL_REVIEW_TEST",
+	"CODEX_MODEL_GITHUB_COMMENT",
 	"CODEX_DOCKER_ENABLED",
 	"CODEX_DOCKER_IMAGE",
 	"CODEX_DOCKER_BINARY",
@@ -70,9 +73,11 @@ describe("loadConfig", () => {
 								key === "CODEX_REASONING_EFFORT_PLAN" ||
 								key === "CODEX_REASONING_EFFORT_IMPLEMENT" ||
 								key === "CODEX_REASONING_EFFORT_REVIEW_TEST" ||
+								key === "CODEX_REASONING_EFFORT_GITHUB_COMMENT" ||
 								key === "CODEX_FAST_MODE_PLAN" ||
 								key === "CODEX_FAST_MODE_IMPLEMENT" ||
 								key === "CODEX_FAST_MODE_REVIEW_TEST" ||
+								key === "CODEX_FAST_MODE_GITHUB_COMMENT" ||
 								key === "CODEX_DOCKER_ENABLED" ||
 								key === "CODEX_DOCKER_IMAGE" ||
 								key === "CODEX_DOCKER_BINARY" ||
@@ -141,6 +146,9 @@ describe("loadConfig", () => {
 			);
 			expect(config.projects[0]?.skills.reviewTest).toBe(
 				path.join(tempDir, "skills", "piv-review-test", "SKILL.md"),
+			);
+			expect(config.projects[0]?.skills.githubComment).toBe(
+				path.join(tempDir, "skills", "piv-github-comment", "SKILL.md"),
 			);
 			expect(config.projects[0]?.skills.autoSelect).toEqual({
 				enabled: false,
@@ -639,6 +647,7 @@ describe("loadConfig", () => {
 		process.env.CODEX_MODEL_PLAN = "gpt-5.5";
 		process.env.CODEX_MODEL_IMPLEMENT = "gpt-5.3-codex";
 		process.env.CODEX_MODEL_REVIEW_TEST = "gpt-5.3-codex";
+		process.env.CODEX_MODEL_GITHUB_COMMENT = "gpt-5.4-mini";
 		const tempDir = await mkdtemp(
 			path.join(process.cwd(), ".tmp-config-test-"),
 		);
@@ -653,6 +662,9 @@ describe("loadConfig", () => {
 			expect(config.projects[0]?.codex.models?.implement).toBe("gpt-5.3-codex");
 			expect(config.projects[0]?.codex.models?.reviewTest).toBe(
 				"gpt-5.3-codex",
+			);
+			expect(config.projects[0]?.codex.models?.githubComment).toBe(
+				"gpt-5.4-mini",
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
@@ -1001,6 +1013,9 @@ describe("loadConfig", () => {
 			expect(config.projects[0]?.skills.reviewTest).toBe(
 				path.resolve("./shared-skills", "piv-review-test/SKILL.md"),
 			);
+			expect(config.projects[0]?.skills.githubComment).toBe(
+				path.resolve("./shared-skills", "piv-github-comment/SKILL.md"),
+			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
@@ -1205,11 +1220,13 @@ describe("loadConfig", () => {
 				plan: "planning/SKILL.md",
 				implement: "/opt/implement/SKILL.md",
 				reviewTest: undefined,
+				githubComment: undefined,
 			});
 			expect(config.cron.jobs[0]?.skills).toEqual({
 				plan: "planning/SKILL.md",
 				implement: "/opt/implement/SKILL.md",
 				reviewTest: undefined,
+				githubComment: undefined,
 			});
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });

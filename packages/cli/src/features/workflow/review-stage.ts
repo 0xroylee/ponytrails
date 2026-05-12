@@ -7,7 +7,7 @@ import type {
 import type { AgentAdapter } from "../../integrations/agent-adapters";
 import { markPrReadyForReview } from "../../integrations/github";
 import { buildReviewComment } from "../../utils/comments";
-import { buildReviewPrompt } from "../skills/prompts";
+import { buildGithubCommentPrompt, buildReviewPrompt } from "../skills/prompts";
 import type { ReviewOutcome } from "./review";
 import { parseReviewOutcome } from "./review";
 
@@ -16,7 +16,7 @@ interface HandleReviewTestingStageDeps {
 		workspacePath: string;
 		projectId: string;
 		issue: RunState["issue"];
-		agentRole: "review-testing";
+		agentRole: "review-testing" | "github-comment";
 		skillPath: string;
 		prompt: string;
 		invoke: () => Promise<{
@@ -167,8 +167,49 @@ export async function handleReviewTestingStage(
 		bugs: retryBugs,
 	});
 
+	let githubComment = reviewComment;
 	if (!config.dryRun && state.pullRequest) {
-		await deps.safePrComment(config, state, reviewComment);
+		try {
+			const githubCommentPrompt = await buildGithubCommentPrompt(
+				config.skills.githubComment,
+				state.issue,
+				state.pullRequest,
+				{
+					passed: outcome.passed,
+					summary: outcome.summary,
+					bugs: retryBugs,
+				},
+			);
+			const githubCommentResult = await deps.runAgentWithChatLog({
+				workspacePath: config.workspacePath,
+				projectId: config.id,
+				issue: state.issue,
+				agentRole: "github-comment",
+				skillPath: config.skills.githubComment,
+				prompt: githubCommentPrompt,
+				invoke: () => agent.runGithubComment(githubCommentPrompt),
+			});
+			deps.appendCodexUsage(state, "testing", githubCommentResult.usage);
+			await deps.saveRunState(config.workspacePath, state);
+			const generated =
+				githubCommentResult.finalMessage?.trim() ||
+				githubCommentResult.stdout?.trim();
+			if (generated) {
+				githubComment = generated;
+			}
+		} catch (error) {
+			deps.loggerInfo(
+				{
+					...deps.buildIssueJobLogFields(state, "testing"),
+					error: error instanceof Error ? error.message : String(error),
+				},
+				"GitHub comment generation failed; using default review comment",
+			);
+		}
+	}
+
+	if (!config.dryRun && state.pullRequest) {
+		await deps.safePrComment(config, state, githubComment);
 	}
 	await linear.comment(state.issue.id, reviewComment);
 

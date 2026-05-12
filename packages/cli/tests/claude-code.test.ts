@@ -40,7 +40,13 @@ const baseConfig: ResolvedProjectConfig = {
 		binary: process.execPath,
 		streamLogs: false,
 	},
-	skills: { root: "r", plan: "p", implement: "i", reviewTest: "r" },
+	skills: {
+		root: "r",
+		plan: "p",
+		implement: "i",
+		reviewTest: "r",
+		githubComment: "g",
+	},
 	workflow: { issueConcurrency: 1 },
 	dryRun: false,
 };
@@ -61,6 +67,7 @@ describe("claude code adapter", () => {
 		expect(typeof adapter.runPlan).toBe("function");
 		expect(typeof adapter.resume).toBe("function");
 		expect(typeof adapter.runReview).toBe("function");
+		expect(typeof adapter.runGithubComment).toBe("function");
 	});
 
 	it("runPlan delegates to runClaude", async () => {
@@ -98,6 +105,25 @@ describe("claude code adapter", () => {
 		expect(observedPrompt).toBe("review prompt");
 		expect(result).toEqual({
 			finalMessage: "reviewed",
+			stdout: "out",
+		});
+	});
+
+	it("runGithubComment delegates to runClaude", async () => {
+		const adapter = new ClaudeCodeAdapter(createConfig());
+		let observedPrompt = "";
+		(
+			adapter as unknown as {
+				runClaude: (prompt: string) => Promise<AgentResult>;
+			}
+		).runClaude = async (prompt: string) => {
+			observedPrompt = prompt;
+			return { finalMessage: "comment", stdout: "out" };
+		};
+		const result = await adapter.runGithubComment("github comment prompt");
+		expect(observedPrompt).toBe("github comment prompt");
+		expect(result).toEqual({
+			finalMessage: "comment",
 			stdout: "out",
 		});
 	});

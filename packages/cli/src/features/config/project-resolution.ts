@@ -72,6 +72,10 @@ function mergeRuntime(
 			project.skills?.reviewTest ??
 			rootDefaults.skills?.reviewTest ??
 			base.skills.reviewTest,
+		githubComment:
+			project.skills?.githubComment ??
+			rootDefaults.skills?.githubComment ??
+			base.skills.githubComment,
 	};
 	const mergedAutoSelect = resolveAutoSelectConfig(
 		configCwd,
@@ -121,6 +125,11 @@ function mergeRuntime(
 				...(rootDefaults.codex?.reasoningEfforts ?? {}),
 				...(project.codex?.reasoningEfforts ?? {}),
 			},
+			models: {
+				...(base.codex.models ?? {}),
+				...(rootDefaults.codex?.models ?? {}),
+				...(project.codex?.models ?? {}),
+			},
 			fastModes: {
 				...(base.codex.fastModes ?? {}),
 				...(rootDefaults.codex?.fastModes ?? {}),
@@ -132,6 +141,7 @@ function mergeRuntime(
 			plan: resolveSkillPath(skillRoot, mergedSkills.plan),
 			implement: resolveSkillPath(skillRoot, mergedSkills.implement),
 			reviewTest: resolveSkillPath(skillRoot, mergedSkills.reviewTest),
+			githubComment: resolveSkillPath(skillRoot, mergedSkills.githubComment),
 			autoSelect: mergedAutoSelect,
 		},
 		agent: {

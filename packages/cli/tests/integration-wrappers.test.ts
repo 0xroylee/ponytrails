@@ -79,7 +79,13 @@ function createConfig(): ResolvedProjectConfig {
 			model: "gpt-5.4",
 			reasoningEffort: "medium",
 		},
-		skills: { root: "/tmp/skills", plan: "p", implement: "i", reviewTest: "r" },
+		skills: {
+			root: "/tmp/skills",
+			plan: "p",
+			implement: "i",
+			reviewTest: "r",
+			githubComment: "g",
+		},
 		workflow: { issueConcurrency: 1 },
 		dryRun: false,
 	};

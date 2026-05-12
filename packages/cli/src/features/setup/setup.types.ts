@@ -43,11 +43,13 @@ export interface SetupDraft {
 			plan?: CodexReasoningEffort;
 			implement?: CodexReasoningEffort;
 			reviewTest?: CodexReasoningEffort;
+			githubComment?: CodexReasoningEffort;
 		};
 		models: {
 			plan: string;
 			implement: string;
 			reviewTest: string;
+			githubComment: string;
 		};
 		plugins: string[];
 		skillsets: string[];

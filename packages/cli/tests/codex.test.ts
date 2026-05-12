@@ -45,6 +45,7 @@ const config: ResolvedProjectConfig = {
 			plan: "gpt-5.5",
 			implement: "gpt-5.3-codex",
 			reviewTest: "gpt-5.3-codex",
+			githubComment: "gpt-5.4-mini",
 		},
 		reasoningEfforts: {
 			plan: "high",
@@ -54,6 +55,7 @@ const config: ResolvedProjectConfig = {
 			plan: true,
 			implement: false,
 			reviewTest: true,
+			githubComment: false,
 		},
 		plugins: ["github@openai-curated", "linear@openai-curated"],
 		skillsets: ["adhd-ai", "repo-defaults"],
@@ -63,7 +65,13 @@ const config: ResolvedProjectConfig = {
 		sandbox: "workspace-write",
 		codexHome: "/tmp/codex",
 	},
-	skills: { root: "/tmp/skills", plan: "p", implement: "i", reviewTest: "r" },
+	skills: {
+		root: "/tmp/skills",
+		plan: "p",
+		implement: "i",
+		reviewTest: "r",
+		githubComment: "g",
+	},
 	workflow: { issueConcurrency: 1 },
 	dryRun: false,
 };
@@ -116,6 +124,7 @@ describe("codex adapter", () => {
 		expect(typeof adapter.runPlan).toBe("function");
 		expect(typeof adapter.resume).toBe("function");
 		expect(typeof adapter.runReview).toBe("function");
+		expect(typeof adapter.runGithubComment).toBe("function");
 	});
 
 	it("uses stage-specific reasoning effort overrides", async () => {
@@ -165,6 +174,27 @@ describe("codex adapter", () => {
 		expect(calls[1]).not.toContain("features.fast_mode=true");
 		expect(calls[2]).toContain('service_tier="fast"');
 		expect(calls[2]).toContain("features.fast_mode=true");
+	});
+
+	it("uses github-comment model override when present", async () => {
+		const adapter = new CodexAdapter(config);
+		const calls: string[][] = [];
+		(
+			adapter as unknown as { runCodex: (args: string[]) => Promise<unknown> }
+		).runCodex = async (args: string[]) => {
+			calls.push(args);
+			return { finalMessage: "", stdout: "" };
+		};
+		(
+			adapter as unknown as { nextOutputFile: () => Promise<string> }
+		).nextOutputFile = async () => "/tmp/out.txt";
+
+		await adapter.runGithubComment("github comment prompt");
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]).toContain("--model");
+		expect(calls[0]).toContain("gpt-5.4-mini");
+		expect(calls[0]).not.toContain('service_tier="fast"');
 	});
 
 	it("keeps raw config override as final reasoning-effort escape hatch", () => {

@@ -35,6 +35,7 @@ export function renderLocalConfig(draft: SetupDraft): string {
 			plan: "piv-plan/SKILL.md",
 			implement: "piv-implement/SKILL.md",
 			reviewTest: "piv-review-test/SKILL.md",
+			githubComment: "piv-github-comment/SKILL.md",
 		},
 	};
 

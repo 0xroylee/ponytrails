@@ -237,6 +237,7 @@ function createLoadedConfig(jobs: CronJobConfig[]): LoadedConfig {
 					plan: "/tmp/skills/default-plan.md",
 					implement: "/tmp/skills/default-implement.md",
 					reviewTest: "/tmp/skills/default-review.md",
+					githubComment: "/tmp/skills/default-github-comment.md",
 				},
 				workflow: {
 					issueConcurrency: 1,
