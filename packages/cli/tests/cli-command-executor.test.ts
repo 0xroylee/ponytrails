@@ -486,6 +486,24 @@ describe("CliCommandExecutor", () => {
 			taskAction: "create",
 			request: "   ",
 		} as unknown as { action: string });
+		const malformedSkillsListProject = await executor.execute({
+			action: "skills",
+			skillsAction: "list",
+			projectId: 42,
+		} as unknown as { action: string });
+		const malformedSkillsUpdateOptional = await executor.execute({
+			action: "skills",
+			skillsAction: "update",
+			name: "backend-standard",
+			description: "Updated description",
+			projectId: "",
+		} as unknown as { action: string });
+		const malformedTaskProject = await executor.execute({
+			action: "task",
+			taskAction: "create",
+			request: "Build a better setup flow",
+			projectId: 42,
+		} as unknown as { action: string });
 
 		expect(malformedSkillsAction.status).toBe("rejected");
 		expect(malformedSkillsAction.error).toContain("skillsAction is required");
@@ -505,6 +523,18 @@ describe("CliCommandExecutor", () => {
 		expect(unsupportedTaskAction.error).toContain("Unsupported task action");
 		expect(malformedTaskCreate.status).toBe("rejected");
 		expect(malformedTaskCreate.error).toContain("request is required");
+		expect(malformedSkillsListProject.status).toBe("rejected");
+		expect(malformedSkillsListProject.error).toContain(
+			"projectId must be a non-empty string",
+		);
+		expect(malformedSkillsUpdateOptional.status).toBe("rejected");
+		expect(malformedSkillsUpdateOptional.error).toContain(
+			"projectId must be a non-empty string",
+		);
+		expect(malformedTaskProject.status).toBe("rejected");
+		expect(malformedTaskProject.error).toContain(
+			"projectId must be a non-empty string",
+		);
 		expect(callCount).toBe(0);
 	});
 });

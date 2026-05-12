@@ -285,8 +285,16 @@ function resolveSkillsArgs(
 	}
 
 	if (request.skillsAction === "list") {
+		const projectIdValidation = validateOptionalStringField(
+			request.projectId,
+			"skills list",
+			"projectId",
+		);
+		if (projectIdValidation.status !== "ok") {
+			return projectIdValidation;
+		}
 		const args = ["skills", "list"];
-		appendFlag(args, "--project", asOptionalString(request.projectId));
+		appendFlag(args, "--project", projectIdValidation.value);
 		return { status: "ok", args };
 	}
 
@@ -319,7 +327,15 @@ function resolveSkillsArgs(
 			"--content",
 			request.content,
 		];
-		appendFlag(args, "--project", asOptionalString(request.projectId));
+		const projectIdValidation = validateOptionalStringField(
+			request.projectId,
+			"skills add",
+			"projectId",
+		);
+		if (projectIdValidation.status !== "ok") {
+			return projectIdValidation;
+		}
+		appendFlag(args, "--project", projectIdValidation.value);
 		return { status: "ok", args };
 	}
 
@@ -330,11 +346,43 @@ function resolveSkillsArgs(
 				error: "Malformed skills update request: name is required",
 			};
 		}
+		const titleValidation = validateOptionalStringField(
+			request.title,
+			"skills update",
+			"title",
+		);
+		if (titleValidation.status !== "ok") {
+			return titleValidation;
+		}
+		const descriptionValidation = validateOptionalStringField(
+			request.description,
+			"skills update",
+			"description",
+		);
+		if (descriptionValidation.status !== "ok") {
+			return descriptionValidation;
+		}
+		const contentValidation = validateOptionalStringField(
+			request.content,
+			"skills update",
+			"content",
+		);
+		if (contentValidation.status !== "ok") {
+			return contentValidation;
+		}
+		const projectIdValidation = validateOptionalStringField(
+			request.projectId,
+			"skills update",
+			"projectId",
+		);
+		if (projectIdValidation.status !== "ok") {
+			return projectIdValidation;
+		}
 		const args = ["skills", "update", request.name];
-		appendFlag(args, "--title", asOptionalString(request.title));
-		appendFlag(args, "--description", asOptionalString(request.description));
-		appendFlag(args, "--content", asOptionalString(request.content));
-		appendFlag(args, "--project", asOptionalString(request.projectId));
+		appendFlag(args, "--title", titleValidation.value);
+		appendFlag(args, "--description", descriptionValidation.value);
+		appendFlag(args, "--content", contentValidation.value);
+		appendFlag(args, "--project", projectIdValidation.value);
 		if (
 			!args.includes("--title") &&
 			!args.includes("--description") &&
@@ -356,8 +404,16 @@ function resolveSkillsArgs(
 				error: "Malformed skills remove request: name is required",
 			};
 		}
+		const projectIdValidation = validateOptionalStringField(
+			request.projectId,
+			"skills remove",
+			"projectId",
+		);
+		if (projectIdValidation.status !== "ok") {
+			return projectIdValidation;
+		}
 		const args = ["skills", "remove", request.name];
-		appendFlag(args, "--project", asOptionalString(request.projectId));
+		appendFlag(args, "--project", projectIdValidation.value);
 		return { status: "ok", args };
 	}
 
@@ -388,8 +444,16 @@ function resolveTaskArgs(
 			error: "Malformed task create request: request is required",
 		};
 	}
+	const projectIdValidation = validateOptionalStringField(
+		request.projectId,
+		"task create",
+		"projectId",
+	);
+	if (projectIdValidation.status !== "ok") {
+		return projectIdValidation;
+	}
 	const args = ["task", "create", "--request", request.request];
-	appendFlag(args, "--project", asOptionalString(request.projectId));
+	appendFlag(args, "--project", projectIdValidation.value);
 	return { status: "ok", args };
 }
 
@@ -427,6 +491,21 @@ function isNonEmptyString(value: unknown): value is string {
 	return typeof value === "string" && value.trim().length > 0;
 }
 
-function asOptionalString(value: unknown): string | undefined {
-	return isNonEmptyString(value) ? value : undefined;
+function validateOptionalStringField(
+	value: unknown,
+	actionLabel: string,
+	fieldName: string,
+):
+	| { status: "ok"; value: string | undefined }
+	| { status: "error"; error: string } {
+	if (value === undefined) {
+		return { status: "ok", value: undefined };
+	}
+	if (!isNonEmptyString(value)) {
+		return {
+			status: "error",
+			error: `Malformed ${actionLabel} request: ${fieldName} must be a non-empty string`,
+		};
+	}
+	return { status: "ok", value };
 }
