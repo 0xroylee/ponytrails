@@ -16,7 +16,7 @@ The following artifacts are captured from a deterministic two-issue run with
 `concurrency = 2` and are committed for reviewer inspection:
 
 1. CLI log from the same run:
-   - `docs/evidence/roy-175/cli-run.log`
+   - `docs/evidence/roy-175/raw-evidence.json` -> `.logs`
 2. In-flight run-state snapshots (show active lease ownership + workspace):
    - `docs/evidence/roy-175/inflight-ENG-201.json`
    - `docs/evidence/roy-175/inflight-ENG-202.json`
@@ -94,8 +94,8 @@ For both issues, compare:
 4. When isolated worktrees are not enabled, non-review-only execution may still
    serialize through `withExecutionPathLock(config.executionPath)`.
 5. Review-only mode can run concurrently without that execution-path wrapper.
-4. Lease owner IDs should differ between issue workers when both are active.
-6. Final run-state snapshots may not include lease data because leases are
+6. Lease owner IDs should differ between issue workers when both are active.
+7. Final run-state snapshots may not include lease data because leases are
    released at completion; capture in-flight snapshots/logs when lease evidence
    is required.
 

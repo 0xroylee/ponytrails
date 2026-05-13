@@ -1,5 +1,68 @@
 {
-	"logs": [],
+	"logs": [
+		{
+			"timestamp": "2026-05-14T01:01:28.494+08:00",
+			"level": "INFO",
+			"message": "Fetched eligible Linear issues",
+			"projectId": "default",
+			"cycle": 1,
+			"issueCount": 2,
+			"staleRetryCount": 0,
+			"pollingEnabled": false
+		},
+		{
+			"timestamp": "2026-05-14T01:01:28.495+08:00",
+			"level": "INFO",
+			"message": "Taking issue job",
+			"projectId": "default",
+			"issueKey": "ENG-201",
+			"issueId": "lin_ENG-201",
+			"stage": "received"
+		},
+		{
+			"timestamp": "2026-05-14T01:01:28.495+08:00",
+			"level": "INFO",
+			"message": "Taking issue job",
+			"projectId": "default",
+			"issueKey": "ENG-202",
+			"issueId": "lin_ENG-202",
+			"stage": "received"
+		},
+		{
+			"timestamp": "2026-05-14T01:01:28.496+08:00",
+			"level": "INFO",
+			"message": "Planning issue",
+			"projectId": "default",
+			"issueKey": "ENG-201",
+			"issueId": "lin_ENG-201",
+			"stage": "planning"
+		},
+		{
+			"timestamp": "2026-05-14T01:01:28.497+08:00",
+			"level": "INFO",
+			"message": "Planning issue",
+			"projectId": "default",
+			"issueKey": "ENG-202",
+			"issueId": "lin_ENG-202",
+			"stage": "planning"
+		},
+		{
+			"timestamp": "2026-05-14T01:01:28.876+08:00",
+			"level": "INFO",
+			"message": "Issue workflow finished",
+			"projectId": "default",
+			"issueKey": "ENG-201",
+			"stage": "done"
+		},
+		{
+			"timestamp": "2026-05-14T01:01:28.876+08:00",
+			"level": "INFO",
+			"message": "Issue workflow finished",
+			"projectId": "default",
+			"issueKey": "ENG-202",
+			"stage": "done"
+		}
+	],
 	"inflight": {
 		"ENG-201": {
 			"issueKey": "ENG-201",
