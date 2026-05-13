@@ -1,5 +1,4 @@
 export { createReadRepositories } from "./repositories";
-export * from "./db";
 export { CliCommandExecutor } from "./cli-command-executor";
 export type {
 	AgentRecord,

@@ -1,11 +1,3 @@
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import type { ServerDatabase } from "./database.types";
-import * as schema from "./schema";
-
-const CREATE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS jobs (
 	id text PRIMARY KEY,
 	project_id text NOT NULL,
@@ -127,25 +119,3 @@ CREATE TABLE IF NOT EXISTS token_usage (
 	total_tokens integer NOT NULL,
 	recorded_at timestamp NOT NULL
 );
-ALTER TABLE token_usage
-ADD COLUMN IF NOT EXISTS task_id text REFERENCES board_tasks(id);
-ALTER TABLE token_usage
-ADD COLUMN IF NOT EXISTS task_execution_log_id text REFERENCES task_execution_logs(id);
-`;
-
-export async function initializeServerDatabase(
-	databasePath: string,
-): Promise<ServerDatabase> {
-	const resolvedPath = path.resolve(databasePath);
-	await mkdir(path.dirname(resolvedPath), { recursive: true });
-	const client = new PGlite(resolvedPath);
-	await client.exec(CREATE_SCHEMA_SQL);
-	const db = drizzle({ client, schema });
-	return {
-		client,
-		db,
-		async close() {
-			await client.close();
-		},
-	};
-}
