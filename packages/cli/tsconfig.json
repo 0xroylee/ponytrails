@@ -8,7 +8,7 @@
 		"noEmit": true,
 		"forceConsistentCasingInFileNames": true,
 		"skipLibCheck": true,
-		"types": ["bun"],
+		"types": ["bun", "node"],
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"],
