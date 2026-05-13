@@ -1,4 +1,5 @@
 import type { AppDeps, RouteHandler } from "./app.types";
+import { READ_ONLY_SERVER_PATHS, handleServerRequest } from "./routes";
 
 const UNSAFE_RAW_COMMAND_FIELDS = ["command", "cmd", "args", "argv", "shell"];
 
@@ -8,6 +9,16 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 
 		if (pathname === "/health" && request.method === "GET") {
 			return Response.json({ status: "ok" });
+		}
+
+		if (
+			READ_ONLY_SERVER_PATHS.includes(
+				pathname as (typeof READ_ONLY_SERVER_PATHS)[number],
+			)
+		) {
+			return handleServerRequest(request, {
+				repositories: deps.repositories,
+			});
 		}
 
 		if (pathname === "/api/cli/history") {
