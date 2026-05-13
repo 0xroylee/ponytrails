@@ -1,8 +1,16 @@
 import { CliCommandExecutor } from "adhdai/features/server/cli-command-executor";
 import { createHandleRequest } from "./app";
+import { initializeServerDatabase } from "./db";
 
-export const startServer = (port = 3000): Bun.Server<undefined> =>
-	Bun.serve({
+const DEFAULT_SERVER_DB_PATH = ".piv-loop/server/db";
+
+export const startServer = async (
+	port = 3000,
+): Promise<Bun.Server<undefined>> => {
+	const serverDatabase = await initializeServerDatabase(
+		process.env.SERVER_DB_PATH ?? DEFAULT_SERVER_DB_PATH,
+	);
+	return Bun.serve({
 		port,
 		fetch: createHandleRequest({
 			cliExecutor: new CliCommandExecutor({
@@ -10,9 +18,11 @@ export const startServer = (port = 3000): Bun.Server<undefined> =>
 				command: "bun",
 				baseArgs: ["run", "./packages/cli/src/index.ts"],
 			}),
+			db: serverDatabase.db,
 		}),
 	});
+};
 
 if (import.meta.main) {
-	startServer();
+	await startServer();
 }

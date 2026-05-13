@@ -172,5 +172,6 @@ function createDeps(overrides?: {
 				})),
 			getHistory: () => overrides?.history ?? [],
 		},
+		db: {} as AppDeps["db"],
 	};
 }
