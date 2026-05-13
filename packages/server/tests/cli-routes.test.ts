@@ -32,6 +32,48 @@ describe("CLI server routes", () => {
 		expect((await response.json()).status).toBe("succeeded");
 	});
 
+	it("dispatches non-interactive task create payloads", async () => {
+		const calls: unknown[] = [];
+		const app = createHandleRequest(
+			createDeps({
+				execute: async (request) => {
+					calls.push(request);
+					return {
+						status: "succeeded",
+						request: request as { action: string },
+					};
+				},
+			}),
+		);
+
+		const response = await app(
+			new Request("http://localhost/api/cli/dispatch", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					action: "task",
+					taskAction: "create",
+					request: "Build a better setup flow",
+					nonInteractive: true,
+					maxClarificationRounds: 2,
+					clarificationAnswers: [{ question: "Who?", answer: "CLI users" }],
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(calls).toEqual([
+			{
+				action: "task",
+				taskAction: "create",
+				request: "Build a better setup flow",
+				nonInteractive: true,
+				maxClarificationRounds: 2,
+				clarificationAnswers: [{ question: "Who?", answer: "CLI users" }],
+			},
+		]);
+	});
+
 	it("returns dispatch history", async () => {
 		const history = [
 			{

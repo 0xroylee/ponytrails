@@ -303,6 +303,9 @@ describe("CliCommandExecutor", () => {
 			taskAction: "create",
 			request: "Build a better setup flow",
 			projectId: "default",
+			nonInteractive: true,
+			maxClarificationRounds: 2,
+			clarificationAnswers: [{ question: "Who?", answer: "CLI users" }],
 		});
 
 		expect(result.status).toBe("succeeded");
@@ -318,6 +321,11 @@ describe("CliCommandExecutor", () => {
 					"Build a better setup flow",
 					"--project",
 					"default",
+					"--non-interactive",
+					"--max-clarification-rounds",
+					"2",
+					"--clarifications-json",
+					'[{"question":"Who?","answer":"CLI users"}]',
 				],
 			},
 		]);
@@ -537,6 +545,18 @@ describe("CliCommandExecutor", () => {
 			request: "Build a better setup flow",
 			projectId: 42,
 		} as unknown as { action: string });
+		const malformedTaskAnswers = await executor.execute({
+			action: "task",
+			taskAction: "create",
+			request: "Build a better setup flow",
+			clarificationAnswers: [{ question: "", answer: "CLI users" }],
+		} as unknown as { action: string });
+		const malformedTaskUnsafeField = await executor.execute({
+			action: "task",
+			taskAction: "create",
+			request: "Build a better setup flow",
+			stdinMode: "pipe",
+		} as unknown as { action: string });
 		const malformedRunFields = await executor.execute({
 			action: "run",
 			projectId: ["bad"],
@@ -573,6 +593,14 @@ describe("CliCommandExecutor", () => {
 		expect(malformedTaskProject.status).toBe("rejected");
 		expect(malformedTaskProject.error).toContain(
 			"projectId must be a non-empty string",
+		);
+		expect(malformedTaskAnswers.status).toBe("rejected");
+		expect(malformedTaskAnswers.error).toContain(
+			"clarificationAnswers[0].question must be a non-empty string",
+		);
+		expect(malformedTaskUnsafeField.status).toBe("rejected");
+		expect(malformedTaskUnsafeField.error).toContain(
+			"unsafe field 'stdinMode' is not allowed",
 		);
 		expect(malformedRunFields.status).toBe("rejected");
 		expect(malformedRunFields.error).toContain(
