@@ -74,6 +74,61 @@ describe("CLI server routes", () => {
 		]);
 	});
 
+	it("forwards task create payload when nonInteractive is omitted or false", async () => {
+		const calls: unknown[] = [];
+		const app = createHandleRequest(
+			createDeps({
+				execute: async (request) => {
+					calls.push(request);
+					return {
+						status: "succeeded",
+						request: request as { action: string },
+					};
+				},
+			}),
+		);
+
+		const omittedResponse = await app(
+			new Request("http://localhost/api/cli/dispatch", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					action: "task",
+					taskAction: "create",
+					request: "Build task flow",
+				}),
+			}),
+		);
+		const falseResponse = await app(
+			new Request("http://localhost/api/cli/dispatch", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					action: "task",
+					taskAction: "create",
+					request: "Build task flow",
+					nonInteractive: false,
+				}),
+			}),
+		);
+
+		expect(omittedResponse.status).toBe(200);
+		expect(falseResponse.status).toBe(200);
+		expect(calls).toEqual([
+			{
+				action: "task",
+				taskAction: "create",
+				request: "Build task flow",
+			},
+			{
+				action: "task",
+				taskAction: "create",
+				request: "Build task flow",
+				nonInteractive: false,
+			},
+		]);
+	});
+
 	it("returns dispatch history", async () => {
 		const history = [
 			{

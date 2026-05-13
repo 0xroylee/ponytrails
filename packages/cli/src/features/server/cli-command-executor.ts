@@ -538,6 +538,13 @@ function resolveTaskArgs(
 	if (nonInteractiveValidation.status !== "ok") {
 		return nonInteractiveValidation;
 	}
+	if (nonInteractiveValidation.value === false) {
+		return {
+			status: "error",
+			error:
+				"Malformed task create request: nonInteractive must be true when provided",
+		};
+	}
 	const maxClarificationRoundsValidation = validateOptionalPositiveIntegerField(
 		request.maxClarificationRounds,
 		"task create",
@@ -553,7 +560,7 @@ function resolveTaskArgs(
 	}
 	const args = ["task", "create", "--request", request.request];
 	appendFlag(args, "--project", projectIdValidation.value);
-	appendBooleanFlag(args, "--non-interactive", nonInteractiveValidation.value);
+	args.push("--non-interactive");
 	appendNumericFlag(
 		args,
 		"--max-clarification-rounds",
