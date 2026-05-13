@@ -17,6 +17,7 @@ import {
 	isRunLeaseExpired,
 	listRunStates,
 	loadRunState,
+	normalizeBlockedPlanningFailureForResume,
 	normalizeIssueKey,
 	projectErrorLogPath,
 	saveRunState,
@@ -801,6 +802,7 @@ async function processIssue(
 			startedAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 		} satisfies RunState);
+	Object.assign(runState, normalizeBlockedPlanningFailureForResume(runState));
 
 	if (
 		options.reviewOnly &&
@@ -886,6 +888,7 @@ async function processIssue(
 		issueLogger.info({ stage: runState.stage }, "Issue workflow finished");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
+		const failedStage = runState.stage;
 		runState.lastError = message;
 		if (runState.stage === "done") {
 			await saveRunState(config.workspacePath, runState);
@@ -898,13 +901,14 @@ async function processIssue(
 			);
 			return;
 		}
+		runState.failedStage = failedStage;
 		runState.stage = "blocked";
 		await saveRunState(config.workspacePath, runState);
 		await safeLinearMoveToCanceled(linear, runState.issue.id);
 		await safeLinearComment(
 			linear,
 			runState.issue.id,
-			`ADHD.ai failed and moved issue to Canceled.\n\nError:\n${message}`,
+			`devos.ing failed and moved issue to Canceled.\n\nError:\n${message}`,
 		);
 		issueLogger.error(
 			{
@@ -1215,7 +1219,7 @@ async function handleReceivedStage(
 	state: RunState,
 ): Promise<void> {
 	await linear.markStage(state.issue.id, "planning");
-	await linear.comment(state.issue.id, "ADHD.ai started planning.");
+	await linear.comment(state.issue.id, "devos.ing started planning.");
 	Object.assign(state, transitionStage(state, "planning"));
 	await saveRunState(config.workspacePath, state);
 }

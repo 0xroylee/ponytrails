@@ -7,6 +7,16 @@ import type {
 	CliCommandRequest,
 	SupportedCliCommandRequest,
 } from "./cli-command-executor.types";
+export type {
+	CliCommandExecutionHistoryEntry,
+	CliCommandExecutionResult,
+	CliCommandExecutorOptions,
+	CliCommandInvocation,
+	CliCommandRequest,
+	RunCommandFn,
+	SupportedCliAction,
+	SupportedCliCommandRequest,
+} from "./cli-command-executor.types";
 
 const DEFAULT_MAX_HISTORY_ENTRIES = 100;
 
@@ -284,6 +294,13 @@ function resolveInvocation(
 				command,
 				args: [...baseArgs, ...taskResolution.args],
 			},
+		};
+	}
+	if (request.action === "stop") {
+		return {
+			status: "error",
+			error:
+				"Unsupported CLI action: stop (typed stop workflow boundary is not available)",
 		};
 	}
 	return {
