@@ -7,6 +7,8 @@ import type {
 	WorkflowTab,
 } from "@/lib/agents/agent-monitor.types";
 
+import { AgentMonitorSkeleton } from "./agent-monitor-skeleton";
+
 interface AgentMonitorPanelProps {
 	health: AgentHealthViewModel;
 	activeWorkflowTab: WorkflowTab;
@@ -22,6 +24,10 @@ export function AgentMonitorPanel({
 	onWorkflowTabChange,
 	onToggleDetails,
 }: AgentMonitorPanelProps): ReactElement {
+	if (health.status === "loading") {
+		return <AgentMonitorSkeleton />;
+	}
+
 	return (
 		<section style={{ maxWidth: "44rem", width: "100%" }}>
 			<h1 style={{ margin: "0 0 0.75rem" }}>ADHD.ai Agent Monitor</h1>

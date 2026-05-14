@@ -9,6 +9,7 @@ import type {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+import { IssuesBoardSkeleton } from "./issues-board-skeleton";
 import { getStatusLabel, isAgentTask } from "./issues-board-utils";
 import { STATUS_ORDER, STATUS_PRESENTATION } from "./issues-board.constants";
 import type { IssueTab } from "./issues-board.types";
@@ -116,7 +117,7 @@ export function BoardContent({
 	onOpenIssue: (task: ProjectBoardTaskRecord) => void;
 }): ReactElement {
 	if (isLoading) {
-		return <BoardState label="Loading issues..." />;
+		return <IssuesBoardSkeleton />;
 	}
 	if (error) {
 		return <BoardState label={error.message} />;
