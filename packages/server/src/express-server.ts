@@ -12,6 +12,7 @@ import swaggerUi from "swagger-ui-express";
 import type { RouteHandler } from "./app.types";
 
 const PORT_ZERO_RETRY_LIMIT = 5;
+const PORT_ZERO_RETRY_START = 3001;
 const OPENAPI_SPEC_PATH = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	"../../..",
@@ -59,7 +60,11 @@ export function listenExpressApp(app: Express, port: number): Promise<Server> {
 
 		const listen = (): void => {
 			attempts += 1;
-			const server = app.listen(port);
+			const listenPort =
+				port === 0 && attempts > 1
+					? PORT_ZERO_RETRY_START + attempts - 2
+					: port;
+			const server = app.listen(listenPort);
 			server.once("listening", () => resolve(server));
 			server.once("error", (error) => {
 				if (

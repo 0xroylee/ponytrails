@@ -75,12 +75,12 @@ export interface BoardTaskRecord {
 }
 
 export interface ReadRepositories {
-	listTokenUsage(): TokenUsageRecord[];
-	listJobs(): JobRecord[];
-	listAgents(): AgentRecord[];
-	listSkills(): SkillRecord[];
-	listCommandHistory(): CommandHistoryRecord[];
-	listProjectBoards(): ProjectBoardRecord[];
-	listBoardProjects(): BoardProjectRecord[];
-	listBoardTasks(): BoardTaskRecord[];
+	listTokenUsage(): Promise<TokenUsageRecord[]>;
+	listJobs(): Promise<JobRecord[]>;
+	listAgents(): Promise<AgentRecord[]>;
+	listSkills(): Promise<SkillRecord[]>;
+	listCommandHistory(): Promise<CommandHistoryRecord[]>;
+	listProjectBoards(): Promise<ProjectBoardRecord[]>;
+	listBoardProjects(): Promise<BoardProjectRecord[]>;
+	listBoardTasks(): Promise<BoardTaskRecord[]>;
 }

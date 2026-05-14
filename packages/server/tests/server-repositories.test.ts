@@ -20,14 +20,14 @@ describe("read repositories", () => {
 		testDatabase = await createServerTestDatabase();
 		const repositories = createReadRepositories(testDatabase.database);
 
-		expect(repositories.listTokenUsage()).toEqual([]);
-		expect(repositories.listJobs()).toEqual([]);
-		expect(repositories.listAgents()).toEqual([]);
-		expect(repositories.listSkills()).toEqual([]);
-		expect(repositories.listCommandHistory()).toEqual([]);
-		expect(repositories.listProjectBoards()).toEqual([]);
-		expect(repositories.listBoardProjects()).toEqual([]);
-		expect(repositories.listBoardTasks()).toEqual([]);
+		expect(await repositories.listTokenUsage()).toEqual([]);
+		expect(await repositories.listJobs()).toEqual([]);
+		expect(await repositories.listAgents()).toEqual([]);
+		expect(await repositories.listSkills()).toEqual([]);
+		expect(await repositories.listCommandHistory()).toEqual([]);
+		expect(await repositories.listProjectBoards()).toEqual([]);
+		expect(await repositories.listBoardProjects()).toEqual([]);
+		expect(await repositories.listBoardTasks()).toEqual([]);
 	});
 
 	it("returns seeded rows with expected mapping", async () => {
@@ -82,7 +82,7 @@ describe("read repositories", () => {
 				executedAt: "2026-05-12T00:04:00.000Z",
 			},
 		]);
-		expect(repositories.listProjectBoards()).toEqual([
+		expect(await repositories.listProjectBoards()).toEqual([
 			{
 				id: "board-1",
 				name: "Workspace Board",
@@ -92,7 +92,7 @@ describe("read repositories", () => {
 				updatedAt: "2026-05-12T00:05:00.000Z",
 			},
 		]);
-		expect(repositories.listBoardProjects()).toEqual([
+		expect(await repositories.listBoardProjects()).toEqual([
 			{
 				id: "project-1",
 				boardId: "board-1",
@@ -104,7 +104,7 @@ describe("read repositories", () => {
 				updatedAt: "2026-05-12T00:06:00.000Z",
 			},
 		]);
-		expect(repositories.listBoardTasks()).toEqual([
+		expect(await repositories.listBoardTasks()).toEqual([
 			{
 				id: "task-1",
 				projectId: "project-1",

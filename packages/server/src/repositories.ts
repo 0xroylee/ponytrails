@@ -119,7 +119,7 @@ export function createReadRepositories(
 			),
 		listProjectBoards: () =>
 			readRows(
-				dbPath,
+				database,
 				`SELECT id, name, description, owner_id, created_at, updated_at
 				 FROM project_boards
 				 ORDER BY id ASC`,
@@ -129,13 +129,13 @@ export function createReadRepositories(
 					description:
 						row.description === null ? null : String(row.description),
 					ownerId: String(row.owner_id),
-					createdAt: String(row.created_at),
-					updatedAt: String(row.updated_at),
+					createdAt: normalizeTimestamp(row.created_at),
+					updatedAt: normalizeTimestamp(row.updated_at),
 				}),
 			),
 		listBoardProjects: () =>
 			readRows(
-				dbPath,
+				database,
 				`SELECT id, board_id, external_project_id, name, description, owner_id, created_at, updated_at
 				 FROM board_projects
 				 ORDER BY id ASC`,
@@ -150,13 +150,13 @@ export function createReadRepositories(
 					description:
 						row.description === null ? null : String(row.description),
 					ownerId: String(row.owner_id),
-					createdAt: String(row.created_at),
-					updatedAt: String(row.updated_at),
+					createdAt: normalizeTimestamp(row.created_at),
+					updatedAt: normalizeTimestamp(row.updated_at),
 				}),
 			),
 		listBoardTasks: () =>
 			readRows(
-				dbPath,
+				database,
 				`SELECT id, project_id, title, content, priority, status, due_date, creator_id, linked_pr, created_at, updated_at
 				 FROM board_tasks
 				 ORDER BY id ASC`,
@@ -167,11 +167,12 @@ export function createReadRepositories(
 					content: String(row.content),
 					priority: Number(row.priority),
 					status: String(row.status),
-					dueDate: row.due_date === null ? null : String(row.due_date),
+					dueDate:
+						row.due_date === null ? null : normalizeTimestamp(row.due_date),
 					creatorId: String(row.creator_id),
 					linkedPr: row.linked_pr === null ? null : String(row.linked_pr),
-					createdAt: String(row.created_at),
-					updatedAt: String(row.updated_at),
+					createdAt: normalizeTimestamp(row.created_at),
+					updatedAt: normalizeTimestamp(row.updated_at),
 				}),
 			),
 	};
