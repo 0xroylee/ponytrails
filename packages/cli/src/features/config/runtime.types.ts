@@ -169,10 +169,10 @@ export interface ResolvedNotificationConfig {
 	email: ResolvedNotificationEmailConfig;
 }
 
-export type AdhdAiRootConfig = DeepPartial<ProjectRuntimeConfig> & {
+export type DevosRootConfig = DeepPartial<ProjectRuntimeConfig> & {
 	polling?: DeepPartial<PollingConfig>;
 	notifications?: DeepPartial<NotificationConfig>;
 	projects: ProjectConfig[];
 };
 
-export type PivLoopRootConfig = AdhdAiRootConfig;
+export type PivLoopRootConfig = DevosRootConfig;

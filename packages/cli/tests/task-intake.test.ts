@@ -302,7 +302,7 @@ function project(): ResolvedProjectConfig {
 			autoCreateLabels: false,
 		},
 		github: { useGhCli: false, defaultBugLabel: "bug" },
-		server: { database: { databasePath: "/tmp/adhdai.sqlite" } },
+		server: { database: { databasePath: "/tmp/devos.sqlite" } },
 		codex: { binary: "codex", streamLogs: false },
 		agent: { backend: "codex" },
 		workflow: { issueConcurrency: 1 },

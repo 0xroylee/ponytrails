@@ -1,4 +1,4 @@
-import type { RunState } from "adhdai/features/types";
+import type { RunState } from "devos/features/types";
 
 export type NotificationOutcome = "done" | "blocked";
 

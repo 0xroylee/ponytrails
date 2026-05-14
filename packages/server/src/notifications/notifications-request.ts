@@ -1,4 +1,4 @@
-import type { RunState } from "adhdai/features/types";
+import type { RunState } from "devos/features/types";
 import { z } from "zod";
 import { isRecord } from "../http/zod-utils";
 import type { NotificationRequest } from "./notifications.types";

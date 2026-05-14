@@ -4,8 +4,8 @@ import { pathToFileURL } from "node:url";
 import type { CronJobConfig } from "./cron.types";
 
 const CONFIG_CANDIDATES = [
-	"adhd-ai.local.config.ts",
-	"adhd-ai.config.ts",
+	"devos.local.config.ts",
+	"devos.config.ts",
 	"piv-loop.config.ts",
 ] as const;
 

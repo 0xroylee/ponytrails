@@ -1,5 +1,5 @@
-import type { LoadedConfig } from "adhdai/features/config";
-import type { RunOptions } from "adhdai/features/types";
+import type { LoadedConfig } from "devos/features/config";
+import type { RunOptions } from "devos/features/types";
 
 export type CronScheduleDayOfWeek =
 	| "sun"

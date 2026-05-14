@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { LoadedConfig } from "adhdai/features/config";
+import type { LoadedConfig } from "devos/features/config";
 import {
 	type CronJobConfig,
 	runCronJobOnce,
@@ -174,7 +174,7 @@ function createLoadedConfig(): LoadedConfig {
 					autoCreateLabels: true,
 				},
 				github: { useGhCli: true, defaultBugLabel: "bug" },
-				server: { database: { databasePath: "/tmp/adhdai.sqlite" } },
+				server: { database: { databasePath: "/tmp/devos.sqlite" } },
 				codex: { binary: "codex", streamLogs: false },
 				skills: {
 					root: "/tmp/skills",

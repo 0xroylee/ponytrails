@@ -13,7 +13,7 @@ export default defineConfig({
 		rollupOptions: {
 			external: [
 				/^node:/,
-				/^adhdai\//,
+				/^devos\//,
 				"bun",
 				"express",
 				"express-openapi-validator",

@@ -34,7 +34,7 @@ const draft: SetupDraft = {
 		email: {
 			enabled: true,
 			resendApiKey: "re_secret_123",
-			from: "adhd-ai@example.com",
+			from: "devos@example.com",
 			to: ["alerts@example.com", "ops@example.com"],
 		},
 	},
@@ -54,7 +54,7 @@ const draft: SetupDraft = {
 			githubComment: "gpt-5.3-codex",
 		},
 		plugins: ["github@openai-curated", "linear@openai-curated"],
-		skillsets: ["adhd-ai"],
+		skillsets: ["devos"],
 		configOverrides: {
 			"features.codex_hooks": "true",
 		},
@@ -77,7 +77,7 @@ describe("setup helpers", () => {
 		expect(localConfig).not.toContain("re_secret_123");
 		expect(localConfig).toContain("demo-project");
 		expect(localConfig).toContain('"enabled": true');
-		expect(localConfig).toContain('"from": "adhd-ai@example.com"');
+		expect(localConfig).toContain('"from": "devos@example.com"');
 		expect(localConfig).toContain('"to": [');
 		expect(localConfig).toContain('"alerts@example.com"');
 		expect(localConfig).toContain('"ops@example.com"');
@@ -122,7 +122,7 @@ describe("setup helpers", () => {
 			const envContent = await readFile(envPath, "utf8");
 			expect(envContent).toContain("LINEAR_API_KEY=lin_secret_123");
 			expect(envContent).toContain("RESEND_API_KEY=re_secret_123");
-			expect(envContent).toContain("RESEND_FROM=adhd-ai@example.com");
+			expect(envContent).toContain("RESEND_FROM=devos@example.com");
 			expect(envContent).toContain(
 				'RESEND_TO="alerts@example.com,ops@example.com"',
 			);
@@ -242,14 +242,14 @@ describe("setup helpers", () => {
 			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),
 			access: async () => {},
 			readFile: async (filePath) =>
-				filePath.endsWith("adhd-ai.config.ts") ? "lin_secret_123" : "",
+				filePath.endsWith("devos.config.ts") ? "lin_secret_123" : "",
 			runCommand: async () => okCommand(),
 		});
 
 		expect(checks).toContainEqual({
 			name: "Tracked config secrets",
 			status: "fail",
-			message: "adhd-ai.config.ts contains a configured secret",
+			message: "devos.config.ts contains a configured secret",
 		});
 	});
 

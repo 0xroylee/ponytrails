@@ -3,7 +3,7 @@ import type {
 	CliCommandExecutionResult,
 	CliCommandRequest,
 	NotificationServerRequest,
-} from "adhdai/features/server";
+} from "devos/features/server";
 import type { BoardRepository } from "./board";
 import type { ServerDatabase } from "./db";
 import type { ServerLogger } from "./logger.types";

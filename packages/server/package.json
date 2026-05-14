@@ -1,5 +1,5 @@
 {
-	"name": "adhdai-server",
+	"name": "devos-server",
 	"version": "0.0.1",
 	"license": "MIT",
 	"private": true,
@@ -28,7 +28,7 @@
 	},
 	"dependencies": {
 		"@electric-sql/pglite": "^0.3.14",
-		"adhdai": "workspace:*",
+		"devos": "workspace:*",
 		"drizzle-orm": "^0.44.7",
 		"express": "^5.2.1",
 		"express-openapi-validator": "^5.6.0",

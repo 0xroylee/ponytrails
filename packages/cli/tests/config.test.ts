@@ -191,7 +191,7 @@ describe("loadConfig", () => {
 		);
 		process.env.PIV_SERVER_DATABASE_PATH = "./from-env/server-db";
 		await writeFile(
-			path.join(tempDir, "adhd-ai.config.ts"),
+			path.join(tempDir, "devos.config.ts"),
 			[
 				"export default {",
 				"  server: {",
@@ -369,7 +369,7 @@ describe("loadConfig", () => {
 			path.join(process.cwd(), ".tmp-config-test-"),
 		);
 		await writeFile(
-			path.join(tempDir, "adhd-ai.config.ts"),
+			path.join(tempDir, "devos.config.ts"),
 			[
 				"export default {",
 				"  agent: {",

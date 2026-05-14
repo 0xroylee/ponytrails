@@ -1,7 +1,7 @@
 import path from "node:path";
 import type {
-	AdhdAiRootConfig,
 	DeepPartial,
+	DevosRootConfig,
 } from "./packages/cli/src/features/types";
 
 const cwd = process.cwd();
@@ -19,7 +19,7 @@ type ServerCronConfig = {
 	};
 };
 
-const config: DeepPartial<AdhdAiRootConfig> & ServerCronConfig = {
+const config: DeepPartial<DevosRootConfig> & ServerCronConfig = {
 	automations: {
 		jobs: [
 			{
@@ -47,7 +47,7 @@ const config: DeepPartial<AdhdAiRootConfig> & ServerCronConfig = {
 			reviewTest: "gpt-5.5",
 		},
 		plugins: ["github@openai-curated", "linear@openai-curated"],
-		skillsets: ["adhd-ai"],
+		skillsets: ["devos"],
 		configOverrides: {
 			"features.codex_hooks": "true",
 		},

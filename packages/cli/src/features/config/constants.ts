@@ -1,7 +1,7 @@
 import path from "node:path";
 
-export const DEFAULT_CONFIG_FILE = "adhd-ai.config.ts";
-export const LOCAL_CONFIG_FILE = "adhd-ai.local.config.ts";
+export const DEFAULT_CONFIG_FILE = "devos.config.ts";
+export const LOCAL_CONFIG_FILE = "devos.local.config.ts";
 export const LEGACY_CONFIG_FILE = "piv-loop.config.ts";
 
 export const SQLITE_ENV_DIR = path.join(".piv-loop", "config");

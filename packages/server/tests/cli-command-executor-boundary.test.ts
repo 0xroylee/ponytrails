@@ -7,7 +7,7 @@ import {
 	type CliCommandExecutorOptions,
 	type CliCommandInvocation,
 	type CliCommandRequest,
-} from "adhdai/features/server/cli-command-executor";
+} from "devos/features/server/cli-command-executor";
 
 describe("cli executor boundary export", () => {
 	it("allows server to consume executor and boundary types", async () => {
