@@ -11,7 +11,9 @@ import * as OpenApiValidator from "express-openapi-validator";
 import swaggerUi from "swagger-ui-express";
 import type { RouteHandler } from "./app.types";
 
-let nextFallbackPort = 41_000 + (process.pid % 1_000);
+const MAX_DYNAMIC_PORT_ATTEMPTS = 200;
+const EPHEMERAL_PORT_MIN = 49_152;
+const EPHEMERAL_PORT_MAX = 65_535;
 const OPENAPI_SPEC_PATH = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	"../../..",
@@ -53,18 +55,48 @@ export function createExpressApp(handler: RouteHandler): Express {
 }
 
 export function listenExpressApp(app: Express, port: number): Promise<Server> {
-	const listenPort = port === 0 ? nextAvailableFallbackPort() : port;
+	if (port !== 0) {
+		return listenOnPort(app, port);
+	}
+	return listenWithDynamicPortRetry(app);
+}
+
+async function listenWithDynamicPortRetry(app: Express): Promise<Server> {
+	for (let attempt = 0; attempt < MAX_DYNAMIC_PORT_ATTEMPTS; attempt += 1) {
+		const candidatePort = attempt === 0 ? 0 : randomEphemeralPort();
+		try {
+			return await listenOnPort(app, candidatePort);
+		} catch (error) {
+			if (!isAddrInUseError(error)) {
+				throw error;
+			}
+		}
+	}
+	throw new Error(
+		`Failed to find an available port after ${MAX_DYNAMIC_PORT_ATTEMPTS} attempts`,
+	);
+}
+
+function listenOnPort(app: Express, port: number): Promise<Server> {
 	return new Promise((resolve, reject) => {
-		const server = app.listen(listenPort);
+		const server = app.listen(port);
 		server.once("listening", () => resolve(server));
 		server.once("error", reject);
 	});
 }
 
-function nextAvailableFallbackPort(): number {
-	const port = nextFallbackPort;
-	nextFallbackPort += 1;
-	return port;
+function isAddrInUseError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as { code?: string }).code === "EADDRINUSE"
+	);
+}
+
+function randomEphemeralPort(): number {
+	const spread = EPHEMERAL_PORT_MAX - EPHEMERAL_PORT_MIN + 1;
+	return EPHEMERAL_PORT_MIN + Math.floor(Math.random() * spread);
 }
 
 function toWebRequest(request: ExpressRequest): Request {
