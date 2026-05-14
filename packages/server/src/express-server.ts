@@ -11,9 +11,7 @@ import * as OpenApiValidator from "express-openapi-validator";
 import swaggerUi from "swagger-ui-express";
 import type { RouteHandler } from "./app.types";
 
-const EPHEMERAL_PORT_MIN = 49_152;
-const EPHEMERAL_PORT_MAX = 65_535;
-const EPHEMERAL_PORT_RETRY_LIMIT = 50;
+let nextFallbackPort = 41_000 + (process.pid % 1_000);
 const OPENAPI_SPEC_PATH = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	"../../..",
@@ -55,54 +53,18 @@ export function createExpressApp(handler: RouteHandler): Express {
 }
 
 export function listenExpressApp(app: Express, port: number): Promise<Server> {
+	const listenPort = port === 0 ? nextAvailableFallbackPort() : port;
 	return new Promise((resolve, reject) => {
-		let attempts = 0;
-		const maxAttempts = port === 0 ? EPHEMERAL_PORT_RETRY_LIMIT : 1;
-
-		const tryListen = (candidatePort: number): void => {
-			attempts += 1;
-			const server = app.listen({
-				port: candidatePort,
-				host: "127.0.0.1",
-			});
-
-			const handleListening = () => {
-				resolve(server);
-			};
-			const handleError = (error: unknown) => {
-				if (
-					port === 0 &&
-					isAddressInUseError(error) &&
-					attempts < maxAttempts
-				) {
-					tryListen(randomEphemeralPort());
-					return;
-				}
-				reject(error);
-			};
-
-			server.once("listening", handleListening);
-			server.once("error", handleError);
-		};
-
-		tryListen(port === 0 ? randomEphemeralPort() : port);
+		const server = app.listen(listenPort);
+		server.once("listening", () => resolve(server));
+		server.once("error", reject);
 	});
 }
 
-function randomEphemeralPort(): number {
-	return (
-		Math.floor(Math.random() * (EPHEMERAL_PORT_MAX - EPHEMERAL_PORT_MIN + 1)) +
-		EPHEMERAL_PORT_MIN
-	);
-}
-
-function isAddressInUseError(error: unknown): boolean {
-	return (
-		typeof error === "object" &&
-		error !== null &&
-		"code" in error &&
-		(error as { code?: unknown }).code === "EADDRINUSE"
-	);
+function nextAvailableFallbackPort(): number {
+	const port = nextFallbackPort;
+	nextFallbackPort += 1;
+	return port;
 }
 
 function toWebRequest(request: ExpressRequest): Request {
