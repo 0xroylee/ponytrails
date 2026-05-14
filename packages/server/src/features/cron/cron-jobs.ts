@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { LoadedConfig } from "adhdai/features/config";
+import type { LoadedConfig } from "devos/features/config";
 import type { CronJobConfig } from "./cron.types";
 
 export function selectCronJobs(

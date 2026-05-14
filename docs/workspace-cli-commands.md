@@ -8,20 +8,20 @@ Use one of these forms:
 
 - Workspace source entrypoint: `bun run packages/cli/src/index.ts <command> ...`
 - Package-local entrypoint: `bun run src/index.ts <command> ...` (from `packages/cli`)
-- Installed binary: `adhd-ai <command> ...` (help text form)
+- Installed binary: `devos <command> ...` (help text form)
 
 ## Prerequisites
 
 1. Bun installed.
 2. Dependencies installed with `bun install`.
-3. Config present in `adhd-ai.config.ts` (or local overrides in `adhd-ai.local.config.ts`).
+3. Config present in `devos.config.ts` (or local overrides in `devos.local.config.ts`).
 4. Required credentials configured (for example Linear and GitHub settings used by your project).
 5. Initial setup completed with `setup`, then validated with `setup --check`.
 6. A valid project ID available from the `projects` command output.
 
 ## Configuration Coverage
 
-The commands below read from the resolved runtime project config (from `adhd-ai.config.ts` plus optional `adhd-ai.local.config.ts` overrides). The most relevant fields are:
+The commands below read from the resolved runtime project config (from `devos.config.ts` plus optional `devos.local.config.ts` overrides). The most relevant fields are:
 
 - `projects[].id`: project identifier used by `--project`.
 - `projects[].workspacePath`: where run state is stored and read.
@@ -59,7 +59,7 @@ Command-specific configuration dependencies:
 Syntax:
 
 ```bash
-adhd-ai setup [--check]
+devos setup [--check]
 ```
 
 Examples:
@@ -84,7 +84,7 @@ Configuration notes:
 Syntax:
 
 ```bash
-adhd-ai projects
+devos projects
 ```
 
 Example:
@@ -107,8 +107,8 @@ Configuration notes:
 Syntax:
 
 ```bash
-adhd-ai run [--project <PROJECT_ID>] [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle] [--concurrency <N>] [--poll-interval-ms <MS>] [--max-poll-cycles <N>] [--isolated-worktrees]
-adhd-ai run --all-projects [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle]
+devos run [--project <PROJECT_ID>] [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle] [--concurrency <N>] [--poll-interval-ms <MS>] [--max-poll-cycles <N>] [--isolated-worktrees]
+devos run --all-projects [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle]
 ```
 
 Examples:
@@ -142,7 +142,7 @@ Validation notes:
 Syntax:
 
 ```bash
-adhd-ai status --project <PROJECT_ID> --issue <LINEAR_KEY>
+devos status --project <PROJECT_ID> --issue <LINEAR_KEY>
 ```
 
 Example:
@@ -170,7 +170,7 @@ Validation notes:
 Syntax:
 
 ```bash
-adhd-ai task create [<REQUEST>] [--request <TEXT|->] [--project <PROJECT_ID>] [--non-interactive] [--max-clarification-rounds <N>] [--clarifications-json <JSON>]
+devos task create [<REQUEST>] [--request <TEXT|->] [--project <PROJECT_ID>] [--non-interactive] [--max-clarification-rounds <N>] [--clarifications-json <JSON>]
 ```
 
 Examples:
@@ -209,10 +209,10 @@ Validation notes:
 Syntax:
 
 ```bash
-adhd-ai skills list [--project <PROJECT_ID>]
-adhd-ai skills add --title <TITLE> --description <TEXT> --content <TEXT> [--project <PROJECT_ID>]
-adhd-ai skills update <NAME> [--title <TITLE>] [--description <TEXT>] [--content <TEXT>] [--project <PROJECT_ID>]
-adhd-ai skills remove <NAME> [--project <PROJECT_ID>]
+devos skills list [--project <PROJECT_ID>]
+devos skills add --title <TITLE> --description <TEXT> --content <TEXT> [--project <PROJECT_ID>]
+devos skills update <NAME> [--title <TITLE>] [--description <TEXT>] [--content <TEXT>] [--project <PROJECT_ID>]
+devos skills remove <NAME> [--project <PROJECT_ID>]
 ```
 
 Examples:
@@ -247,9 +247,9 @@ Validation notes:
 Syntax:
 
 ```bash
-adhd-ai help
-adhd-ai --help
-adhd-ai -h
+devos help
+devos --help
+devos -h
 ```
 
 Expected behavior:

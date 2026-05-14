@@ -41,11 +41,11 @@ export function renderLocalConfig(draft: SetupDraft): string {
 	};
 
 	return [
-		'import type { AdhdAiRootConfig, DeepPartial } from "./packages/cli/src/features/types";',
+		'import type { DevosRootConfig, DeepPartial } from "./packages/cli/src/features/types";',
 		"",
 		"const cwd = process.cwd();",
 		"",
-		`const config: DeepPartial<AdhdAiRootConfig> = ${stringifyConfig(config)};`,
+		`const config: DeepPartial<DevosRootConfig> = ${stringifyConfig(config)};`,
 		"",
 		"export default config;",
 		"",

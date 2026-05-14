@@ -701,7 +701,7 @@ function createLinearProject(): ResolvedProjectConfig {
 			autoCreateLabels: false,
 		},
 		github: { useGhCli: false, defaultBugLabel: "bug" },
-		server: { database: { databasePath: "/tmp/adhdai.sqlite" } },
+		server: { database: { databasePath: "/tmp/devos.sqlite" } },
 		codex: { binary: "codex", streamLogs: false },
 		skills: {
 			root: "skills",

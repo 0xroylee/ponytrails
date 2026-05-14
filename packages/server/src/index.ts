@@ -1,5 +1,5 @@
 import path from "node:path";
-import { CliCommandExecutor } from "adhdai/features/server/cli-command-executor";
+import { CliCommandExecutor } from "devos/features/server/cli-command-executor";
 import { createHandleRequest } from "./app";
 import { createBoardRepository } from "./board";
 import { initializeServerDatabase } from "./db";

@@ -57,8 +57,8 @@ devos.ing runs agent stages using a configurable backend and model settings.
 
 ## Operator Setup and First Run
 
-1. Run `adhd-ai setup` and answer prompts.
-2. Run `adhd-ai setup --check` to validate config and required tooling.
+1. Run `devos setup` and answer prompts.
+2. Run `devos setup --check` to validate config and required tooling.
 3. Run `bun run packages/cli/src/index.ts projects` to confirm project resolution.
 4. Start one scoped run: `bun run packages/cli/src/index.ts run --project <PROJECT_ID>`.
 5. Confirm run state appears under `.piv-loop/projects/<project-id>/runs`.

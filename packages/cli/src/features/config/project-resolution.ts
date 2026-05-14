@@ -1,7 +1,7 @@
 import path from "node:path";
 import type {
-	AdhdAiRootConfig,
 	DeepPartial,
+	DevosRootConfig,
 	ProjectConfig,
 	ProjectRuntimeConfig,
 	ResolvedProjectConfig,
@@ -11,7 +11,7 @@ import { resolveSkillsConfig } from "./skills-resolution";
 export function resolveProjects(
 	configCwd: string,
 	base: ProjectRuntimeConfig,
-	root: AdhdAiRootConfig,
+	root: DevosRootConfig,
 ): ResolvedProjectConfig[] {
 	const projectSpecs =
 		root.projects.length > 0 ? root.projects : [{ id: "default" }];
@@ -22,7 +22,7 @@ export function resolveProjects(
 }
 
 function stripProjects(
-	root: AdhdAiRootConfig,
+	root: DevosRootConfig,
 ): DeepPartial<ProjectRuntimeConfig> {
 	const { projects: _, polling: __, notifications: ___, ...rest } = root;
 	return rest;

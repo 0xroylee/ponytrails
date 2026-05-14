@@ -13,8 +13,8 @@ Fallback implemented:
 - `client.typecheck.ts` adds compile-time usage coverage so `bun run --filter web typecheck` verifies the client contract.
 
 Runtime wiring:
-- `packages/web/next.config.ts` rewrites `/api/server/:path*` to `${ADHDAI_SERVER_BASE_URL}/:path*`.
-- `ADHDAI_SERVER_BASE_URL` defaults to `http://127.0.0.1:3000` when unset.
+- `packages/web/next.config.ts` rewrites `/api/server/:path*` to `${DEVOS_SERVER_BASE_URL}/:path*`.
+- `DEVOS_SERVER_BASE_URL` defaults to `http://127.0.0.1:3000` when unset.
 
 Next step when ROY-156 OpenAPI lands:
 - Add Orval config and generation scripts to emit into `packages/web/src/lib/api/generated`.

@@ -1,4 +1,4 @@
-import type { NotificationServerRequest } from "adhdai/features/server";
+import type { NotificationServerRequest } from "devos/features/server";
 import { z } from "zod";
 import { isRecord } from "../http/zod-utils";
 

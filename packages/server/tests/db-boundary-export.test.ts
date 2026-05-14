@@ -6,10 +6,10 @@ import {
 	agentsTable,
 	initializeServerDatabase,
 	runMigrations,
-} from "adhdai-server/db";
+} from "devos-server/db";
 
 describe("db boundary export", () => {
-	it("exports db runtime and schema symbols through adhdai-server/db", () => {
+	it("exports db runtime and schema symbols through devos-server/db", () => {
 		expect(typeof initializeServerDatabase).toBe("function");
 		expect(typeof runMigrations).toBe("function");
 		expect(agentsTable).toBeDefined();

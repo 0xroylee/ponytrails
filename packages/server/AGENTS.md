@@ -37,9 +37,9 @@ boundaries to CLI or shared behavior.
    shapes, boundary validation, health/readiness behavior, server config, and
    error handling/status mapping.
 2. Run package-level checks when server behavior changes:
-   - `bun run --filter adhdai-server check`
-   - `bun run --filter adhdai-server typecheck`
-   - `bun run --filter adhdai-server test`
+   - `bun run --filter devos-server check`
+   - `bun run --filter devos-server typecheck`
+   - `bun run --filter devos-server test`
 3. For cross-workspace impact or release readiness, run repository quality
    gates with Bun:
    - `bun run check`

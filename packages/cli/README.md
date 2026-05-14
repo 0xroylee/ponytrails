@@ -24,7 +24,7 @@ Use `bun run src/index.ts projects` to list available project IDs, then pass one
 
 ## Command Reference
 
-Use either `bun run src/index.ts ...` or `adhd ...` (after linking/installing
+Use either `bun run src/index.ts ...` or `devos ...` (after linking/installing
 the package bin).
 
 ### Help
@@ -263,7 +263,7 @@ Output shape:
 
 - `Removed skill <name> from <path>`.
 
-After linking/installing the package bin, you can also use `adhd ...` directly.
+After linking/installing the package bin, you can also use `devos ...` directly.
 
 ## Workflow Summary
 
@@ -275,8 +275,8 @@ After linking/installing the package bin, you can also use `adhd ...` directly.
 
 ## Configuration Notes
 
-- Primary config: `adhd-ai.config.ts`.
-- Local overrides (gitignored): `adhd-ai.local.config.ts`.
+- Primary config: `devos.config.ts`.
+- Local overrides (gitignored): `devos.local.config.ts`.
 - Legacy `piv-loop.config.ts` is still supported.
 - Guided setup stores local secrets in `.piv-loop/config/env.sqlite` (and writes `.env` for compatibility).
 - Docker-isolated Codex execution status and caveats (ROY-95): [docs/RELIABILITY.md#docker-isolated-codex-execution](docs/RELIABILITY.md#docker-isolated-codex-execution)

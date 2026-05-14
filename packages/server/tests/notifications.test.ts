@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { RunState } from "adhdai/features/types";
+import type { RunState } from "devos/features/types";
 import { createHandleRequest } from "../src/app";
 import {
 	createNotificationConfigFromEnv,

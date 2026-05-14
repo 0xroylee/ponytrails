@@ -50,7 +50,7 @@ bun run packages/cli/src/index.ts run --project <PROJECT_ID> --issue ENG-123
 bun run packages/cli/src/index.ts run --project <PROJECT_ID> --poll
 
 # unattended scheduled mode (server-owned cron runner)
-bun run --filter adhdai-server cron
+bun run --filter devos-server cron
 
 # run the first enabled automation job once now
 bun run cron:once
@@ -80,7 +80,7 @@ bun run packages/cli/src/index.ts skills update <NAME> [--title "<TITLE>"] [--de
 bun run packages/cli/src/index.ts skills remove <NAME> [--project <PROJECT_ID>]
 ```
 
-After linking/installing the package bin, you can also use `adhd-ai ...` directly.
+After linking/installing the package bin, you can also use `devos ...` directly.
 
 ## Local Server/Web Notes
 
@@ -96,8 +96,8 @@ After linking/installing the package bin, you can also use `adhd-ai ...` directl
 
 ## Configuration Notes
 
-- Primary config: `adhd-ai.config.ts`.
-- Local overrides (gitignored): `adhd-ai.local.config.ts`.
+- Primary config: `devos.config.ts`.
+- Local overrides (gitignored): `devos.local.config.ts`.
 - Legacy `piv-loop.config.ts` is still supported.
 - Guided setup stores local secrets in `.piv-loop/config/env.sqlite` (and writes `.env` for compatibility).
 - Docker-isolated Codex execution status and caveats (ROY-95): [docs/RELIABILITY.md#docker-isolated-codex-execution](docs/RELIABILITY.md#docker-isolated-codex-execution)

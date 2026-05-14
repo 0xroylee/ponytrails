@@ -1,6 +1,6 @@
-import type { LoadedConfig } from "adhdai/features/config";
-import { logger, normalizeError } from "adhdai/utils/logger";
 import { sleep } from "bun";
+import type { LoadedConfig } from "devos/features/config";
+import { logger, normalizeError } from "devos/utils/logger";
 import { applyCronJobSkillOverrides, selectCronJobs } from "./cron-jobs";
 import { computeNextCronRunAt, computeSchedulerSleepMs } from "./cron-schedule";
 import { runCronWorkflow } from "./cron-workflow";

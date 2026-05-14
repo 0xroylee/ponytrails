@@ -386,7 +386,7 @@ describe("createDraftPrFromWorktree", () => {
 	});
 
 	it("treats ambiguous failed commit as success when already committed", async () => {
-		const commitTitle = "[adhd.ai] ENG-42: Retry commit";
+		const commitTitle = "[devos] ENG-42: Retry commit";
 		let commitAttempts = 0;
 		let diffCalls = 0;
 		const runCommand = mock(

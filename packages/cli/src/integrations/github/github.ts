@@ -144,7 +144,7 @@ export async function createDraftPrFromWorktree(
 		);
 	}
 
-	const commitTitle = `[adhd.ai] ${issueKey}: ${issueTitle}`;
+	const commitTitle = `[devos] ${issueKey}: ${issueTitle}`;
 	await commitChanges(config, commitTitle, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,
@@ -229,7 +229,7 @@ export async function updateDraftPrFromWorktree(
 		return false;
 	}
 
-	const commitTitle = `[adhd.ai] ${issueKey}: address review feedback`;
+	const commitTitle = `[devos] ${issueKey}: address review feedback`;
 	await commitChanges(config, commitTitle, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,

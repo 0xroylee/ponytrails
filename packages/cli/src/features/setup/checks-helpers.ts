@@ -56,7 +56,7 @@ export async function checkTrackedConfigSecrets(
 		secretValues.add(config.notifications.email.resendApiKey);
 	}
 
-	const trackedConfigPaths = ["adhd-ai.config.ts", "piv-loop.config.ts"].map(
+	const trackedConfigPaths = ["devos.config.ts", "piv-loop.config.ts"].map(
 		(fileName) => path.join(cwd, fileName),
 	);
 	for (const configPath of trackedConfigPaths) {

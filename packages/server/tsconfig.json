@@ -12,7 +12,7 @@
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"],
-			"adhdai/*": ["../cli/src/*"]
+			"devos/*": ["../cli/src/*"]
 		}
 	},
 	"include": ["src", "tests"]

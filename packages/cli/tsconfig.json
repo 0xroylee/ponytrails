@@ -12,8 +12,8 @@
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"],
-			"adhdai-server/*": ["../server/src/*"]
+			"devos-server/*": ["../server/src/*"]
 		}
 	},
-	"include": ["src", "tests", "../../adhd-ai.config.ts"]
+	"include": ["src", "tests", "../../devos.config.ts"]
 }

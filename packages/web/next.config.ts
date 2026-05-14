@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const serverBaseUrl =
-	process.env.ADHDAI_SERVER_BASE_URL ?? "http://127.0.0.1:3001";
+	process.env.DEVOS_SERVER_BASE_URL ?? "http://127.0.0.1:3001";
 
 const nextConfig: NextConfig = {
 	reactStrictMode: true,

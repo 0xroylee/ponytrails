@@ -1,4 +1,4 @@
-import { loadConfig } from "adhdai/features/config";
+import { loadConfig } from "devos/features/config";
 import { loadCronJobsFromConfig } from "./cron-config";
 import { runCronJobOnce, runCronScheduler } from "./index";
 

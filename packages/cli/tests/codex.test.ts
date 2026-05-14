@@ -63,7 +63,7 @@ const config: ResolvedProjectConfig = {
 			githubComment: false,
 		},
 		plugins: ["github@openai-curated", "linear@openai-curated"],
-		skillsets: ["adhd-ai", "repo-defaults"],
+		skillsets: ["devos", "repo-defaults"],
 		configOverrides: {
 			"features.experimental_tools": "true",
 		},

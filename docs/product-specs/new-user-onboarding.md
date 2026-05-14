@@ -12,9 +12,9 @@ Get a new operator from zero setup to running a scoped project workflow.
 
 ## Setup
 
-1. Run `adhd-ai setup` and answer the guided prompts.
-2. Confirm the wizard writes `.env` for secrets and `adhd-ai.local.config.ts` for local project settings.
-3. Run `adhd-ai setup --check` to verify config, GitHub auth, RTK availability, Codex availability, and secret placement.
+1. Run `devos setup` and answer the guided prompts.
+2. Confirm the wizard writes `.env` for secrets and `devos.local.config.ts` for local project settings.
+3. Run `devos setup --check` to verify config, GitHub auth, RTK availability, Codex availability, and secret placement.
 
 ## First Run
 

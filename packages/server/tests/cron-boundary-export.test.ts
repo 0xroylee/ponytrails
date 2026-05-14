@@ -6,10 +6,10 @@ import {
 	runCronJobOnce,
 	runCronScheduler,
 	selectCronJobs,
-} from "adhdai-server/cron";
+} from "devos-server/cron";
 
 describe("cron boundary export", () => {
-	it("exports cron runtime and type symbols through adhdai-server/cron", () => {
+	it("exports cron runtime and type symbols through devos-server/cron", () => {
 		expect(typeof computeNextCronRunAt).toBe("function");
 		expect(typeof selectCronJobs).toBe("function");
 		expect(typeof runCronScheduler).toBe("function");

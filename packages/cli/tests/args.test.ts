@@ -3,7 +3,7 @@ import { parseArgs } from "../src/args";
 
 describe("parseArgs", () => {
 	it("parses run command with issue", () => {
-		const parsed = parseArgs(["bun", "adhd-ai", "run", "--issue", "ABC-1"]);
+		const parsed = parseArgs(["bun", "devos", "run", "--issue", "ABC-1"]);
 		expect(parsed).toEqual({
 			kind: "run",
 			options: {
@@ -20,7 +20,7 @@ describe("parseArgs", () => {
 	});
 
 	it("parses run with project", () => {
-		const parsed = parseArgs(["bun", "adhd-ai", "run", "--project", "api"]);
+		const parsed = parseArgs(["bun", "devos", "run", "--project", "api"]);
 		expect(parsed).toEqual({
 			kind: "run",
 			options: {
@@ -38,7 +38,7 @@ describe("parseArgs", () => {
 	it("parses run polling flags", () => {
 		const parsed = parseArgs([
 			"bun",
-			"adhd-ai",
+			"devos",
 			"run",
 			"--poll",
 			"--poll-interval-ms",
@@ -64,7 +64,7 @@ describe("parseArgs", () => {
 	it("parses no-exit-when-idle flag", () => {
 		const parsed = parseArgs([
 			"bun",
-			"adhd-ai",
+			"devos",
 			"run",
 			"--poll",
 			"--no-exit-when-idle",
@@ -85,7 +85,7 @@ describe("parseArgs", () => {
 	});
 
 	it("parses run concurrency flag", () => {
-		const parsed = parseArgs(["bun", "adhd-ai", "run", "--concurrency", "2"]);
+		const parsed = parseArgs(["bun", "devos", "run", "--concurrency", "2"]);
 		expect(parsed).toEqual({
 			kind: "run",
 			options: {
@@ -102,7 +102,7 @@ describe("parseArgs", () => {
 	});
 
 	it("parses isolated worktrees flag", () => {
-		const parsed = parseArgs(["bun", "adhd-ai", "run", "--isolated-worktrees"]);
+		const parsed = parseArgs(["bun", "devos", "run", "--isolated-worktrees"]);
 		expect(parsed).toEqual({
 			kind: "run",
 			options: {
@@ -121,38 +121,38 @@ describe("parseArgs", () => {
 
 	it("rejects invalid poll-interval-ms", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "run", "--poll-interval-ms", "0"]),
+			parseArgs(["bun", "devos", "run", "--poll-interval-ms", "0"]),
 		).toThrow("--poll-interval-ms must be a positive integer");
 	});
 
 	it("rejects invalid max-poll-cycles", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "run", "--max-poll-cycles", "-1"]),
+			parseArgs(["bun", "devos", "run", "--max-poll-cycles", "-1"]),
 		).toThrow("--max-poll-cycles must be a positive integer");
 	});
 
 	it("rejects invalid concurrency when zero", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "run", "--concurrency", "0"]),
+			parseArgs(["bun", "devos", "run", "--concurrency", "0"]),
 		).toThrow("--concurrency must be a positive integer");
 	});
 
 	it("rejects invalid concurrency when negative", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "run", "--concurrency", "-2"]),
+			parseArgs(["bun", "devos", "run", "--concurrency", "-2"]),
 		).toThrow("--concurrency must be a positive integer");
 	});
 
 	it("rejects invalid concurrency when non-integer", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "run", "--concurrency", "1.5"]),
+			parseArgs(["bun", "devos", "run", "--concurrency", "1.5"]),
 		).toThrow("--concurrency must be a positive integer");
 	});
 
 	it("parses status command", () => {
 		const parsed = parseArgs([
 			"bun",
-			"adhd-ai",
+			"devos",
 			"status",
 			"--project",
 			"api",
@@ -167,27 +167,27 @@ describe("parseArgs", () => {
 	});
 
 	it("rejects unknown command", () => {
-		expect(() => parseArgs(["bun", "adhd-ai", "unknown", "--option"])).toThrow(
+		expect(() => parseArgs(["bun", "devos", "unknown", "--option"])).toThrow(
 			"Unknown command: unknown",
 		);
 	});
 
 	it("parses setup command", () => {
-		expect(parseArgs(["bun", "adhd-ai", "setup"])).toEqual({
+		expect(parseArgs(["bun", "devos", "setup"])).toEqual({
 			kind: "setup",
 			check: false,
 		});
 	});
 
 	it("parses setup check command", () => {
-		expect(parseArgs(["bun", "adhd-ai", "setup", "--check"])).toEqual({
+		expect(parseArgs(["bun", "devos", "setup", "--check"])).toEqual({
 			kind: "setup",
 			check: true,
 		});
 	});
 
 	it("parses skills list command", () => {
-		expect(parseArgs(["bun", "adhd-ai", "skills", "list"])).toEqual({
+		expect(parseArgs(["bun", "devos", "skills", "list"])).toEqual({
 			kind: "skills",
 			command: {
 				action: "list",
@@ -200,7 +200,7 @@ describe("parseArgs", () => {
 		expect(
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"skills",
 				"add",
 				"--title",
@@ -228,7 +228,7 @@ describe("parseArgs", () => {
 		expect(
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"skills",
 				"update",
 				"backend-standard",
@@ -252,7 +252,7 @@ describe("parseArgs", () => {
 		expect(
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"skills",
 				"remove",
 				"backend-standard",
@@ -273,7 +273,7 @@ describe("parseArgs", () => {
 		expect(
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"task",
 				"create",
 				"--request",
@@ -296,7 +296,7 @@ describe("parseArgs", () => {
 
 	it("parses task create stdin request marker", () => {
 		expect(
-			parseArgs(["bun", "adhd-ai", "task", "create", "--request", "-"]),
+			parseArgs(["bun", "devos", "task", "create", "--request", "-"]),
 		).toEqual({
 			kind: "task",
 			command: {
@@ -311,7 +311,7 @@ describe("parseArgs", () => {
 	});
 
 	it("parses task create without request", () => {
-		expect(parseArgs(["bun", "adhd-ai", "task", "create"])).toEqual({
+		expect(parseArgs(["bun", "devos", "task", "create"])).toEqual({
 			kind: "task",
 			command: {
 				action: "create",
@@ -328,7 +328,7 @@ describe("parseArgs", () => {
 		expect(
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"task",
 				"create",
 				"Build",
@@ -354,7 +354,7 @@ describe("parseArgs", () => {
 		expect(
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"task",
 				"create",
 				"--request",
@@ -382,7 +382,7 @@ describe("parseArgs", () => {
 		expect(() =>
 			parseArgs([
 				"bun",
-				"adhd-ai",
+				"devos",
 				"task",
 				"create",
 				"--request",
@@ -395,34 +395,27 @@ describe("parseArgs", () => {
 
 	it("rejects skills add without required flags", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "skills", "add", "--title", "t"]),
+			parseArgs(["bun", "devos", "skills", "add", "--title", "t"]),
 		).toThrow("skills add requires --description <VALUE>");
 	});
 
 	it("rejects skills update without any fields", () => {
 		expect(() =>
-			parseArgs(["bun", "adhd-ai", "skills", "update", "backend-standard"]),
+			parseArgs(["bun", "devos", "skills", "update", "backend-standard"]),
 		).toThrow(
 			"skills update requires at least one of --title, --description, or --content",
 		);
 	});
 
 	it("rejects unknown skills action", () => {
-		expect(() => parseArgs(["bun", "adhd-ai", "skills", "ship-it"])).toThrow(
+		expect(() => parseArgs(["bun", "devos", "skills", "ship-it"])).toThrow(
 			"Unknown skills action: ship-it",
 		);
 	});
 
 	it("rejects project with all-projects", () => {
 		expect(() =>
-			parseArgs([
-				"bun",
-				"adhd-ai",
-				"run",
-				"--project",
-				"api",
-				"--all-projects",
-			]),
+			parseArgs(["bun", "devos", "run", "--project", "api", "--all-projects"]),
 		).toThrow("run command cannot use --project with --all-projects");
 	});
 });

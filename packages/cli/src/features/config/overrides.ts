@@ -2,8 +2,8 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
-	AdhdAiRootConfig,
 	DeepPartial,
+	DevosRootConfig,
 	ProjectConfig,
 	ProjectRuntimeConfig,
 } from "../../features/types";
@@ -13,7 +13,7 @@ import {
 	LOCAL_CONFIG_FILE,
 } from "./constants";
 
-type RootOverride = DeepPartial<AdhdAiRootConfig>;
+type RootOverride = DeepPartial<DevosRootConfig>;
 type LegacyOverride = DeepPartial<ProjectRuntimeConfig>;
 type AnyOverride = RootOverride | LegacyOverride;
 
@@ -38,9 +38,9 @@ export async function loadConfigOverride(cwd: string): Promise<AnyOverride> {
 
 export function normalizeOverrideToRoot(
 	override: AnyOverride,
-): AdhdAiRootConfig {
+): DevosRootConfig {
 	if ("projects" in override && Array.isArray(override.projects)) {
-		return override as AdhdAiRootConfig;
+		return override as DevosRootConfig;
 	}
 	const legacy = override as DeepPartial<ProjectRuntimeConfig>;
 	return {
