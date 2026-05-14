@@ -6,6 +6,7 @@ import type {
 } from "adhdai/features/server";
 import type { BoardRepository } from "./board";
 import type { ServerDatabase } from "./db";
+import type { ServerLogger } from "./logger.types";
 import type { NotificationService } from "./notifications/notifications-service";
 import type { ReadRepositories } from "./repositories.types";
 
@@ -23,6 +24,7 @@ export interface AppDeps {
 	};
 	notificationService?: NotificationService;
 	repositories?: ReadRepositories;
+	logger?: ServerLogger;
 }
 
 export type RouteHandler = (request: Request) => Response | Promise<Response>;

@@ -2,6 +2,7 @@ import type { NotificationServerRequest } from "adhdai/features/server";
 import type { AppDeps, RouteHandler } from "./app.types";
 import { handleCliRoute } from "./http/cli-routes";
 import { handleProjectsRoute } from "./http/projects-routes";
+import { withRequestLogging } from "./http/request-logger";
 import { handleTasksRoute } from "./http/tasks-routes";
 import { parseNotificationRequest } from "./notifications/notifications-request";
 import { handleEntityCrudRequest, matchCrudRoute } from "./routes/entity-crud";
@@ -11,7 +12,7 @@ const WORKSPACE_PROJECT_BOARD_ROUTE =
 	/^\/api\/workspaces\/([^/]+)\/projects\/([^/]+)\/board\/?$/;
 
 export function createHandleRequest(deps: AppDeps): RouteHandler {
-	return async (request) => {
+	const handler: RouteHandler = async (request) => {
 		const { pathname } = new URL(request.url);
 
 		const cliResponse = await handleCliRoute(
@@ -149,6 +150,7 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 
 		return new Response("Not Found", { status: 404 });
 	};
+	return deps.logger ? withRequestLogging(handler, deps.logger) : handler;
 }
 
 export const handleRequest: RouteHandler = async (request) => {

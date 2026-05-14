@@ -3,6 +3,11 @@ import { CliCommandExecutor } from "adhdai/features/server/cli-command-executor"
 import { createHandleRequest } from "./app";
 import { createBoardRepository } from "./board";
 import { initializeServerDatabase } from "./db";
+import {
+	logger,
+	normalizeError,
+	setupServerProcessErrorHandlers,
+} from "./logger";
 import { createNotificationSender } from "./notifications/notification-sender";
 import {
 	createNotificationConfigFromEnv,
@@ -24,9 +29,10 @@ export async function startServer(
 ): Promise<Bun.Server<undefined>> {
 	const databasePath =
 		process.env.PIV_SERVER_DATABASE_PATH ?? DEFAULT_SERVER_DB_PATH;
-	const serverDatabase = await initializeServerDatabase(databasePath);
 	const cwd = process.cwd();
-	return Bun.serve({
+	logger.info({ port, databasePath, cwd }, "Starting server");
+	const serverDatabase = await initializeServerDatabase(databasePath);
+	const server = Bun.serve({
 		port,
 		fetch: createHandleRequest({
 			db: serverDatabase.db,
@@ -44,12 +50,19 @@ export async function startServer(
 				resendClient: createResendClient(process.env.RESEND_API_KEY ?? ""),
 			}),
 			repositories: createReadRepositories(serverDatabase),
+			logger,
 		}),
 	});
+	logger.info({ port: server.port, databasePath, cwd }, "Server started");
+	return server;
 }
 
 if (import.meta.main) {
-	void startServer();
+	setupServerProcessErrorHandlers();
+	startServer().catch((error) => {
+		logger.fatal({ err: normalizeError(error) }, "Server startup failed");
+		process.exit(1);
+	});
 }
 
 function resolveServerPort(env: NodeJS.ProcessEnv): number {
