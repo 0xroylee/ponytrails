@@ -10,11 +10,14 @@ export type {
 	HealthResponse,
 	HealthStatus,
 	JobRecord,
+	ProjectBoardRecord,
+	ProjectBoardTaskRecord,
 	SkillRecord,
 	TaskCreateAnswer,
 	TaskCreateRequest,
 	TaskCreateResponse,
 	TokenUsageRecord,
+	WorkspaceProjectRecord,
 } from "./client.types";
 export type {
 	ServerStateQueryOptions,

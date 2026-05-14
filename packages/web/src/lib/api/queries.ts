@@ -10,9 +10,11 @@ import type {
 	AgentRecord,
 	CommandHistoryRecord,
 	JobRecord,
+	ProjectBoardRecord,
 	SkillRecord,
 	TaskCreateResponse,
 	TokenUsageRecord,
+	WorkspaceProjectRecord,
 } from "./client.types";
 import type {
 	ServerStateQueryOptions,
@@ -28,6 +30,10 @@ export const serverStateQueryKeys = {
 	agents: ["server-state", "agents"] as const,
 	skills: ["server-state", "skills"] as const,
 	commandHistory: ["server-state", "command-history"] as const,
+	workspaceProjects: (workspaceId: string | null) =>
+		["server-state", "workspace-projects", workspaceId] as const,
+	projectBoard: (workspaceId: string | null, projectId: string | null) =>
+		["server-state", "project-board", workspaceId, projectId] as const,
 };
 
 export const taskCreationMutationKeys = {
