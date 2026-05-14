@@ -9,7 +9,14 @@ export type {
 	HealthResponse,
 	HealthStatus,
 	JobRecord,
+	ProjectBoardRecord,
+	ProjectBoardTaskRecord,
 	SkillRecord,
 	TokenUsageRecord,
+	WorkspaceProjectRecord,
 } from "./client.types";
-export type { ServerStateQueryOptions } from "./queries.types";
+export type {
+	ProjectBoardQueryOptions,
+	ServerStateQueryOptions,
+	WorkspaceProjectsQueryOptions,
+} from "./queries.types";

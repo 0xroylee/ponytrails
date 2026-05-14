@@ -1,17 +1,23 @@
 "use client";
 
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
-import { createApiClient } from "./client";
 import type {
 	AgentRecord,
 	CommandHistoryRecord,
 	JobRecord,
+	ProjectBoardRecord,
 	SkillRecord,
 	TokenUsageRecord,
+	WorkspaceProjectRecord,
 } from "./client.types";
-import type { ServerStateQueryOptions } from "./queries.types";
+import type {
+	ProjectBoardQueryOptions,
+	ServerStateQueryOptions,
+	WorkspaceProjectsQueryOptions,
+} from "./queries.types";
+import { createWebApiClient } from "./web-client";
 
-const apiClient = createApiClient();
+const apiClient = createWebApiClient();
 
 export const serverStateQueryKeys = {
 	tokenUsage: ["server-state", "token-usage"] as const,
@@ -19,6 +25,10 @@ export const serverStateQueryKeys = {
 	agents: ["server-state", "agents"] as const,
 	skills: ["server-state", "skills"] as const,
 	commandHistory: ["server-state", "command-history"] as const,
+	workspaceProjects: (workspaceId: string | null) =>
+		["server-state", "workspace-projects", workspaceId] as const,
+	projectBoard: (workspaceId: string | null, projectId: string | null) =>
+		["server-state", "project-board", workspaceId, projectId] as const,
 };
 
 export function useTokenUsageQuery(
@@ -68,5 +78,36 @@ export function useCommandHistoryQuery(
 		queryKey: serverStateQueryKeys.commandHistory,
 		queryFn: () => apiClient.listCommandHistory(),
 		enabled: options?.enabled,
+	});
+}
+
+export function useWorkspaceProjectsQuery(
+	options: WorkspaceProjectsQueryOptions,
+): UseQueryResult<WorkspaceProjectRecord[], Error> {
+	return useQuery({
+		queryKey: serverStateQueryKeys.workspaceProjects(options.workspaceId),
+		queryFn: () =>
+			apiClient.listWorkspaceProjects(options.workspaceId as string),
+		enabled: Boolean(options.workspaceId) && options.enabled !== false,
+	});
+}
+
+export function useProjectBoardQuery(
+	options: ProjectBoardQueryOptions,
+): UseQueryResult<ProjectBoardRecord, Error> {
+	return useQuery({
+		queryKey: serverStateQueryKeys.projectBoard(
+			options.workspaceId,
+			options.projectId,
+		),
+		queryFn: () =>
+			apiClient.getProjectBoard(
+				options.workspaceId as string,
+				options.projectId as string,
+			),
+		enabled:
+			Boolean(options.workspaceId) &&
+			Boolean(options.projectId) &&
+			options.enabled !== false,
 	});
 }

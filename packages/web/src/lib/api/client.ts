@@ -1,3 +1,4 @@
+import { createBoardApiMethods } from "./board-client";
 import type {
 	AgentRecord,
 	ApiClient,
@@ -153,6 +154,11 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 	const baseUrl = options.baseUrl ?? "";
 	const fetchFn = options.fetchFn ?? fetch;
 	const headers = options.headers;
+	const requestJsonWithBase = (
+		path: string,
+		requestOptions?: HealthRequestOptions,
+	) => requestJson(baseUrl, path, fetchFn, headers, requestOptions);
+	const boardApiMethods = createBoardApiMethods(requestJsonWithBase);
 
 	return {
 		async getHealth(
@@ -235,5 +241,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 				parseCommandHistoryRecord,
 			);
 		},
+		listWorkspaceProjects: boardApiMethods.listWorkspaceProjects,
+		getProjectBoard: boardApiMethods.getProjectBoard,
 	};
 }

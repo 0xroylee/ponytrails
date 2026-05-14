@@ -1,4 +1,5 @@
 import type { AppDeps, RouteHandler } from "./app.types";
+import { handleEntityCrudRequest, matchCrudRoute } from "./routes/entity-crud";
 
 const UNSAFE_RAW_COMMAND_FIELDS = ["command", "cmd", "args", "argv", "shell"];
 const WORKSPACE_PROJECTS_ROUTE = /^\/api\/workspaces\/([^/]+)\/projects\/?$/;
@@ -6,32 +7,74 @@ const WORKSPACE_PROJECT_BOARD_ROUTE =
 	/^\/api\/workspaces\/([^/]+)\/projects\/([^/]+)\/board\/?$/;
 
 export function createHandleRequest(deps: AppDeps): RouteHandler {
+	const boardReadModels = deps.boardReadModels;
+
 	return async (request) => {
 		const { pathname } = new URL(request.url);
+		const workspaceProjectsMatch = pathname.match(WORKSPACE_PROJECTS_PATTERN);
+		const projectBoardMatch = pathname.match(PROJECT_BOARD_PATTERN);
 
-		if (pathname === "/health" && request.method === "GET") {
-			return Response.json({ status: "ok" });
+		const cliResponse = await handleCliRoute(
+			request,
+			deps.cliExecutor,
+			pathname,
+		);
+		if (cliResponse) {
+			return cliResponse;
 		}
-
-		if (pathname === "/api/cli/history") {
+		if (workspaceProjectsMatch) {
 			if (request.method !== "GET") {
 				return Response.json({ error: "Method Not Allowed" }, { status: 405 });
 			}
-			return Response.json(deps.cliExecutor.getHistory());
+			if (!boardReadModels) {
+				return Response.json(
+					{ error: "Board read models not configured" },
+					{ status: 500 },
+				);
+			}
+			const workspaceId = decodeURIComponent(workspaceProjectsMatch[1] ?? "");
+			return Response.json(
+				await boardReadModels.listWorkspaceProjects(workspaceId),
+			);
 		}
-
-		if (pathname === "/api/cli/dispatch") {
-			if (request.method !== "POST") {
+		if (projectBoardMatch) {
+			if (request.method !== "GET") {
 				return Response.json({ error: "Method Not Allowed" }, { status: 405 });
 			}
-			const parsed = await parseDispatchRequest(request);
-			if (parsed.status === "error") {
-				return Response.json({ error: parsed.error }, { status: 400 });
+			if (!boardReadModels) {
+				return Response.json(
+					{ error: "Board read models not configured" },
+					{ status: 500 },
+				);
 			}
-			const result = await deps.cliExecutor.execute(parsed.request);
-			return Response.json(result, {
-				status: result.status === "rejected" ? 400 : 200,
-			});
+			const workspaceId = decodeURIComponent(projectBoardMatch[1] ?? "");
+			const projectId = decodeURIComponent(projectBoardMatch[2] ?? "");
+			return Response.json(
+				await boardReadModels.getProjectBoard(workspaceId, projectId),
+			);
+		}
+
+		const projectResponse = await handleProjectsRoute(
+			request,
+			deps.db,
+			pathname,
+		);
+		if (projectResponse) {
+			return projectResponse;
+		}
+
+		const taskResponse = await handleTasksRoute(request, deps.db, pathname);
+		if (taskResponse) {
+			return taskResponse;
+		}
+
+		const crudRoute = matchCrudRoute(pathname);
+		if (crudRoute) {
+			const result = await handleEntityCrudRequest(request, deps, crudRoute);
+			if (result?.body === undefined) {
+				return new Response(null, { status: result.status });
+			}
+			return Response.json(result.body, { status: result.status });
 		}
 		const projectMatch = pathname.match(WORKSPACE_PROJECTS_ROUTE);
 		if (projectMatch) {
@@ -71,7 +114,7 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 	};
 }
 
-export const handleRequest: RouteHandler = (request) => {
+export const handleRequest: RouteHandler = async (request) => {
 	const { pathname } = new URL(request.url);
 
 	if (pathname === "/health" && request.method === "GET") {
@@ -113,14 +156,8 @@ async function parseDispatchRequest(
 				error: `Unsafe dispatch request: raw command field '${field}' is not allowed`,
 			};
 		}
+		return jsonSuccess({ status: "ok" });
 	}
 
-	return {
-		status: "ok",
-		request: body as Record<string, unknown> & { action: string },
-	};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+	return notFoundResponse();
+};
