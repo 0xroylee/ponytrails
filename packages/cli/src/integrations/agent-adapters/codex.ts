@@ -180,7 +180,7 @@ export class CodexAdapter implements AgentAdapter {
 	}
 
 	private async nextOutputFile(): Promise<string> {
-		const dir = path.resolve(this.config.workspacePath, ".piv-loop", "tmp");
+		const dir = path.resolve(this.config.workspacePath, ".devos", "tmp");
 		await mkdir(dir, { recursive: true });
 		return path.join(
 			dir,

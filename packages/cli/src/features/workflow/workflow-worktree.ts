@@ -32,7 +32,7 @@ export function isolatedWorktreePath(
 		? path.resolve(configuredRoot)
 		: path.resolve(
 				config.workspacePath,
-				".piv-loop",
+				".devos",
 				"projects",
 				config.id,
 				"worktrees",

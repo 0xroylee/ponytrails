@@ -89,7 +89,7 @@ export function project(
 		github: { useGhCli: false, defaultBugLabel: "bug" },
 		server: {
 			database: {
-				databasePath: ".piv-loop/config/server-db",
+				databasePath: ".devos/config/server-db",
 			},
 		},
 		codex: { binary: "codex", streamLogs: false },

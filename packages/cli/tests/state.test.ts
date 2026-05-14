@@ -105,9 +105,7 @@ describe("state helpers", () => {
 
 	it("builds project-scoped error log paths", () => {
 		const logPath = projectErrorLogPath("/tmp/workspace", "default");
-		expect(logPath).toBe(
-			"/tmp/workspace/.piv-loop/projects/default/errors.log",
-		);
+		expect(logPath).toBe("/tmp/workspace/.devos/projects/default/errors.log");
 	});
 
 	it("appends project polling errors as JSON lines", async () => {
@@ -147,9 +145,7 @@ describe("state helpers", () => {
 			"skills/piv-review-test/SKILL.md",
 		);
 
-		expect(file).toContain(
-			"/tmp/workspace/.piv-loop/projects/default/chat-logs/",
-		);
+		expect(file).toContain("/tmp/workspace/.devos/projects/default/chat-logs/");
 		expect(file).toContain("/review-testing/");
 		expect(path.basename(file)).toMatch(
 			/^skills-piv-review-test-skill-md-[a-f0-9]{8}\.json$/,

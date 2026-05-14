@@ -39,7 +39,7 @@ const config: ResolvedProjectConfig = {
 	github: { useGhCli: true, defaultBugLabel: "bug" },
 	server: {
 		database: {
-			databasePath: "/tmp/work/.piv-loop/config/server-db",
+			databasePath: "/tmp/work/.devos/config/server-db",
 		},
 	},
 	codex: {
@@ -259,12 +259,12 @@ describe("codex adapter", () => {
 			"--cd",
 			"/tmp/work/repo",
 			"--output-last-message",
-			"/tmp/work/.piv-loop/tmp/out.txt",
+			"/tmp/work/.devos/tmp/out.txt",
 			"prompt",
 		]);
 		expect(invocation.command).toBe("codex");
 		expect(invocation.cwd).toBe("/tmp/work/repo");
-		expect(invocation.hostOutputFile).toBe("/tmp/work/.piv-loop/tmp/out.txt");
+		expect(invocation.hostOutputFile).toBe("/tmp/work/.devos/tmp/out.txt");
 		expect(invocation.env).toEqual({ CODEX_HOME: "/tmp/codex" });
 	});
 
@@ -273,34 +273,32 @@ describe("codex adapter", () => {
 			{
 				...config,
 				workspacePath: ".",
-				executionPath: ".piv-loop/projects/default/worktrees/eng-1",
+				executionPath: ".devos/projects/default/worktrees/eng-1",
 				codex: {
 					...config.codex,
-					codexHome: ".piv-loop/codex-home/default",
+					codexHome: ".devos/codex-home/default",
 				},
 			},
 			[
 				"exec",
 				"--cd",
-				".piv-loop/projects/default/worktrees/eng-1",
+				".devos/projects/default/worktrees/eng-1",
 				"--output-last-message",
-				".piv-loop/tmp/out.txt",
+				".devos/tmp/out.txt",
 				"prompt",
 			],
 		);
 
 		const expectedExecutionPath = path.resolve(
-			".piv-loop/projects/default/worktrees/eng-1",
+			".devos/projects/default/worktrees/eng-1",
 		);
 		expect(invocation.command).toBe("codex");
 		expect(invocation.cwd).toBe(expectedExecutionPath);
 		expect(invocation.args).toContain(expectedExecutionPath);
-		expect(invocation.hostOutputFile).toBe(
-			path.resolve(".piv-loop/tmp/out.txt"),
-		);
-		expect(invocation.args).toContain(path.resolve(".piv-loop/tmp/out.txt"));
+		expect(invocation.hostOutputFile).toBe(path.resolve(".devos/tmp/out.txt"));
+		expect(invocation.args).toContain(path.resolve(".devos/tmp/out.txt"));
 		expect(invocation.env).toEqual({
-			CODEX_HOME: path.resolve(".piv-loop/codex-home/default"),
+			CODEX_HOME: path.resolve(".devos/codex-home/default"),
 		});
 	});
 
@@ -321,7 +319,7 @@ describe("codex adapter", () => {
 				"--cd",
 				"/tmp/work/repo",
 				"--output-last-message",
-				"/tmp/work/.piv-loop/tmp/out.txt",
+				"/tmp/work/.devos/tmp/out.txt",
 				"prompt",
 			],
 		);
@@ -330,7 +328,7 @@ describe("codex adapter", () => {
 		expect(invocation.args).toContain("codex:latest");
 		expect(invocation.args).toContain("codex");
 		expect(invocation.args).toContain("/workspace/repo");
-		expect(invocation.args).toContain("/workspace/.piv-loop/tmp/out.txt");
+		expect(invocation.args).toContain("/workspace/.devos/tmp/out.txt");
 		expect(invocation.args).toContain("-w");
 		expect(invocation.args).toContain("/workspace/repo");
 		expect(invocation.args).toContain("CODEX_HOME=/codex-home");
@@ -341,7 +339,7 @@ describe("codex adapter", () => {
 			{
 				...config,
 				workspacePath: ".",
-				executionPath: ".piv-loop/projects/default/worktrees/eng-1",
+				executionPath: ".devos/projects/default/worktrees/eng-1",
 				codex: {
 					...config.codex,
 					docker: {
@@ -353,26 +351,24 @@ describe("codex adapter", () => {
 			[
 				"exec",
 				"--cd",
-				".piv-loop/projects/default/worktrees/eng-1",
+				".devos/projects/default/worktrees/eng-1",
 				"--output-last-message",
-				".piv-loop/tmp/out.txt",
+				".devos/tmp/out.txt",
 				"prompt",
 			],
 		);
 
 		const expectedExecutionPath = path.resolve(
-			".piv-loop/projects/default/worktrees/eng-1",
+			".devos/projects/default/worktrees/eng-1",
 		);
 		expect(invocation.command).toBe("docker");
 		expect(invocation.cwd).toBe(expectedExecutionPath);
 		expect(invocation.args).toContain(`${path.resolve(".")}:/workspace`);
 		expect(invocation.args).toContain(
-			"/workspace/.piv-loop/projects/default/worktrees/eng-1",
+			"/workspace/.devos/projects/default/worktrees/eng-1",
 		);
-		expect(invocation.args).toContain("/workspace/.piv-loop/tmp/out.txt");
-		expect(invocation.hostOutputFile).toBe(
-			path.resolve(".piv-loop/tmp/out.txt"),
-		);
+		expect(invocation.args).toContain("/workspace/.devos/tmp/out.txt");
+		expect(invocation.hostOutputFile).toBe(path.resolve(".devos/tmp/out.txt"));
 	});
 
 	it("adds explicit execution volume when execution path is outside workspace", () => {
@@ -394,7 +390,7 @@ describe("codex adapter", () => {
 				"--cd",
 				"/tmp/repo",
 				"--output-last-message",
-				"/tmp/state/.piv-loop/tmp/out.txt",
+				"/tmp/state/.devos/tmp/out.txt",
 				"prompt",
 			],
 		);
@@ -420,7 +416,7 @@ describe("codex adapter", () => {
 				"--cd",
 				"/tmp/work",
 				"--output-last-message",
-				"/tmp/work/.piv-loop/tmp/out.txt",
+				"/tmp/work/.devos/tmp/out.txt",
 				"prompt",
 			],
 		);
@@ -428,7 +424,7 @@ describe("codex adapter", () => {
 		expect(invocation.args).toContain("-w");
 		expect(invocation.args).toContain("/workspace");
 		expect(invocation.args).not.toContain("/workspace/repo");
-		expect(invocation.args).toContain("/workspace/.piv-loop/tmp/out.txt");
+		expect(invocation.args).toContain("/workspace/.devos/tmp/out.txt");
 		expect(invocation.args).not.toContain("/tmp/work:/workspace/repo");
 	});
 
@@ -448,7 +444,7 @@ describe("codex adapter", () => {
 				"exec",
 				"resume",
 				"--output-last-message",
-				"/tmp/work/.piv-loop/tmp/out.txt",
+				"/tmp/work/.devos/tmp/out.txt",
 				"session-1",
 				"prompt",
 			],
@@ -456,6 +452,6 @@ describe("codex adapter", () => {
 		expect(invocation.command).toBe("docker");
 		expect(invocation.args).toContain("-w");
 		expect(invocation.args).toContain("/workspace/repo");
-		expect(invocation.args).toContain("/workspace/.piv-loop/tmp/out.txt");
+		expect(invocation.args).toContain("/workspace/.devos/tmp/out.txt");
 	});
 });

@@ -214,7 +214,7 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 
 		await writeSetupFiles(cwd, draft);
 		process.stdout.write(
-			`Setup files written: ${ENV_FILE}, ${LOCAL_CONFIG_FILE}; secrets saved to .piv-loop/config/env.sqlite\nRun 'devos setup --check' to validate this machine.\n`,
+			`Setup files written: ${ENV_FILE}, ${LOCAL_CONFIG_FILE}; secrets saved to .devos/config/env.sqlite\nRun 'devos setup --check' to validate this machine.\n`,
 		);
 	} finally {
 		io.close();

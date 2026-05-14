@@ -8,7 +8,7 @@
 			"packages/*/dist",
 			"packages/*/.next/**",
 			"packages/web/.next",
-			".piv-loop",
+			".devos",
 			"bun.lock",
 			"devos.local.config.ts"
 		]

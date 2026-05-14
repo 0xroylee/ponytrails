@@ -20,7 +20,7 @@ import { createReadRepositories } from "./repositories";
 
 const DEFAULT_SERVER_DB_PATH = path.join(
 	process.cwd(),
-	".piv-loop",
+	".devos",
 	"config",
 	"server-db",
 );

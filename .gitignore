@@ -2,7 +2,7 @@ node_modules/
 dist/
 packages/*/.next/
 .bun-cache/
-.piv-loop/
+.devos/
 *.log
 *.tsbuildinfo
 .npm-cache/

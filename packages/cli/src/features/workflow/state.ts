@@ -13,8 +13,8 @@ export {
 	appendAgentChatLog,
 } from "./state-chat-log";
 
-const LEGACY_STATE_DIR = path.join(".piv-loop", "runs");
-const STATE_ROOT_DIR = path.join(".piv-loop", "projects");
+const LEGACY_STATE_DIR = path.join(".devos", "runs");
+const STATE_ROOT_DIR = path.join(".devos", "projects");
 
 export function normalizeIssueKey(input: string): string {
 	const match = input.trim().match(/[A-Z]+-\d+/);

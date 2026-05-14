@@ -20,7 +20,7 @@ Get a new operator from zero setup to running a scoped project workflow.
 
 1. Run `bun run packages/cli/src/index.ts projects` to verify project resolution.
 2. Run `bun run packages/cli/src/index.ts run --project <PROJECT_ID>` for one scoped project.
-3. Validate run state appears under `.piv-loop/projects/<project-id>/runs`.
+3. Validate run state appears under `.devos/projects/<project-id>/runs`.
 
 ## Success Criteria
 

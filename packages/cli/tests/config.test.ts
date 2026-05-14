@@ -165,12 +165,7 @@ describe("loadConfig", () => {
 					folder: true,
 					database: false,
 				},
-				databasePath: path.join(
-					tempDir,
-					".piv-loop",
-					"config",
-					"skills.sqlite",
-				),
+				databasePath: path.join(tempDir, ".devos", "config", "skills.sqlite"),
 				maxSelected: 3,
 			});
 			expect(config.projects[0]?.workflow.issueConcurrency).toBe(1);
@@ -178,7 +173,7 @@ describe("loadConfig", () => {
 				enabled: false,
 			});
 			expect(config.projects[0]?.server.database.databasePath).toBe(
-				path.join(tempDir, ".piv-loop", "config", "server-db"),
+				path.join(tempDir, ".devos", "config", "server-db"),
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });

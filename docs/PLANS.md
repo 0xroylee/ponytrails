@@ -14,7 +14,7 @@ Planning output should remain concise and implementation-focused, including:
 ## Coverage Audits
 
 1. CLI-to-server workflow coverage:
-   [docs/cli-server-workflow-coverage.md](/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents/.piv-loop/projects/adhd-47ea7f022b5d/worktrees/roy-146/docs/cli-server-workflow-coverage.md)
+   [docs/cli-server-workflow-coverage.md](/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents/.devos/projects/adhd-47ea7f022b5d/worktrees/roy-146/docs/cli-server-workflow-coverage.md)
 
 ## Operating Commands
 
@@ -27,7 +27,7 @@ Planning output should remain concise and implementation-focused, including:
 
 1. Standard runs process issue queues sequentially by default; use `--concurrency <N>` or `run.concurrency` to enable bounded parallelism.
 2. Use `--isolated-worktrees`, `PIV_ISOLATED_WORKTREES=1`, or `workflow.isolatedWorktrees.enabled` when parallel workers should make changes concurrently.
-3. Isolated worktrees are created per issue under `.piv-loop/projects/<project-id>/worktrees/<issue-key>/` unless `workflow.isolatedWorktrees.root` is configured.
+3. Isolated worktrees are created per issue under `.devos/projects/<project-id>/worktrees/<issue-key>/` unless `workflow.isolatedWorktrees.root` is configured.
 4. Per-issue leases prevent duplicate processing of the same issue key, but they do not serialize all repository mutations across separate devos.ing processes.
 
 Safe usage patterns:

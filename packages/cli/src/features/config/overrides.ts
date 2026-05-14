@@ -7,22 +7,14 @@ import type {
 	ProjectConfig,
 	ProjectRuntimeConfig,
 } from "../../features/types";
-import {
-	DEFAULT_CONFIG_FILE,
-	LEGACY_CONFIG_FILE,
-	LOCAL_CONFIG_FILE,
-} from "./constants";
+import { DEFAULT_CONFIG_FILE, LOCAL_CONFIG_FILE } from "./constants";
 
 type RootOverride = DeepPartial<DevosRootConfig>;
 type LegacyOverride = DeepPartial<ProjectRuntimeConfig>;
 type AnyOverride = RootOverride | LegacyOverride;
 
 export async function loadConfigOverride(cwd: string): Promise<AnyOverride> {
-	for (const configFile of [
-		LOCAL_CONFIG_FILE,
-		DEFAULT_CONFIG_FILE,
-		LEGACY_CONFIG_FILE,
-	]) {
+	for (const configFile of [LOCAL_CONFIG_FILE, DEFAULT_CONFIG_FILE]) {
 		const configPath = path.join(cwd, configFile);
 		try {
 			await access(configPath);

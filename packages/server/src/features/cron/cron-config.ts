@@ -3,11 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CronJobConfig } from "./cron.types";
 
-const CONFIG_CANDIDATES = [
-	"devos.local.config.ts",
-	"devos.config.ts",
-	"piv-loop.config.ts",
-] as const;
+const CONFIG_CANDIDATES = ["devos.local.config.ts", "devos.config.ts"] as const;
 
 type RawCronRoot = {
 	automations?: { jobs?: unknown };

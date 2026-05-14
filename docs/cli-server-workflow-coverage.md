@@ -98,10 +98,10 @@ routes from `packages/cli/src/features/server/routes.ts`.
 Filesystem-backed state:
 
 - Run state files:
-  `.piv-loop/projects/<project-id>/runs/<ISSUE_KEY>.json`
+  `.devos/projects/<project-id>/runs/<ISSUE_KEY>.json`
   via `packages/cli/src/features/workflow/state.ts`
 - Agent chat logs:
-  `.piv-loop/projects/<project-id>/chat-logs/<agent-role>/<skill-file>.json`
+  `.devos/projects/<project-id>/chat-logs/<agent-role>/<skill-file>.json`
   via `packages/cli/src/features/workflow/state-chat-log.ts`
 
 Database-backed read models:

@@ -3,7 +3,7 @@
 ## Runtime Expectations
 
 1. Each run resolves to one or more `project.id` values.
-2. Project-scoped state is persisted under `.piv-loop/projects/<project-id>/runs`.
+2. Project-scoped state is persisted under `.devos/projects/<project-id>/runs`.
 3. Status reads require explicit project id context.
 4. Default non-project invocation runs against the first configured project.
 
@@ -25,7 +25,7 @@ devos.ing combines queue behavior, per-issue leases, and execution-path locking 
 
 ### 2) Per-Issue Lease (Persisted Run-State Lock)
 
-1. Before processing an issue, the worker attempts to acquire a lease in run state under `.piv-loop/projects/<project-id>/runs`.
+1. Before processing an issue, the worker attempts to acquire a lease in run state under `.devos/projects/<project-id>/runs`.
 2. Lease metadata includes `ownerId`, `acquiredAt`, `heartbeatAt`, and `expiresAt`.
 3. If another unexpired owner holds the lease, the issue is skipped for that worker.
 4. Active workers heartbeat the lease during stage execution and release it when finished.

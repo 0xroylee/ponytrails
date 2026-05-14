@@ -929,7 +929,7 @@ function createProjectConfig(): ResolvedProjectConfig {
 		},
 		server: {
 			database: {
-				databasePath: "/tmp/workspace/.piv-loop/config/server-db",
+				databasePath: "/tmp/workspace/.devos/config/server-db",
 			},
 		},
 		codex: {

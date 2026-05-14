@@ -61,7 +61,7 @@ devos.ing runs agent stages using a configurable backend and model settings.
 2. Run `devos setup --check` to validate config and required tooling.
 3. Run `bun run packages/cli/src/index.ts projects` to confirm project resolution.
 4. Start one scoped run: `bun run packages/cli/src/index.ts run --project <PROJECT_ID>`.
-5. Confirm run state appears under `.piv-loop/projects/<project-id>/runs`.
+5. Confirm run state appears under `.devos/projects/<project-id>/runs`.
 
 More detail:
 
@@ -72,7 +72,7 @@ More detail:
 ## What To Check When Work Is Blocked
 
 1. Confirm the issue is in the expected Linear status and assigned to the expected project.
-2. Check run state and errors under `.piv-loop/projects/<project-id>/`.
+2. Check run state and errors under `.devos/projects/<project-id>/`.
 3. Verify required credentials exist in environment or local secret storage.
 4. Confirm GitHub authentication and repository routing are valid.
 5. Re-run with scoped flags (`--project`, `--issue`) to isolate one workflow path.

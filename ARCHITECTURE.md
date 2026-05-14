@@ -54,8 +54,8 @@ flowchart TD
     workflow --> notify[packages/cli/src/integrations/notifications/notifications.ts<br/>human review and outcome email]
     workflow --> state[packages/cli/src/features/workflow/state.ts<br/>run state + leases]
 
-    state --> runFiles[.piv-loop/projects/<project-id>/runs/*.json]
-    state --> chatLogs[.piv-loop/projects/<project-id>/chat-logs/*.json]
+    state --> runFiles[.devos/projects/<project-id>/runs/*.json]
+    state --> chatLogs[.devos/projects/<project-id>/chat-logs/*.json]
 
     planning --> codexAdapter[packages/cli/src/integrations/agent-adapters/codex.ts]
     planning --> claudeAdapter[packages/cli/src/integrations/agent-adapters/claude-code.ts]
@@ -68,7 +68,7 @@ flowchart TD
 ## Multi-Project Runtime Rules
 
 1. Every run resolves to one or more `project.id` values.
-2. Run state is persisted under `.piv-loop/projects/<project-id>/runs`.
+2. Run state is persisted under `.devos/projects/<project-id>/runs`.
 3. Status reads require an explicit project id.
 4. Default invocation without project flags targets the first configured project.
 5. `--all-projects --issue <KEY>` must resolve to one unique project mapping.

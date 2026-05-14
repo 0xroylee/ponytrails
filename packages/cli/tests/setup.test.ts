@@ -382,7 +382,7 @@ function loadedConfig({
 				},
 				server: {
 					database: {
-						databasePath: "/tmp/demo/.piv-loop/config/server-db",
+						databasePath: "/tmp/demo/.devos/config/server-db",
 					},
 				},
 				workflow: {

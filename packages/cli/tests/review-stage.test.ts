@@ -30,7 +30,7 @@ function createConfig(): ResolvedProjectConfig {
 		github: { useGhCli: true, defaultBugLabel: "bug" },
 		server: {
 			database: {
-				databasePath: "/tmp/work/.piv-loop/config/server-db",
+				databasePath: "/tmp/work/.devos/config/server-db",
 			},
 		},
 		codex: { binary: "codex", streamLogs: false },

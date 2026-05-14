@@ -2167,7 +2167,7 @@ describe("isolated worktree workflow helpers", () => {
 		config.workflow.isolatedWorktrees = { enabled: true };
 		const state = createRunState("ENG-42", "implementing", Date.now());
 		expect(isolatedWorktreePath(config, state)).toBe(
-			"/tmp/workspace/.piv-loop/projects/default/worktrees/eng-42",
+			"/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 		);
 
 		config.workflow.isolatedWorktrees.root = "/tmp/adhd-worktrees";
@@ -2205,7 +2205,7 @@ describe("isolated worktree workflow helpers", () => {
 
 		expect(isolatedConfig.workspacePath).toBe(config.workspacePath);
 		expect(isolatedConfig.executionPath).toBe(
-			"/tmp/workspace/.piv-loop/projects/default/worktrees/eng-42",
+			"/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 		);
 		expect(state.executionWorkspace).toMatchObject({
 			mode: "git-worktree",
@@ -2225,7 +2225,7 @@ describe("isolated worktree workflow helpers", () => {
 		expect(calls).toEqual([
 			"ensureBaseBranchFresh",
 			"ensureIssueWorktree",
-			"prepareWorktreeDependencies:/tmp/workspace/.piv-loop/projects/default/worktrees/eng-42",
+			"prepareWorktreeDependencies:/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 		]);
 	});
 
@@ -2258,7 +2258,7 @@ describe("isolated worktree workflow helpers", () => {
 		);
 
 		expect(isolatedConfig.executionPath).toBe(
-			path.resolve(".piv-loop/projects/default/worktrees/eng-42"),
+			path.resolve(".devos/projects/default/worktrees/eng-42"),
 		);
 		expect(state.executionWorkspace?.path).toBe(isolatedConfig.executionPath);
 		expect(isolatedWorktreePath(config, state)).toBe(
@@ -2286,7 +2286,7 @@ describe("isolated worktree workflow helpers", () => {
 		);
 
 		expect(isolatedConfig.executionPath).toBe(
-			"/tmp/workspace/.piv-loop/projects/default/worktrees/eng-42",
+			"/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 		);
 		expect(prepareWorktreeDependencies).not.toHaveBeenCalled();
 		expect(state.executionWorkspace).toMatchObject({
@@ -2313,11 +2313,11 @@ describe("isolated worktree workflow helpers", () => {
 			prepareIsolatedExecutionConfig(config, state, runtime),
 		).rejects.toThrow("bun install --frozen-lockfile failed");
 		expect(prepareWorktreeDependencies).toHaveBeenCalledWith(
-			"/tmp/workspace/.piv-loop/projects/default/worktrees/eng-42",
+			"/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 		);
 		expect(state.executionWorkspace).toMatchObject({
 			mode: "git-worktree",
-			path: "/tmp/workspace/.piv-loop/projects/default/worktrees/eng-42",
+			path: "/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 			branch: "codex/eng-42",
 		});
 	});
@@ -2472,7 +2472,7 @@ function createProject(
 		},
 		server: {
 			database: {
-				databasePath: "/tmp/workspace/.piv-loop/config/server-db",
+				databasePath: "/tmp/workspace/.devos/config/server-db",
 			},
 		},
 		codex: {

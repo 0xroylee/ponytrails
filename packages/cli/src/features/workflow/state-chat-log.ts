@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AgentChatLogEntry } from "../../features/types";
 
-const STATE_ROOT_DIR = path.join(".piv-loop", "projects");
+const STATE_ROOT_DIR = path.join(".devos", "projects");
 const CHAT_LOGS_DIR = "chat-logs";
 export const AGENT_CHAT_LOG_RETENTION = 1000;
 

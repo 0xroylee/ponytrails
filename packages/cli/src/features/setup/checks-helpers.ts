@@ -56,8 +56,8 @@ export async function checkTrackedConfigSecrets(
 		secretValues.add(config.notifications.email.resendApiKey);
 	}
 
-	const trackedConfigPaths = ["devos.config.ts", "piv-loop.config.ts"].map(
-		(fileName) => path.join(cwd, fileName),
+	const trackedConfigPaths = ["devos.config.ts"].map((fileName) =>
+		path.join(cwd, fileName),
 	);
 	for (const configPath of trackedConfigPaths) {
 		const content = await readOptionalText(configPath, readText);
