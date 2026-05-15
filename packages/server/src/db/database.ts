@@ -3,6 +3,7 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import type { ServerDatabase } from "./database.types";
+import { runMigrations } from "./migrations";
 import * as schema from "./schema";
 
 const CREATE_SCHEMA_SQL = `
@@ -163,6 +164,7 @@ export async function initializeServerDatabase(
 	await mkdir(path.dirname(resolvedPath), { recursive: true });
 	const client = new PGlite(resolvedPath);
 	await client.exec(CREATE_SCHEMA_SQL);
+	await runMigrations(client);
 	const db = drizzle({ client, schema });
 	return {
 		client,
