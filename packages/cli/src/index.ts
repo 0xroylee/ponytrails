@@ -6,7 +6,10 @@ import {
 	printHelp,
 } from "./commands/handlers";
 import { loadConfig } from "./features/config";
-import { runProductionDaemon } from "./features/daemon";
+import {
+	runCliCommandDaemonOnly,
+	runProductionDaemon,
+} from "./features/daemon";
 import {
 	logger,
 	normalizeError,
@@ -27,6 +30,10 @@ async function main(): Promise<void> {
 		return;
 	}
 	if (command.kind === "daemon") {
+		if (command.cliOnly) {
+			process.exitCode = await runCliCommandDaemonOnly({ cwd });
+			return;
+		}
 		process.exitCode = await runProductionDaemon({ cwd });
 		return;
 	}

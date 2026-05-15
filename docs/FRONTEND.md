@@ -12,6 +12,7 @@ Operator surfaces include the web UI, CLI output, Linear comments, and GitHub PR
 ## Local Commands (Workspace Scripts)
 
 - `bun run dev`: start the local API server on port 3001 and web UI on port 3002
+- `bun run dev:cli-daemon`: start only the CLI daemon websocket on port 3002 for command streaming
 - `bun run dev:web`: start only the web package dev server
 - `bun run dev:server`: start only the API server on `PIV_SERVER_PORT=3001`
 - `devos daemon`: start the production API server and web UI together in the foreground without building first

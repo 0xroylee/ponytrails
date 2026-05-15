@@ -19,15 +19,11 @@ export function TaskCreatePanel(): ReactElement {
 	const [activeQuestions, setActiveQuestions] = useState<string[]>([]);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-	const canSubmitInitial =
-		request.trim().length > 0 &&
-		projectId.trim().length > 0 &&
-		!createTask.isPending;
+	const canSubmitInitial = request.trim().length > 0 && !createTask.isPending;
 	const canSubmitClarifications =
 		activeQuestions.length > 0 &&
 		answers.length === activeQuestions.length &&
 		answers.every((answer) => answer.answer.trim().length > 0) &&
-		projectId.trim().length > 0 &&
 		!createTask.isPending;
 
 	const statusText = useMemo(() => {
@@ -54,7 +50,7 @@ export function TaskCreatePanel(): ReactElement {
 		try {
 			const response = await createTask.mutateAsync({
 				request: nextRequest,
-				projectId: projectId.trim(),
+				projectId: projectId.trim() || undefined,
 				answers: nextAnswers,
 			});
 			if (response.status === "needs_info") {

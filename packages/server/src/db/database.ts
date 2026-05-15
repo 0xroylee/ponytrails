@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS project_cron_jobs_project_id_idx
 ON project_cron_jobs(project_id);
 CREATE TABLE IF NOT EXISTS board_tasks (
 	id text PRIMARY KEY,
-	project_id text NOT NULL REFERENCES board_projects(id),
+	project_id text REFERENCES board_projects(id),
 	title text NOT NULL,
 	content text NOT NULL,
 	priority integer NOT NULL,
@@ -179,6 +179,8 @@ ALTER TABLE board_tasks
 ADD COLUMN IF NOT EXISTS linear_identifier text;
 ALTER TABLE board_tasks
 ADD COLUMN IF NOT EXISTS linear_url text;
+ALTER TABLE board_tasks
+ALTER COLUMN project_id DROP NOT NULL;
 `;
 
 export async function initializeServerDatabase(

@@ -18,7 +18,7 @@ import type { IssueDialogMode, IssueDraft } from "./issues-board.types";
 interface IssueDialogProps {
 	mode: IssueDialogMode;
 	defaultStatus: string;
-	projectId: string;
+	projectId?: string | null;
 	task?: ProjectBoardTaskRecord;
 	isSaving: boolean;
 	isDeleting: boolean;
@@ -69,7 +69,7 @@ export function IssueDialog({
 			return;
 		}
 		await onSubmit({
-			projectId,
+			projectId: projectId || undefined,
 			title: draft.title.trim(),
 			content: draft.content.trim(),
 			priority,

@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS board_projects (
 );
 CREATE TABLE IF NOT EXISTS board_tasks (
 	id text PRIMARY KEY,
-	project_id text NOT NULL REFERENCES board_projects(id),
+	project_id text REFERENCES board_projects(id),
 	title text NOT NULL,
 	content text NOT NULL,
 	priority integer NOT NULL,

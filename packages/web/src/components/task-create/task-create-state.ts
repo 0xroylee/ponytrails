@@ -1,11 +1,11 @@
 import type { TaskCreateChatState } from "./task-create-chat-dialog.types";
 
 export function createInitialState(
-	defaultProjectId: string,
+	defaultBoardProjectId: string,
 ): TaskCreateChatState {
 	return {
 		request: "",
-		projectId: defaultProjectId,
+		projectId: defaultBoardProjectId,
 		answers: [],
 		questions: [],
 		step: "request",

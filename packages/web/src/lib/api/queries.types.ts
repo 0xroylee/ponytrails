@@ -7,12 +7,12 @@ export interface ServerStateQueryOptions {
 
 export interface TaskCreateMutationInput {
 	request: string;
-	projectId: string;
+	projectId?: string;
 	answers?: Array<{ question: string; answer: string }>;
 }
 
 export interface BoardTaskMutationInput {
-	projectId: string;
+	projectId?: string | null;
 	title: string;
 	content: string;
 	priority: number;

@@ -27,6 +27,41 @@ export function filterTaskByTab(
 	return tab === "agents" ? agentTask : !agentTask;
 }
 
+export function matchesSearch(
+	task: ProjectBoardTaskRecord,
+	query: string,
+): boolean {
+	const normalized = query.trim().toLowerCase();
+	if (!normalized) {
+		return true;
+	}
+	return `${task.id} ${task.title} ${task.content} ${task.creatorId}`
+		.toLowerCase()
+		.includes(normalized);
+}
+
+export function toggleStatus(
+	status: string,
+	setVisibleStatuses: (updater: (current: string[]) => string[]) => void,
+): void {
+	setVisibleStatuses((current) =>
+		current.includes(status)
+			? current.filter((item) => item !== status)
+			: [...current, status],
+	);
+}
+
+export function toggleAllColumns(
+	visibleStatuses: string[],
+	setVisibleStatuses: (updater: (current: string[]) => string[]) => void,
+): void {
+	setVisibleStatuses(() =>
+		visibleStatuses.length === STATUS_ORDER.length
+			? ["planning"]
+			: [...STATUS_ORDER],
+	);
+}
+
 export function createEmptyDraft(status: string): IssueDraft {
 	return {
 		title: "",

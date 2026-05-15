@@ -7,7 +7,7 @@ export interface TaskChatCreateAnswer {
 
 export interface TaskChatCreateRequest {
 	request: string;
-	projectId: string;
+	projectId?: string;
 	answers?: TaskChatCreateAnswer[];
 }
 
@@ -35,7 +35,7 @@ export type TaskChatCreateResponse =
 	| {
 			status: "created";
 			issue: TaskChatCreateLinearIssue;
-			task: CreateTaskPayload & {
+			task?: CreateTaskPayload & {
 				id: string;
 				createdAt: string;
 				updatedAt: string;

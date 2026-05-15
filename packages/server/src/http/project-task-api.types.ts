@@ -15,7 +15,7 @@ export interface UpdateProjectPayload {
 }
 
 export interface CreateTaskPayload {
-	projectId: string;
+	projectId?: string | null;
 	title: string;
 	content: string;
 	priority: number;
@@ -29,7 +29,7 @@ export interface CreateTaskPayload {
 }
 
 export interface UpdateTaskPayload {
-	projectId?: string;
+	projectId?: string | null;
 	title?: string;
 	content?: string;
 	priority?: number;

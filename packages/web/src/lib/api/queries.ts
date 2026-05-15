@@ -139,7 +139,7 @@ export function useCreateTaskMutation(): UseMutationResult<
 		mutationFn: (input) =>
 			apiClient.createTask({
 				request: input.request,
-				projectId: input.projectId,
+				projectId: input.projectId || undefined,
 				answers: input.answers,
 			}),
 	});

@@ -58,6 +58,25 @@ describe("buildDaemonCommands", () => {
 			NEXT_PUBLIC_DEVOS_SERVER_WS_URL: "ws://127.0.0.1:4101/api/cli/stream",
 		});
 	});
+
+	it("does not expose the CLI daemon websocket as the web stream target", () => {
+		const commands = buildDaemonCommands({
+			PIV_SERVER_PORT: "4101",
+			DEVOS_CLI_DAEMON_PORT: "4103",
+		});
+		const serverEnv = commands.find(
+			(command) => command.name === "server",
+		)?.env;
+		const webEnv = commands.find((command) => command.name === "web")?.env;
+
+		expect(serverEnv?.DEVOS_CLI_DAEMON_WS_URL).toBe("ws://127.0.0.1:4103");
+		expect(webEnv?.NEXT_PUBLIC_DEVOS_SERVER_WS_URL).toBe(
+			"ws://127.0.0.1:4101/api/cli/stream",
+		);
+		expect(webEnv?.NEXT_PUBLIC_DEVOS_SERVER_WS_URL).not.toBe(
+			serverEnv?.DEVOS_CLI_DAEMON_WS_URL,
+		);
+	});
 });
 
 describe("runProductionDaemon", () => {

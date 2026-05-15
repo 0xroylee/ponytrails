@@ -29,6 +29,33 @@ server/API contracts.
 5. After meaningful visible UI changes, run the web app locally and verify it in
    a browser.
 
+## React State And Data Flow
+
+1. Use Zustand for complex client-side stores.
+2. Do not put setters into `useEffect`.
+3. Use `useMemo` to optimize performance when derived values are expensive,
+   passed to memoized children, or likely to be shared with React Native code.
+4. Do not create custom hooks for simple data fetching. Use `useQuery` and
+   `useMutation` directly.
+
+## Component Structure
+
+1. Put state declarations at the top of the component.
+2. Define event handlers after state declarations.
+3. Memoize properly, especially for values or callbacks that may be used in the
+   React Native app.
+4. Keep JSX at the end of the component.
+5. Keep components under 250 lines.
+
+## TypeScript Conventions
+
+1. Do not use `any`; prefer `unknown` when the type is not yet known.
+2. Always consider strict mode behavior when adding or changing types.
+3. Use explicit return types for functions.
+4. Use PascalCase for types and interfaces.
+5. Use camelCase for variables and functions.
+6. Use string enums with explicit initializers.
+
 ## Tests And Checks
 
 1. Add tests for new UI data contracts or behavior when a test harness exists.

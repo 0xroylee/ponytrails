@@ -1,5 +1,6 @@
 export {
 	buildDaemonCommands,
+	runCliCommandDaemonOnly,
 	runProductionDaemon,
 } from "./daemon";
 export {
@@ -19,6 +20,7 @@ export type {
 	DaemonSignalTarget,
 	DaemonSpawn,
 	DaemonSpawnOptions,
+	RunCliCommandDaemonOnlyOptions,
 	RunProductionDaemonOptions,
 } from "./daemon.types";
 export type {

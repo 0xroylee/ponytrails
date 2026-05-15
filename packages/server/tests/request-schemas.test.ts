@@ -46,7 +46,7 @@ describe("request schemas", () => {
 		});
 		expect(parseCreateTaskPayload({ priority: 1.5 })).toEqual({
 			ok: false,
-			error: "projectId must be a non-empty string",
+			error: "title must be a non-empty string",
 		});
 	});
 

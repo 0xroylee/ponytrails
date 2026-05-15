@@ -30,7 +30,7 @@ export function BoardHeader({
 				<h1 className="m-0 text-xl font-semibold">Issues</h1>
 			</div>
 			<div className="flex flex-wrap items-center gap-2">
-				{(["all", "members", "agents"] as const).map((tab) => (
+				{/* {(["all", "members", "agents"] as const).map((tab) => (
 					<button
 						className={cn(
 							"rounded-md border px-3 py-2 text-sm capitalize",
@@ -44,7 +44,7 @@ export function BoardHeader({
 					>
 						{tab}
 					</button>
-				))}
+				))} */}
 				<button
 					className="issue-primary-button"
 					onClick={onCreateIssue}

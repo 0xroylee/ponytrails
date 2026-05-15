@@ -47,7 +47,7 @@ export interface WorkspaceProjectRecord {
 
 export interface ProjectBoardTaskRecord {
 	id: string;
-	projectId: string;
+	projectId: string | null;
 	title: string;
 	content: string;
 	priority: number;

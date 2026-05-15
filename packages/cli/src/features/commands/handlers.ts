@@ -149,6 +149,7 @@ export function printHelp(): void {
 			"",
 			"Commands:",
 			"  devos daemon",
+			"  devos daemon --cli-only",
 			"  devos run [--project <PROJECT_ID>] [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle] [--poll-interval-ms <MS>] [--max-poll-cycles <N>] [--isolated-worktrees]",
 			"  devos run --all-projects [--issue <LINEAR_KEY_OR_URL>] [--poll] [--no-exit-when-idle]",
 			"  devos status --project <PROJECT_ID> --issue <LINEAR_KEY>",
@@ -163,6 +164,7 @@ export function printHelp(): void {
 			"",
 			"Environment:",
 			"  PIV_SERVER_PORT, PORT, DEVOS_SERVER_BASE_URL for devos daemon",
+			"  DEVOS_CLI_DAEMON_PORT for devos daemon --cli-only",
 			"  LINEAR_API_KEY, LINEAR_STATUS_* state IDs, GITHUB_* repo settings",
 		].join("\n")}\n`,
 	);

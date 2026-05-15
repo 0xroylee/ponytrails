@@ -15,8 +15,10 @@ Fallback implemented:
 
 Runtime wiring:
 - `packages/web/next.config.ts` rewrites `/api/server/:path*` to `${DEVOS_SERVER_BASE_URL}/:path*`.
-- `DEVOS_SERVER_BASE_URL` defaults to `http://127.0.0.1:3000` when unset.
-- `NEXT_PUBLIC_DEVOS_SERVER_WS_URL` can point the browser at the server WebSocket stream endpoint.
+- `DEVOS_SERVER_BASE_URL` defaults to `http://127.0.0.1:3001` when unset.
+- Browser WebSocket streams go through the server-owned `/api/cli/stream` endpoint: `web -> server /api/cli/stream -> CLI daemon`.
+- `NEXT_PUBLIC_DEVOS_SERVER_WS_URL` can override the browser stream target, but it must point at the server stream endpoint, not the CLI daemon.
+- `DEVOS_CLI_DAEMON_WS_URL` is server-only wiring for the server-to-daemon hop.
 
 Next step when ROY-156 OpenAPI lands:
 - Add Orval config and generation scripts to emit into `packages/web/src/lib/api/generated`.

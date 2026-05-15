@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, RotateCcw, Send, X } from "lucide-react";
-import { type ReactElement, useMemo, useState } from "react";
+import { type ReactElement, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,16 +10,17 @@ import type {
 	TaskCreateChatState,
 } from "./task-create-chat-dialog.types";
 import { formatTaskCreateError } from "./task-create-chat-errors";
+import { getTaskCreateStatusText } from "./task-create-chat-status";
 import { TaskCreateLogPanel, createLogLine } from "./task-create-log-panel";
 import { createInitialState } from "./task-create-state";
 import { streamTaskCreate } from "./task-create-stream";
 
 export function TaskCreateChatDialog({
-	defaultProjectId,
+	defaultBoardProjectId,
 	onClose,
 }: TaskCreateChatDialogProps): ReactElement {
 	const [state, setState] = useState<TaskCreateChatState>(() =>
-		createInitialState(defaultProjectId),
+		createInitialState(defaultBoardProjectId),
 	);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const canSubmitRequest = state.request.trim().length > 0 && !isStreaming;
@@ -28,18 +29,11 @@ export function TaskCreateChatDialog({
 		state.answers.every((answer) => answer.answer.trim().length > 0) &&
 		!isStreaming;
 
-	const statusText = useMemo(() => {
-		if (isStreaming) {
-			return "Creating task and streaming logs...";
-		}
-		if (state.result) {
-			return `Created ${state.result.issue.identifier}`;
-		}
-		if (state.step === "clarifying") {
-			return "Answer the follow-up questions to finish creating the task.";
-		}
-		return "Describe the task you want created.";
-	}, [isStreaming, state.result, state.step]);
+	const statusText = getTaskCreateStatusText({
+		isStreaming,
+		result: state.result,
+		step: state.step,
+	});
 
 	async function submitTask(nextAnswers = state.answers): Promise<void> {
 		setIsStreaming(true);
@@ -54,7 +48,7 @@ export function TaskCreateChatDialog({
 		try {
 			const response = await streamTaskCreate({
 				request: state.request.trim(),
-				projectId: state.projectId.trim(),
+				projectId: state.projectId.trim() || undefined,
 				answers: nextAnswers.length > 0 ? nextAnswers : undefined,
 				onLog: (stream, text) => {
 					setState((current) => ({
@@ -195,7 +189,9 @@ export function TaskCreateChatDialog({
 							{state.result.issue.identifier}
 						</a>
 						<span className="text-emerald-200/80">
-							Board task {state.result.task.id}
+							{state.result.task
+								? `Board task ${state.result.task.id}`
+								: "Project can be assigned later"}
 						</span>
 					</div>
 				) : null}
@@ -206,14 +202,7 @@ export function TaskCreateChatDialog({
 					</p>
 				) : null}
 				<footer className="flex flex-wrap items-center justify-between gap-3">
-					<button
-						className="issue-secondary-button"
-						onClick={() => setState(createInitialState(defaultProjectId))}
-						type="button"
-					>
-						<RotateCcw size={15} />
-						Reset
-					</button>
+					<div />
 					<div className="flex items-center gap-2">
 						<button
 							className="issue-secondary-button"

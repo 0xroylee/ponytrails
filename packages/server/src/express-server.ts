@@ -134,9 +134,17 @@ const handleExpressError: ErrorRequestHandler = (
 	response,
 	_next,
 ) => {
-	const status = normalizeErrorStatus(error);
-	response.status(status).json({ error: normalizeErrorMessage(error, status) });
+	const normalized = normalizeExpressErrorForResponse(error);
+	response.status(normalized.status).json({ error: normalized.error });
 };
+
+export function normalizeExpressErrorForResponse(error: unknown): {
+	status: number;
+	error: string;
+} {
+	const status = normalizeErrorStatus(error);
+	return { status, error: normalizeErrorMessage(error, status) };
+}
 
 function normalizeErrorStatus(error: unknown): number {
 	if (isExpressValidationError(error) && typeof error.status === "number") {
@@ -151,7 +159,7 @@ function normalizeErrorMessage(error: unknown, status: number): string {
 	}
 	if (isExpressValidationError(error)) {
 		return (
-			error.errors?.[0]?.message ??
+			normalizeValidationIssueMessage(error.errors?.[0]) ??
 			error.message ??
 			(status === 404 ? "Not Found" : "Request validation failed")
 		);
@@ -159,10 +167,45 @@ function normalizeErrorMessage(error: unknown, status: number): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
+function normalizeValidationIssueMessage(
+	issue: ExpressValidationIssue | undefined,
+): string | undefined {
+	if (!issue?.message) {
+		return undefined;
+	}
+	if (isMinLengthIssue(issue)) {
+		const field = validationIssueField(issue.path);
+		if (field) {
+			return `${field} must be a non-empty string`;
+		}
+	}
+	return issue.message;
+}
+
+function isMinLengthIssue(issue: ExpressValidationIssue): boolean {
+	return (
+		issue.errorCode === "minLength.openapi.validation" ||
+		issue.message?.includes("fewer than 1 characters") === true
+	);
+}
+
+function validationIssueField(pathValue: unknown): string | undefined {
+	if (typeof pathValue !== "string") {
+		return undefined;
+	}
+	return pathValue.split(/[./]/).filter(Boolean).at(-1)?.replaceAll("/", "");
+}
+
+interface ExpressValidationIssue {
+	message?: string;
+	path?: unknown;
+	errorCode?: string;
+}
+
 function isExpressValidationError(error: unknown): error is {
 	status?: number;
 	message?: string;
-	errors?: { message?: string }[];
+	errors?: ExpressValidationIssue[];
 } {
 	return typeof error === "object" && error !== null;
 }

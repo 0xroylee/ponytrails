@@ -1,7 +1,7 @@
 import type { TaskCreateAnswer, TaskCreateResponse } from "@/lib/api";
 
 export interface TaskCreateChatDialogProps {
-	defaultProjectId: string;
+	defaultBoardProjectId: string;
 	onClose: () => void;
 }
 

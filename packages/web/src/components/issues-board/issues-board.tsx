@@ -4,13 +4,12 @@ import { Columns3, Filter, SlidersHorizontal } from "lucide-react";
 import { type ReactElement, useEffect, useMemo, useState } from "react";
 
 import { TaskCreateChatDialog } from "@/components/task-create/task-create-chat-dialog";
-import type { ProjectBoardTaskRecord, TaskMutationRequest } from "@/lib/api";
+import type { TaskMutationRequest, WorkspaceProjectRecord } from "@/lib/api";
 import {
 	useCreateBoardTaskMutation,
 	useDeleteBoardTaskMutation,
 	useProjectBoardQuery,
 	useUpdateBoardTaskMutation,
-	useWorkspaceProjectsQuery,
 } from "@/lib/api/queries";
 
 import { IssueDialog } from "./issue-dialog";
@@ -20,19 +19,43 @@ import {
 	ColumnToggles,
 	ToolButton,
 } from "./issues-board-parts";
-import { filterTaskByTab, sortColumns } from "./issues-board-utils";
-import { DEFAULT_WORKSPACE_ID, STATUS_ORDER } from "./issues-board.constants";
-import type { IssueDialogState, IssueTab } from "./issues-board.types";
+import {
+	filterTaskByTab,
+	matchesSearch,
+	sortColumns,
+	toggleAllColumns,
+	toggleStatus,
+} from "./issues-board-utils";
+import { STATUS_ORDER } from "./issues-board.constants";
+import type {
+	IssueDialogState,
+	IssueTab,
+	OpenIssueRequest,
+} from "./issues-board.types";
 
 interface IssuesBoardProps {
 	createIssueRequest: number;
+	isProjectsLoading: boolean;
+	openIssueRequest: OpenIssueRequest | null;
+	onProjectIdChange: (projectId: string | null) => void;
+	onWorkspaceIdChange: (workspaceId: string) => void;
+	projectId: string | null;
+	projects: WorkspaceProjectRecord[] | undefined;
+	projectsError: Error | null;
+	workspaceId: string;
 }
 
 export function IssuesBoard({
 	createIssueRequest,
+	isProjectsLoading,
+	openIssueRequest,
+	onProjectIdChange,
+	onWorkspaceIdChange,
+	projectId,
+	projects,
+	projectsError,
+	workspaceId,
 }: IssuesBoardProps): ReactElement {
-	const [workspaceId, setWorkspaceId] = useState(DEFAULT_WORKSPACE_ID);
-	const [projectId, setProjectId] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState<IssueTab>("all");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortNewestFirst, setSortNewestFirst] = useState(true);
@@ -43,27 +66,35 @@ export function IssuesBoard({
 	const [isChatDialogOpen, setIsChatDialogOpen] = useState(false);
 	const [mutationError, setMutationError] = useState<string | null>(null);
 
-	const projectsQuery = useWorkspaceProjectsQuery(workspaceId);
-	const selectedProjectId = projectId ?? projectsQuery.data?.[0]?.id ?? null;
-	const selectedProject = projectsQuery.data?.find(
-		(project) => project.id === selectedProjectId,
-	);
+	const selectedProjectId = projectId ?? projects?.[0]?.id ?? null;
 	const boardQuery = useProjectBoardQuery(workspaceId, selectedProjectId);
 	const createTask = useCreateBoardTaskMutation(workspaceId, selectedProjectId);
 	const updateTask = useUpdateBoardTaskMutation(workspaceId, selectedProjectId);
 	const deleteTask = useDeleteBoardTaskMutation(workspaceId, selectedProjectId);
 
 	useEffect(() => {
-		if (!projectId && projectsQuery.data?.[0]) {
-			setProjectId(projectsQuery.data[0].id);
+		if (!projectId && projects?.[0]) {
+			onProjectIdChange(projects[0].id);
 		}
-	}, [projectId, projectsQuery.data]);
+	}, [onProjectIdChange, projectId, projects]);
 
 	useEffect(() => {
 		if (createIssueRequest > 0) {
 			setIsChatDialogOpen(true);
 		}
 	}, [createIssueRequest]);
+
+	useEffect(() => {
+		if (!openIssueRequest || !boardQuery.data) {
+			return;
+		}
+		const task = boardQuery.data.statusColumns
+			.flatMap((column) => column.tasks)
+			.find((candidate) => candidate.id === openIssueRequest.taskId);
+		if (task) {
+			setDialog({ mode: "edit", task });
+		}
+	}, [boardQuery.data, openIssueRequest]);
 
 	const columns = useMemo(() => {
 		return sortColumns(boardQuery.data?.statusColumns ?? [])
@@ -136,19 +167,16 @@ export function IssuesBoard({
 				<input
 					aria-label="Workspace ID"
 					className="issue-input h-9 max-w-44"
-					onChange={(event) => {
-						setWorkspaceId(event.target.value);
-						setProjectId(null);
-					}}
+					onChange={(event) => onWorkspaceIdChange(event.target.value)}
 					value={workspaceId}
 				/>
 				<select
 					aria-label="Project"
 					className="issue-input h-9 max-w-56"
-					onChange={(event) => setProjectId(event.target.value)}
+					onChange={(event) => onProjectIdChange(event.target.value)}
 					value={selectedProjectId ?? ""}
 				>
-					{projectsQuery.data?.map((project) => (
+					{projects?.map((project) => (
 						<option key={project.id} value={project.id}>
 							{project.name}
 						</option>
@@ -183,8 +211,8 @@ export function IssuesBoard({
 			/>
 			<BoardContent
 				columns={columns}
-				error={projectsQuery.error ?? boardQuery.error}
-				isLoading={projectsQuery.isLoading || boardQuery.isLoading}
+				error={projectsError ?? boardQuery.error}
+				isLoading={isProjectsLoading || boardQuery.isLoading}
 				onCreateIssue={(status) => setDialog({ mode: "create", status })}
 				onOpenIssue={(task) => setDialog({ mode: "edit", task })}
 			/>
@@ -204,42 +232,11 @@ export function IssuesBoard({
 			) : null}
 			{isChatDialogOpen ? (
 				<TaskCreateChatDialog
-					defaultProjectId={selectedProject?.externalProjectId ?? ""}
+					defaultBoardProjectId={selectedProjectId ?? ""}
+					key={selectedProjectId ?? "pending-project"}
 					onClose={() => setIsChatDialogOpen(false)}
 				/>
 			) : null}
 		</section>
-	);
-}
-
-function matchesSearch(task: ProjectBoardTaskRecord, query: string): boolean {
-	const normalized = query.trim().toLowerCase();
-	if (!normalized) {
-		return true;
-	}
-	return `${task.id} ${task.title} ${task.content} ${task.creatorId}`
-		.toLowerCase()
-		.includes(normalized);
-}
-
-function toggleStatus(
-	status: string,
-	setVisibleStatuses: (updater: (current: string[]) => string[]) => void,
-): void {
-	setVisibleStatuses((current) =>
-		current.includes(status)
-			? current.filter((item) => item !== status)
-			: [...current, status],
-	);
-}
-
-function toggleAllColumns(
-	visibleStatuses: string[],
-	setVisibleStatuses: (updater: (current: string[]) => string[]) => void,
-): void {
-	setVisibleStatuses(() =>
-		visibleStatuses.length === STATUS_ORDER.length
-			? ["planning"]
-			: [...STATUS_ORDER],
 	);
 }

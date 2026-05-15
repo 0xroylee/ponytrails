@@ -8,12 +8,21 @@ import {
 	useState,
 } from "react";
 
+import { DEFAULT_WORKSPACE_ID } from "@/components/issues-board/issues-board.constants";
+import type { OpenIssueRequest } from "@/components/issues-board/issues-board.types";
 import { WebJobBoard } from "@/components/web-shell/web-job-board";
 import type {
 	SidebarDisplayMode,
 	SidebarNavItem,
 } from "@/components/web-shell/web-shell.types";
 import { WebSidebar } from "@/components/web-shell/web-sidebar";
+import {
+	useCommandHistoryQuery,
+	useProjectBoardQuery,
+	useWorkspaceProjectsQuery,
+} from "@/lib/api/queries";
+
+import { CommandSearchDialog } from "./command-search-dialog";
 
 const navItems: SidebarNavItem[] = [
 	{ key: "inbox", label: "Inbox" },
@@ -72,6 +81,25 @@ export function WebOperatorShell(): ReactElement {
 		useState<SidebarNavItem["key"]>("issues");
 	const [isCompactViewport, setIsCompactViewport] = useState<boolean>(false);
 	const [createIssueRequest, setCreateIssueRequest] = useState(0);
+	const [isSearchOpen, setIsSearchOpen] = useState(false);
+	const [openIssueRequest, setOpenIssueRequest] =
+		useState<OpenIssueRequest | null>(null);
+	const [workspaceId, setWorkspaceId] = useState(DEFAULT_WORKSPACE_ID);
+	const [projectId, setProjectId] = useState<string | null>(null);
+	const projectsQuery = useWorkspaceProjectsQuery(workspaceId);
+	const selectedProjectId = projectId ?? projectsQuery.data?.[0]?.id ?? null;
+	const searchBoardQuery = useProjectBoardQuery(
+		workspaceId,
+		selectedProjectId,
+		{
+			enabled: isSearchOpen,
+			refetchIntervalMs: false,
+		},
+	);
+	const commandHistoryQuery = useCommandHistoryQuery({
+		enabled: isSearchOpen,
+		refetchIntervalMs: false,
+	});
 	const canShowSidebar = sidebarMode !== "hidden";
 	const showFloatingToggle = sidebarMode === "hidden";
 
@@ -96,6 +124,24 @@ export function WebOperatorShell(): ReactElement {
 	const toggleSidebarMode = useCallback(() => {
 		setSidebarMode((current) => nextSidebarMode(current, isCompactViewport));
 	}, [isCompactViewport]);
+
+	const createIssue = useCallback(() => {
+		setActiveNavKey("issues");
+		setCreateIssueRequest((value) => value + 1);
+	}, []);
+
+	const openIssue = useCallback((taskId: string) => {
+		setActiveNavKey("issues");
+		setOpenIssueRequest((current) => ({
+			taskId,
+			requestId: (current?.requestId ?? 0) + 1,
+		}));
+	}, []);
+
+	const changeWorkspaceId = useCallback((nextWorkspaceId: string) => {
+		setWorkspaceId(nextWorkspaceId);
+		setProjectId(null);
+	}, []);
 
 	const viewportColumns = useMemo(() => {
 		return canShowSidebar ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
@@ -140,16 +186,37 @@ export function WebOperatorShell(): ReactElement {
 					activeKey={activeNavKey}
 					navItems={navItems}
 					onNavSelect={setActiveNavKey}
-					onNewIssue={() => {
-						setActiveNavKey("issues");
-						setCreateIssueRequest((value) => value + 1);
-					}}
+					onNewIssue={createIssue}
+					onSearch={() => setIsSearchOpen(true)}
 					onToggleMode={toggleSidebarMode}
 				/>
 			) : null}
 			<WebJobBoard
 				activeKey={activeNavKey}
 				createIssueRequest={createIssueRequest}
+				isProjectsLoading={projectsQuery.isLoading}
+				onProjectIdChange={setProjectId}
+				onWorkspaceIdChange={changeWorkspaceId}
+				openIssueRequest={openIssueRequest}
+				projectId={selectedProjectId}
+				projects={projectsQuery.data}
+				projectsError={projectsQuery.error}
+				workspaceId={workspaceId}
+			/>
+			<CommandSearchDialog
+				activeKey={activeNavKey}
+				board={searchBoardQuery.data}
+				boardError={searchBoardQuery.error}
+				commandHistory={commandHistoryQuery.data}
+				commandHistoryError={commandHistoryQuery.error}
+				isBoardLoading={searchBoardQuery.isLoading}
+				isCommandHistoryLoading={commandHistoryQuery.isLoading}
+				isOpen={isSearchOpen}
+				navItems={navItems}
+				onClose={() => setIsSearchOpen(false)}
+				onNavigate={setActiveNavKey}
+				onNewIssue={createIssue}
+				onOpenIssue={openIssue}
 			/>
 		</main>
 	);

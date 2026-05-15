@@ -520,9 +520,12 @@ components:
     TaskCreateRequest:
       type: object
       additionalProperties: false
-      required: [projectId, title, content, priority, status, creatorId]
+      required: [title, content, priority, status, creatorId]
       properties:
-        projectId: { type: string, minLength: 1 }
+        projectId:
+          type: string
+          minLength: 1
+          nullable: true
         title: { type: string, minLength: 1 }
         content: { type: string, minLength: 1 }
         priority: { type: integer }
@@ -537,7 +540,7 @@ components:
     TaskChatCreateRequest:
       type: object
       additionalProperties: false
-      required: [request, projectId]
+      required: [request]
       properties:
         request: { type: string, minLength: 1 }
         projectId: { type: string, minLength: 1 }
@@ -671,12 +674,13 @@ components:
     BoardTaskRecord:
       type: object
       additionalProperties: false
-      required: [id, projectId, title, content, priority, status, creatorId, createdAt, updatedAt]
+      required: [id, title, content, priority, status, creatorId, createdAt, updatedAt]
       properties:
         id:
           type: string
         projectId:
           type: string
+          nullable: true
         title:
           type: string
         content:

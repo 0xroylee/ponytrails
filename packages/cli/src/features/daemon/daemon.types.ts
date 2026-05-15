@@ -50,3 +50,14 @@ export interface RunProductionDaemonOptions {
 		env?: NodeJS.ProcessEnv;
 	}) => CliCommandDaemon;
 }
+
+export interface RunCliCommandDaemonOnlyOptions {
+	cwd?: string;
+	env?: NodeJS.ProcessEnv;
+	signalTarget?: DaemonSignalTarget;
+	startCommandDaemon?: (options: {
+		cwd: string;
+		env?: NodeJS.ProcessEnv;
+	}) => CliCommandDaemon;
+	write?: (message: string) => void;
+}

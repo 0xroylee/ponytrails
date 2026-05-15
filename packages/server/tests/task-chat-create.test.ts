@@ -4,6 +4,7 @@ import type { AppDeps } from "../src/app.types";
 import {
 	type ServerDatabase,
 	boardProjectsTable,
+	boardTasksTable,
 	projectBoardsTable,
 } from "../src/db";
 import type { BoardTaskRow } from "../src/db/board-tasks.types";
@@ -105,6 +106,51 @@ describe("chat task create route", () => {
 			status: "needs_info",
 			questions: ["Which project?"],
 		});
+	});
+
+	it("creates a Linear issue without a board task when project id is omitted", async () => {
+		testDatabase = await createDrizzleServerTestDatabase();
+		const calls: unknown[] = [];
+		const app = createApp(testDatabase.db, async (request) => {
+			calls.push(request);
+			return {
+				status: "succeeded",
+				request,
+				commandResult: {
+					code: 0,
+					stdout: `${JSON.stringify(createdIntake())}\n`,
+					stderr: "",
+				},
+			};
+		});
+
+		const response = await app(
+			new Request("http://localhost/api/tasks/chat-create", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					request: "Create something unassigned",
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			status: "created",
+			issue: createdIssue(),
+		});
+		expect(await testDatabase.db.select().from(boardTasksTable)).toEqual([]);
+		expect(calls).toEqual([
+			{
+				action: "task",
+				taskAction: "create",
+				request: "Create something unassigned",
+				projectId: undefined,
+				nonInteractive: true,
+				clarificationAnswers: undefined,
+				json: true,
+			},
+		]);
 	});
 
 	it("returns db_error when the board task cannot be created", async () => {

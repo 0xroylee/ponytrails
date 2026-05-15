@@ -22,3 +22,8 @@ export interface StatusPresentation {
 	label: string;
 	tone: string;
 }
+
+export interface OpenIssueRequest {
+	taskId: string;
+	requestId: number;
+}

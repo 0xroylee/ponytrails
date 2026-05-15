@@ -41,6 +41,7 @@ npx devos setup --check
 
 # local workspace startup/build shortcuts
 bun run dev
+bun run dev:cli-daemon
 bun run dev:server
 bun run dev:web
 devos daemon
@@ -95,6 +96,8 @@ After `bun install` and `bun run build`, use `npx devos ...` from the repo root 
 Use `bun run dev` from the repository root to start the local API server and web UI together. The combined entrypoint runs `dev:server` with `PIV_SERVER_PORT=3001` and `dev:web` with `PORT=3002` so the two local servers do not contend for the same port.
 
 Use `bun run dev:server` or `bun run dev:web` when you only need one side of the local stack.
+
+Use `bun run dev:cli-daemon` to start only the CLI daemon websocket on `ws://127.0.0.1:3002` for local command streaming. This is the companion process the API server connects to when browser command streams go through `/api/cli/stream`.
 
 Use `devos daemon` to run the production API server and web UI together in the foreground after production artifacts already exist. The command starts the server on `PIV_SERVER_PORT=3001` and the web UI on `PORT=3000` by default, with the web UI proxying to `DEVOS_SERVER_BASE_URL=http://127.0.0.1:3001`. Override those environment variables before starting when needed.
 

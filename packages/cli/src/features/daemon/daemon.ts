@@ -9,6 +9,7 @@ import type {
 	DaemonServiceCommand,
 	DaemonSignalTarget,
 	DaemonSpawn,
+	RunCliCommandDaemonOnlyOptions,
 	RunProductionDaemonOptions,
 } from "./daemon.types";
 
@@ -75,6 +76,52 @@ export async function runProductionDaemon(
 	);
 
 	return superviseDaemonChildren(children, signalTarget, commandDaemon);
+}
+
+export function runCliCommandDaemonOnly(
+	options: RunCliCommandDaemonOnlyOptions = {},
+): Promise<number> {
+	const cwd = options.cwd ?? process.cwd();
+	const signalTarget = options.signalTarget ?? process;
+	const commandDaemon = (options.startCommandDaemon ?? startCliCommandDaemon)({
+		cwd,
+		env: options.env,
+	});
+	const write = options.write ?? process.stdout.write.bind(process.stdout);
+	write(
+		`CLI daemon websocket listening on ${formatCliDaemonWsUrl(commandDaemon.port)}\n`,
+	);
+
+	return superviseCliCommandDaemon(commandDaemon, signalTarget);
+}
+
+function superviseCliCommandDaemon(
+	commandDaemon: { stop(): Promise<void> },
+	signalTarget: DaemonSignalTarget,
+): Promise<number> {
+	return new Promise((resolve) => {
+		let resolved = false;
+
+		const finish = (code: number) => {
+			if (resolved) {
+				return;
+			}
+			resolved = true;
+			for (const signal of SIGNALS) {
+				signalTarget.off(signal, signalHandlers[signal]);
+			}
+			void commandDaemon.stop().finally(() => resolve(code));
+		};
+
+		const signalHandlers = {
+			SIGINT: () => finish(0),
+			SIGTERM: () => finish(0),
+		};
+
+		for (const signal of SIGNALS) {
+			signalTarget.on(signal, signalHandlers[signal]);
+		}
+	});
 }
 
 function superviseDaemonChildren(

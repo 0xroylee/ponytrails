@@ -60,7 +60,10 @@ export function parseTaskCreateResponse(payload: unknown): TaskCreateResponse {
 		return {
 			status,
 			issue: parseCreatedTaskRef(row.issue),
-			task: parseProjectBoardTaskRecord(row.task),
+			task:
+				row.task === undefined
+					? undefined
+					: parseProjectBoardTaskRecord(row.task),
 		};
 	}
 	if (status === "needs_info") {
@@ -93,7 +96,7 @@ export function parseProjectBoardTaskRecord(
 	const row = assertObjectRecord(payload, TASKS_PATH);
 	return {
 		id: readString(row, "id", TASKS_PATH),
-		projectId: readString(row, "projectId", TASKS_PATH),
+		projectId: readNullableString(row, "projectId", TASKS_PATH),
 		title: readString(row, "title", TASKS_PATH),
 		content: readString(row, "content", TASKS_PATH),
 		priority: readNumber(row, "priority", TASKS_PATH),

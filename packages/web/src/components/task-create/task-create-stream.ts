@@ -3,7 +3,7 @@ import { createWebApiClient } from "@/lib/api/web-client";
 
 export interface StreamTaskCreateInput {
 	request: string;
-	projectId: string;
+	projectId?: string;
 	answers?: TaskCreateAnswer[];
 	onLog: (stream: "stdout" | "stderr" | "system", text: string) => void;
 }
@@ -12,7 +12,7 @@ export async function streamTaskCreate(
 	input: StreamTaskCreateInput,
 ): Promise<TaskCreateResponse> {
 	const apiClient = createWebApiClient();
-	input.onLog("system", "Creating Linear issue and board task.");
+	input.onLog("system", "Creating Linear issue.");
 	return apiClient.createTask({
 		request: input.request,
 		projectId: input.projectId,

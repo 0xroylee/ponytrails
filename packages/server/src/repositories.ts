@@ -190,7 +190,7 @@ export function createReadRepositories(
 				 ORDER BY id ASC`,
 				(row): BoardTaskRecord => ({
 					id: String(row.id),
-					projectId: String(row.project_id),
+					projectId: row.project_id === null ? null : String(row.project_id),
 					title: String(row.title),
 					content: String(row.content),
 					priority: Number(row.priority),

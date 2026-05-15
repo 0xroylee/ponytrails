@@ -31,6 +31,7 @@ interface WebSidebarProps {
 	navItems: SidebarNavItem[];
 	onNavSelect: (key: SidebarNavItem["key"]) => void;
 	onNewIssue: () => void;
+	onSearch: () => void;
 	onToggleMode: () => void;
 }
 
@@ -66,6 +67,7 @@ export function WebSidebar({
 	navItems,
 	onNavSelect,
 	onNewIssue,
+	onSearch,
 	onToggleMode,
 }: WebSidebarProps): ReactElement {
 	const isExpanded = mode === "expanded";
@@ -107,6 +109,7 @@ export function WebSidebar({
 					icon={Search}
 					isExpanded={isExpanded}
 					label="Search..."
+					onClick={onSearch}
 				/>
 				<SidebarAction
 					icon={PencilLine}

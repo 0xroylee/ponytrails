@@ -95,7 +95,7 @@ export interface WorkspaceProjectRecord {
 
 export interface ProjectBoardTaskRecord {
 	id: string;
-	projectId: string;
+	projectId: string | null;
 	title: string;
 	content: string;
 	priority: number;
@@ -123,7 +123,7 @@ export interface WorkspaceProjectsResponse {
 }
 
 export interface TaskMutationRequest {
-	projectId: string;
+	projectId?: string | null;
 	title: string;
 	content: string;
 	priority: number;
@@ -140,7 +140,7 @@ export interface TaskCreateAnswer {
 
 export interface TaskCreateRequest {
 	request: string;
-	projectId: string;
+	projectId?: string;
 	answers?: TaskCreateAnswer[];
 }
 
@@ -155,7 +155,7 @@ export type TaskCreateResponse =
 	| {
 			status: "created";
 			issue: CreatedTaskRef;
-			task: ProjectBoardTaskRecord;
+			task?: ProjectBoardTaskRecord;
 	  }
 	| {
 			status: "needs_info";

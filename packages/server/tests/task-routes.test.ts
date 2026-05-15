@@ -48,11 +48,30 @@ describe("task routes", () => {
 		};
 		expect(created.title).toBe("Task 1");
 
+		const unassignedResponse = await app(
+			new Request("http://localhost/api/tasks", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					title: "Unassigned task",
+					content: "Assign this later",
+					priority: 1,
+					status: "open",
+					creatorId: "owner-1",
+				}),
+			}),
+		);
+		expect(unassignedResponse.status).toBe(201);
+		expect(
+			((await unassignedResponse.json()) as { projectId: string | null })
+				.projectId,
+		).toBeNull();
+
 		const listResponse = await app(
 			new Request("http://localhost/api/tasks", { method: "GET" }),
 		);
 		expect(listResponse.status).toBe(200);
-		expect((await listResponse.json()) as unknown[]).toHaveLength(1);
+		expect((await listResponse.json()) as unknown[]).toHaveLength(2);
 
 		const readResponse = await app(
 			new Request(`http://localhost/api/tasks/${created.id}`, {

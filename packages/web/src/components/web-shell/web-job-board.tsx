@@ -5,12 +5,22 @@ import type { ReactElement } from "react";
 import { AgentMonitorShell } from "@/components/agent-monitor/agent-monitor-shell";
 import { AgentsPanel } from "@/components/agents/agents-panel";
 import { IssuesBoard } from "@/components/issues-board/issues-board";
+import type { OpenIssueRequest } from "@/components/issues-board/issues-board.types";
 import { TaskCreatePanel } from "@/components/task-create/task-create-panel";
 import type { SidebarNavItem } from "@/components/web-shell/web-shell.types";
+import type { WorkspaceProjectRecord } from "@/lib/api";
 
 interface WebJobBoardProps {
 	activeKey: SidebarNavItem["key"];
 	createIssueRequest: number;
+	isProjectsLoading: boolean;
+	openIssueRequest: OpenIssueRequest | null;
+	onProjectIdChange: (projectId: string | null) => void;
+	onWorkspaceIdChange: (workspaceId: string) => void;
+	projectId: string | null;
+	projects: WorkspaceProjectRecord[] | undefined;
+	projectsError: Error | null;
+	workspaceId: string;
 }
 
 const sectionDescriptions: Record<SidebarNavItem["key"], string> = {
@@ -29,9 +39,29 @@ const sectionDescriptions: Record<SidebarNavItem["key"], string> = {
 export function WebJobBoard({
 	activeKey,
 	createIssueRequest,
+	isProjectsLoading,
+	openIssueRequest,
+	onProjectIdChange,
+	onWorkspaceIdChange,
+	projectId,
+	projects,
+	projectsError,
+	workspaceId,
 }: WebJobBoardProps): ReactElement {
 	if (activeKey === "issues") {
-		return <IssuesBoard createIssueRequest={createIssueRequest} />;
+		return (
+			<IssuesBoard
+				createIssueRequest={createIssueRequest}
+				isProjectsLoading={isProjectsLoading}
+				onProjectIdChange={onProjectIdChange}
+				onWorkspaceIdChange={onWorkspaceIdChange}
+				openIssueRequest={openIssueRequest}
+				projectId={projectId}
+				projects={projects}
+				projectsError={projectsError}
+				workspaceId={workspaceId}
+			/>
+		);
 	}
 	if (activeKey === "agents") {
 		return (

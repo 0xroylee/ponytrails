@@ -337,7 +337,7 @@ describe("server drizzle schema", () => {
 		expect(projectRow?.name).toBe(project.name);
 		expect(projectRow?.description).toBe(project.description ?? null);
 		expect(taskRow?.id).toBe(task.id);
-		expect(taskRow?.projectId).toBe(task.projectId);
+		expect(taskRow?.projectId).toBe(task.projectId ?? null);
 		expect(taskRow?.title).toBe(task.title);
 		expect(taskRow?.content).toBe(task.content);
 		expect(taskRow?.dueDate).toBe(task.dueDate ?? null);

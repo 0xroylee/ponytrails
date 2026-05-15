@@ -40,12 +40,14 @@ export async function handleTasksRoute(
 			if (!payload.ok) {
 				return badRequest(payload.error);
 			}
-			const [project] = await db
-				.select({ id: boardProjectsTable.id })
-				.from(boardProjectsTable)
-				.where(eq(boardProjectsTable.id, payload.value.projectId));
-			if (!project) {
-				return badRequest("Foreign key constraint failed");
+			if (payload.value.projectId) {
+				const [project] = await db
+					.select({ id: boardProjectsTable.id })
+					.from(boardProjectsTable)
+					.where(eq(boardProjectsTable.id, payload.value.projectId));
+				if (!project) {
+					return badRequest("Foreign key constraint failed");
+				}
 			}
 			const now = new Date().toISOString();
 			try {
@@ -53,7 +55,7 @@ export async function handleTasksRoute(
 					.insert(boardTasksTable)
 					.values({
 						id: crypto.randomUUID(),
-						projectId: payload.value.projectId,
+						projectId: payload.value.projectId ?? null,
 						title: payload.value.title,
 						content: payload.value.content,
 						priority: payload.value.priority,

@@ -53,6 +53,9 @@ export function parseArgs(argv: string[]): CliCommand {
 	}
 
 	if (command === "daemon") {
+		if (rest.slice(1).includes("--cli-only")) {
+			return { kind: "daemon", cliOnly: true };
+		}
 		return { kind: "daemon" };
 	}
 

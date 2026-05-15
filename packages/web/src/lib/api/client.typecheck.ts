@@ -21,8 +21,13 @@ const taskCreateRequest: TaskCreateRequest = {
 	request: "Create a task from web UI",
 	projectId: "project-1",
 };
+const unassignedTaskCreateRequest: TaskCreateRequest = {
+	request: "Create an unassigned task from web UI",
+};
 const taskCreateResponsePromise: Promise<TaskCreateResponse> =
 	webClient.createTask(taskCreateRequest);
+const unassignedTaskCreateResponsePromise: Promise<TaskCreateResponse> =
+	webClient.createTask(unassignedTaskCreateRequest);
 const workspaceProjectsPromise: Promise<WorkspaceProjectRecord[]> =
 	webClient.listWorkspaceProjects("owner-1");
 const projectBoardPromise: Promise<ProjectBoardRecord> =
@@ -46,6 +51,7 @@ void healthResponsePromise;
 void webHealthResponsePromise;
 void agentRecordsPromise;
 void taskCreateResponsePromise;
+void unassignedTaskCreateResponsePromise;
 void workspaceProjectsPromise;
 void projectBoardPromise;
 void createdBoardTaskPromise;

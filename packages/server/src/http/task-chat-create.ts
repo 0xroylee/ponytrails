@@ -23,7 +23,7 @@ const answerSchema = z.object({
 
 const requestSchema = z.object({
 	request: z.string().trim().min(1),
-	projectId: z.string().trim().min(1),
+	projectId: z.string().trim().min(1).optional(),
 	answers: z.array(answerSchema).optional(),
 });
 
@@ -74,6 +74,9 @@ export async function composeTaskChatCreate(
 		return intake.value;
 	}
 	const { issue, task: resolvedTask } = intake.value;
+	if (!input.projectId) {
+		return { status: "created", issue };
+	}
 	const created = await settle(() =>
 		deps.createBoardTask(input, resolvedTask, issue.url),
 	);
@@ -132,10 +135,14 @@ async function createBoardTask(
 	task: { title: string; description: string },
 	_issueUrl: string,
 ): Promise<BoardTaskRow> {
+	const projectId = input.projectId;
+	if (!projectId) {
+		throw new Error("Project not selected");
+	}
 	const [project] = await db
 		.select({ id: boardProjectsTable.id, ownerId: boardProjectsTable.ownerId })
 		.from(boardProjectsTable)
-		.where(eq(boardProjectsTable.id, input.projectId));
+		.where(eq(boardProjectsTable.id, projectId));
 	if (!project) {
 		throw new Error("Project not found");
 	}
