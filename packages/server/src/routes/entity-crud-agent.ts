@@ -7,13 +7,14 @@ import type {
 } from "./entity-crud.types";
 
 const nonEmptyString = z.string().trim().min(1);
+const optionalMetadataString = z.string();
 const stringList = z.array(nonEmptyString);
 
 const agentCreateSchema = z.object({
 	id: nonEmptyString,
 	name: nonEmptyString,
-	description: nonEmptyString.optional(),
-	logo: nonEmptyString.optional(),
+	description: optionalMetadataString.optional(),
+	logo: optionalMetadataString.optional(),
 	runtime: nonEmptyString.optional(),
 	backend: nonEmptyString,
 	model: nonEmptyString,
@@ -24,13 +25,13 @@ const agentCreateSchema = z.object({
 	skills: stringList.optional(),
 	recentWork: stringList.optional(),
 	activity: stringList.optional(),
-	instructions: nonEmptyString.optional(),
+	instructions: optionalMetadataString.optional(),
 });
 
 const agentUpdateSchema = z.object({
 	name: nonEmptyString.optional(),
-	description: nonEmptyString.optional(),
-	logo: nonEmptyString.optional(),
+	description: optionalMetadataString.optional(),
+	logo: optionalMetadataString.optional(),
 	runtime: nonEmptyString.optional(),
 	backend: nonEmptyString.optional(),
 	model: nonEmptyString.optional(),
@@ -41,7 +42,7 @@ const agentUpdateSchema = z.object({
 	skills: stringList.optional(),
 	recentWork: stringList.optional(),
 	activity: stringList.optional(),
-	instructions: nonEmptyString.optional(),
+	instructions: optionalMetadataString.optional(),
 });
 
 type ValidationResult<T> =

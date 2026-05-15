@@ -84,6 +84,50 @@ describe("agent and skill CRUD routes", () => {
 		expect(await readMissing.json()).toEqual({ error: "Not Found" });
 	});
 
+	it("accepts dialog-shaped agent patch with blank optional metadata", async () => {
+		const app = await createApp();
+		const createdAt = "2026-05-12 00:02:00";
+
+		const createResponse = await app(
+			jsonRequest("POST", "/api/agents", {
+				id: "agent-empty",
+				name: "codex-empty",
+				backend: "codex",
+				model: "gpt-5",
+				createdAt,
+			}),
+		);
+		expect(createResponse.status).toBe(201);
+		const createdAgent = (await createResponse.json()) as AgentCreatePayload;
+
+		const patchResponse = await app(
+			jsonRequest("PATCH", "/api/agents/agent-empty", {
+				name: createdAgent.name,
+				description: "",
+				logo: "",
+				runtime: createdAgent.runtime ?? "codex",
+				backend: createdAgent.backend,
+				model: "gpt-5.1",
+				concurrency: createdAgent.concurrency ?? 1,
+				owner: createdAgent.owner ?? "unassigned",
+				createdAt: createdAgent.createdAt,
+				updatedAt: createdAgent.updatedAt ?? createdAt,
+				skills: createdAgent.skills ?? [],
+				recentWork: createdAgent.recentWork ?? [],
+				activity: createdAgent.activity ?? [],
+				instructions: "",
+			}),
+		);
+		expect(patchResponse.status).toBe(200);
+		expect(await patchResponse.json()).toEqual({
+			...createdAgent,
+			description: "",
+			logo: "",
+			model: "gpt-5.1",
+			instructions: "",
+		});
+	});
+
 	it("creates, lists, reads, updates, and deletes skills", async () => {
 		const app = await createApp();
 		const payload: SkillCreatePayload = {
