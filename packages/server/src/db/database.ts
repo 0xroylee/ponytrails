@@ -3,6 +3,7 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import type { ServerDatabase } from "./database.types";
+import { runMigrations } from "./migrations";
 import * as schema from "./schema";
 
 const CREATE_SCHEMA_SQL = `
@@ -17,9 +18,19 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS agents (
 	id text PRIMARY KEY,
 	name text NOT NULL,
+	description text NOT NULL,
+	logo text NOT NULL,
+	runtime text NOT NULL,
 	backend text NOT NULL,
 	model text NOT NULL,
-	created_at timestamp NOT NULL
+	concurrency integer NOT NULL,
+	owner text NOT NULL,
+	created_at timestamp NOT NULL,
+	updated_at timestamp NOT NULL,
+	skills text NOT NULL,
+	recent_work text NOT NULL,
+	activity text NOT NULL,
+	instructions text NOT NULL
 );
 CREATE TABLE IF NOT EXISTS skills (
 	id text PRIMARY KEY,
@@ -168,6 +179,7 @@ export async function initializeServerDatabase(
 	await mkdir(path.dirname(resolvedPath), { recursive: true });
 	const client = new PGlite(resolvedPath);
 	await client.exec(CREATE_SCHEMA_SQL);
+	await runMigrations(client);
 	const db = drizzle({ client, schema });
 	return {
 		client,

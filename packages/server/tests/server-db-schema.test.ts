@@ -80,9 +80,19 @@ describe("server drizzle schema", () => {
 		const agent: NewAgentRow = {
 			id: "agent-1",
 			name: "codex-main",
+			description: "Primary coding agent",
+			logo: "https://example.com/codex.svg",
+			runtime: "codex",
 			backend: "codex",
 			model: "gpt-5",
+			concurrency: 2,
+			owner: "owner-1",
 			createdAt: "2026-05-12 00:02:00",
+			updatedAt: "2026-05-12 00:03:00",
+			skills: JSON.stringify(["adhd-plan", "adhd-implement"]),
+			recentWork: JSON.stringify(["ROY-228"]),
+			activity: JSON.stringify(["planning"]),
+			instructions: "Keep responses implementation-focused.",
 		};
 		const skill: NewSkillRow = {
 			id: "skill-1",

@@ -12,6 +12,7 @@ const MIGRATIONS: Migration[] = [
 	{ id: "0002_token_usage_upgrade", fileName: "0002_token_usage_upgrade.sql" },
 	{ id: "0003_project_cron_jobs", fileName: "0003_project_cron_jobs.sql" },
 	{ id: "0004_inbox_messages", fileName: "0004_inbox_messages.sql" },
+	{ id: "0005_agent_details", fileName: "0005_agent_details.sql" },
 ];
 
 async function ensureMigrationsTable(client: PGlite): Promise<void> {
