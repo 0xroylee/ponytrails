@@ -5,6 +5,7 @@ import type {
 	HealthRequestOptions,
 } from "./client.types";
 import { createCommandStreamApiMethods } from "./command-stream-client";
+import { createInboxApiMethods } from "./inbox-client";
 import { encodePathSegment } from "./response-utils";
 import { requestJson } from "./response-utils";
 import {
@@ -33,6 +34,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 		wsUrl,
 		options.WebSocketImpl,
 	);
+	const inboxApiMethods = createInboxApiMethods(requestWithBase);
 	const taskApiMethods = createTaskApiMethods(requestWithBase);
 
 	return {
@@ -90,6 +92,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 		listBoardTasks: taskApiMethods.listBoardTasks,
 		getBoardTask: taskApiMethods.getBoardTask,
 		listTaskActivity: taskApiMethods.listTaskActivity,
+		listInboxMessages: inboxApiMethods.listInboxMessages,
 		createTask: taskApiMethods.createTaskFromChat,
 		createBoardTask: taskApiMethods.createBoardTask,
 		updateBoardTask: taskApiMethods.updateBoardTask,

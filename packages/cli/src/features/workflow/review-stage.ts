@@ -9,6 +9,7 @@ import {
 	buildReviewComment,
 } from "../../utils/comments";
 import { buildGithubCommentPrompt, buildReviewPrompt } from "../skills/prompts";
+import { emitActionProgress, emitStageProgress } from "./progress";
 import { parseReviewOutcome } from "./review";
 import {
 	MAX_AUTOMATED_REVIEW_FIX_PASSES,
@@ -42,6 +43,8 @@ export async function handleReviewTestingStage(
 		deps.buildIssueJobLogFields(state, "testing"),
 		"Testing issue",
 	);
+	emitStageProgress(state, "testing", "started", "Testing issue");
+	emitActionProgress(state, "testing", "review-testing", "started");
 	await linear.markStage(state.issue.id, "testing");
 	await linear.applyStageLabel(state.issue.id, "testing");
 	Object.assign(state, deps.transitionStage(state, "testing"));
@@ -70,6 +73,16 @@ export async function handleReviewTestingStage(
 	state.testingSummary = outcome.summary;
 	state.bugs = retryBugs;
 	await deps.saveRunState(config.workspacePath, state);
+	emitActionProgress(
+		state,
+		"testing",
+		"review-testing",
+		outcome.passed ? "succeeded" : "failed",
+		{
+			detail: outcome.summary,
+			error: outcome.passed ? undefined : outcome.summary,
+		},
+	);
 
 	const reviewComment = buildReviewComment({
 		issueKey: state.issue.key,
@@ -82,6 +95,7 @@ export async function handleReviewTestingStage(
 	let githubComment = reviewComment;
 	if (!config.dryRun && state.pullRequest) {
 		try {
+			emitActionProgress(state, "testing", "github-comment", "started");
 			const githubCommentPrompt = await buildGithubCommentPrompt(
 				config.skills.githubComment,
 				state.issue,
@@ -109,7 +123,11 @@ export async function handleReviewTestingStage(
 			if (generated) {
 				githubComment = generated;
 			}
+			emitActionProgress(state, "testing", "github-comment", "succeeded");
 		} catch (error) {
+			emitActionProgress(state, "testing", "github-comment", "failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 			deps.loggerInfo(
 				{
 					...deps.buildIssueJobLogFields(state, "testing"),
@@ -166,6 +184,7 @@ export async function handleReviewTestingStage(
 				await deps.saveRunState(config.workspacePath, state);
 			}
 		}
+		emitStageProgress(state, "testing", "failed", outcome.summary);
 		return;
 	}
 
@@ -185,6 +204,7 @@ export async function handleReviewTestingStage(
 		deps.buildIssueJobLogFields(state, "testing"),
 		"Review/testing completed",
 	);
+	emitStageProgress(state, "testing", "succeeded", "Review/testing completed");
 }
 
 export async function finalizeIssueAfterReviewMerge(

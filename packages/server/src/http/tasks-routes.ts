@@ -1,5 +1,6 @@
 import type { CliExecutor } from "../app.types";
 import type { ServerDatabase } from "../db";
+import type { RealtimeEventPublisher } from "../realtime";
 import { createTaskRepository, createTaskService } from "../tasks";
 import {
 	badRequest,
@@ -19,10 +20,11 @@ export async function handleTasksRoute(
 	request: Request,
 	db: ServerDatabase["db"],
 	cliExecutor: CliExecutor,
+	realtimeEvents: RealtimeEventPublisher | undefined,
 	pathname: string,
 ): Promise<Response | null> {
 	if (pathname === "/api/tasks/chat-create") {
-		return handleTaskChatCreateRoute(request, db, cliExecutor);
+		return handleTaskChatCreateRoute(request, db, cliExecutor, realtimeEvents);
 	}
 
 	const service = createTaskService(createTaskRepository(db));
@@ -39,11 +41,9 @@ export async function handleTasksRoute(
 			if (!payload.ok) {
 				return badRequest(payload.error);
 			}
-			return mapTaskResult(
-				await service.createTask(payload.value),
-				"Invalid task create payload",
-				201,
-			);
+			const result = await service.createTask(payload.value);
+			publishTaskEvent(realtimeEvents, "issue.created", result);
+			return mapTaskResult(result, "Invalid task create payload", 201);
 		}
 		return methodNotAllowed();
 	}
@@ -83,18 +83,28 @@ export async function handleTasksRoute(
 		if (!payload.ok) {
 			return badRequest(payload.error);
 		}
-		return mapTaskResult(
-			await service.updateTask(id, payload.value),
-			"Invalid task update payload",
-		);
+		const result = await service.updateTask(id, payload.value);
+		publishTaskEvent(realtimeEvents, "issue.updated", result);
+		return mapTaskResult(result, "Invalid task update payload");
 	}
 
 	if (request.method === "DELETE") {
-		return mapTaskResult(
-			await service.deleteTask(id),
-			"Invalid task delete payload",
-		);
+		const result = await service.deleteTask(id);
+		publishTaskEvent(realtimeEvents, "issue.deleted", result);
+		return mapTaskResult(result, "Invalid task delete payload");
 	}
 
 	return methodNotAllowed();
+}
+
+function publishTaskEvent(
+	realtimeEvents: RealtimeEventPublisher | undefined,
+	type: "issue.created" | "issue.updated" | "issue.deleted",
+	result: Awaited<
+		ReturnType<ReturnType<typeof createTaskService>["createTask"]>
+	>,
+): void {
+	if (result.status === "ok") {
+		realtimeEvents?.publish({ type, issue: result.value });
+	}
 }

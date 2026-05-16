@@ -9,6 +9,7 @@ import type { BoardRepository } from "./board";
 import type { ServerDatabase } from "./db";
 import type { ServerLogger } from "./logger.types";
 import type { NotificationService } from "./notifications/notifications-service";
+import type { RealtimeEventPublisher } from "./realtime";
 import type { ReadRepositories } from "./repositories.types";
 
 export interface CliExecutor {
@@ -28,6 +29,7 @@ export interface AppDeps {
 		sendNotification(request: NotificationServerRequest): Promise<void>;
 	};
 	notificationService?: NotificationService;
+	realtimeEvents?: RealtimeEventPublisher;
 	repositories?: ReadRepositories;
 	logger?: ServerLogger;
 }

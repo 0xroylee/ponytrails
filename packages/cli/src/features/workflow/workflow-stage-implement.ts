@@ -8,6 +8,7 @@ import { issueBranchName } from "../../integrations/github";
 import { buildFixPrompt, buildImplementPrompt } from "../../skills/prompts";
 import { buildImplementationComment } from "../../utils/comments";
 import { logger } from "../../utils/logger";
+import { emitActionProgress, emitStageProgress } from "./progress";
 import type { WorkflowLinearClient, WorkflowRuntime } from "./workflow-runtime";
 
 export function fixedBugsForImplementationComment(
@@ -81,13 +82,19 @@ export async function handleImplementingStage(
 		deps.buildIssueJobLogFields(state, "implementing"),
 		"Implementing issue",
 	);
+	emitStageProgress(state, "implementing", "started", "Implementing issue");
+	emitActionProgress(state, "implementing", "implementation", "started");
 
 	if (!config.dryRun) {
+		emitActionProgress(state, "implementing", "prepare-branch", "started");
 		const preparedBranch = await runtime.prepareImplementationBranch(
 			config,
 			state.issue.key,
 			state.pullRequest,
 		);
+		emitActionProgress(state, "implementing", "prepare-branch", "succeeded", {
+			detail: preparedBranch,
+		});
 		if (!state.pullRequest) {
 			state.pullRequest = {
 				branch: preparedBranch,
@@ -127,8 +134,12 @@ export async function handleImplementingStage(
 	});
 	state.implementationSummary = result.finalMessage || result.stdout;
 	deps.appendCodexUsage(state, "implementing", result.usage);
+	emitActionProgress(state, "implementing", "implementation", "succeeded", {
+		detail: state.implementationSummary,
+	});
 
 	if (!hasExistingPr) {
+		emitActionProgress(state, "implementing", "create-pr", "started");
 		if (config.dryRun) {
 			state.pullRequest = {
 				branch: issueBranchName(state.issue.key),
@@ -142,10 +153,14 @@ export async function handleImplementingStage(
 				state.issue.title,
 			);
 		}
+		emitActionProgress(state, "implementing", "create-pr", "succeeded", {
+			detail: state.pullRequest.url ?? state.pullRequest.branch,
+		});
 	} else if (!config.dryRun) {
 		if (!state.pullRequest?.branch) {
 			throw new Error("Missing pull request branch for feedback pass");
 		}
+		emitActionProgress(state, "implementing", "update-pr", "started");
 		const updated = await runtime.updateDraftPrFromWorktree(
 			config,
 			state.pullRequest.branch,
@@ -157,6 +172,9 @@ export async function handleImplementingStage(
 				"No code changes after feedback; skipping PR update",
 			);
 		}
+		emitActionProgress(state, "implementing", "update-pr", "succeeded", {
+			detail: updated ? "Updated pull request" : "No code changes",
+		});
 	}
 	if (state.pullRequest) {
 		await linear.linkPullRequest?.(state.issue.id, state.pullRequest);
@@ -177,6 +195,14 @@ export async function handleImplementingStage(
 	);
 	logger.info(
 		deps.buildIssueJobLogFields(state, "implementing"),
+		hasExistingPr
+			? "Implementation feedback pass completed"
+			: "Implementation completed",
+	);
+	emitStageProgress(
+		state,
+		"implementing",
+		"succeeded",
 		hasExistingPr
 			? "Implementation feedback pass completed"
 			: "Implementation completed",

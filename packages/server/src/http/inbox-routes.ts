@@ -1,6 +1,7 @@
 import type { ServerDatabase } from "../db";
 import { createInboxRepository, createInboxService } from "../inbox";
 import type { InboxServiceResult } from "../inbox";
+import type { RealtimeEventPublisher } from "../realtime";
 import {
 	badRequest,
 	methodNotAllowed,
@@ -16,6 +17,7 @@ const INBOX_MESSAGES_PATH = "/api/inbox/messages";
 export async function handleInboxMessagesRoute(
 	request: Request,
 	db: ServerDatabase["db"],
+	realtimeEvents: RealtimeEventPublisher | undefined,
 	pathname: string,
 ): Promise<Response | null> {
 	if (pathname !== INBOX_MESSAGES_PATH) {
@@ -45,10 +47,14 @@ export async function handleInboxMessagesRoute(
 		if (!payload.ok) {
 			return badRequest(payload.error);
 		}
-		return mapInboxResult(
-			await inboxService.createInboxMessage(payload.value),
-			201,
-		);
+		const result = await inboxService.createInboxMessage(payload.value);
+		if (result.status === "ok") {
+			realtimeEvents?.publish({
+				type: "inbox.message.created",
+				message: result.value,
+			});
+		}
+		return mapInboxResult(result, 201);
 	}
 
 	return methodNotAllowed();

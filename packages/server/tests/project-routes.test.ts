@@ -6,6 +6,10 @@ import {
 	boardTasksTable,
 	projectBoardsTable,
 } from "../src/db";
+import type {
+	RealtimeEventPayload,
+	RealtimeEventPublisher,
+} from "../src/realtime";
 import {
 	type DrizzleServerTestDatabase,
 	createDrizzleServerTestDatabase,
@@ -196,9 +200,67 @@ describe("project routes", () => {
 			error: "Foreign key constraint failed",
 		});
 	});
+
+	it("publishes normalized realtime project events after successful mutations", async () => {
+		testDatabase = await createDrizzleServerTestDatabase();
+		const events: RealtimeEventPayload[] = [];
+		const app = createApp(testDatabase.db, {
+			publish: (event) => events.push(event),
+		});
+		await seedBoard(testDatabase.db, "board-1");
+
+		const invalid = await app(
+			new Request("http://localhost/api/projects", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ boardId: "board-1", ownerId: "owner-1" }),
+			}),
+		);
+		expect(invalid.status).toBe(400);
+		expect(events).toEqual([]);
+
+		const createResponse = await app(
+			new Request("http://localhost/api/projects", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					boardId: "board-1",
+					name: "Core",
+					ownerId: "owner-1",
+				}),
+			}),
+		);
+		const created = (await createResponse.json()) as { id: string };
+
+		await app(
+			new Request(`http://localhost/api/projects/${created.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "Core Updated" }),
+			}),
+		);
+		await app(
+			new Request(`http://localhost/api/projects/${created.id}`, {
+				method: "DELETE",
+			}),
+		);
+
+		expect(events.map((event) => event.type)).toEqual([
+			"project.created",
+			"project.updated",
+			"project.deleted",
+		]);
+		expect(events[0]).toMatchObject({
+			type: "project.created",
+			project: { id: created.id, workspaceId: "owner-1" },
+		});
+	});
 });
 
-function createApp(db: ServerDatabase["db"]) {
+function createApp(
+	db: ServerDatabase["db"],
+	realtimeEvents?: RealtimeEventPublisher,
+) {
 	return createHandleRequest({
 		cliExecutor: {
 			execute: async (request) => ({ status: "succeeded", request }),
@@ -206,6 +268,7 @@ function createApp(db: ServerDatabase["db"]) {
 			getHistory: () => [],
 		},
 		db,
+		realtimeEvents,
 	});
 }
 

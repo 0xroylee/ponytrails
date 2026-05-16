@@ -122,6 +122,23 @@ export interface ProjectBoardStatusColumn {
 	tasks: ProjectBoardTaskRecord[];
 }
 
+export interface InboxMessageScope {
+	workspaceId: string;
+	userId: string;
+	runId: string;
+}
+
+export interface InboxMessageRecord extends InboxMessageScope {
+	id: string;
+	source: string;
+	kind: string;
+	body: string;
+	taskId: string | null;
+	agentId: string | null;
+	metadata: Record<string, unknown> | null;
+	createdAt: string;
+}
+
 export interface WorkspaceProjectsResponse {
 	workspaceId: string;
 	projects: WorkspaceProjectRecord[];
@@ -202,6 +219,10 @@ export interface ApiClient {
 		projectId: string,
 		options?: HealthRequestOptions,
 	): Promise<ProjectBoardRecord>;
+	listInboxMessages(
+		scope: InboxMessageScope,
+		options?: HealthRequestOptions,
+	): Promise<InboxMessageRecord[]>;
 	createTask(
 		request: TaskCreateRequest,
 		options?: HealthRequestOptions,

@@ -1,4 +1,5 @@
 import type { CommandResult } from "../../utils/shell";
+import type { WorkflowProgressEvent } from "./workflow-progress.types";
 
 export type SupportedCliAction =
 	| "run"
@@ -134,6 +135,7 @@ export type CliCommandStreamEvent =
 	  }
 	| { type: "stdout"; text: string }
 	| { type: "stderr"; text: string }
+	| { type: "progress"; event: WorkflowProgressEvent }
 	| { type: "error"; error: string }
 	| { type: "complete"; result: CliCommandExecutionResult };
 

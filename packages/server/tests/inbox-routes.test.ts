@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { createHandleRequest } from "../src/app";
 import type { ServerDatabase } from "../src/db";
+import type {
+	RealtimeEventPayload,
+	RealtimeEventPublisher,
+} from "../src/realtime";
 import {
 	type DrizzleServerTestDatabase,
 	createDrizzleServerTestDatabase,
@@ -131,9 +135,56 @@ describe("inbox routes", () => {
 			error: "Method Not Allowed",
 		});
 	});
+
+	it("publishes realtime inbox events after successful message creation", async () => {
+		testDatabase = await createDrizzleServerTestDatabase();
+		const events: RealtimeEventPayload[] = [];
+		const app = createApp(testDatabase.db, {
+			publish: (event) => events.push(event),
+		});
+
+		const invalidPayload = await app(
+			new Request("http://localhost/api/inbox/messages", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					workspaceId: "workspace-1",
+					userId: "user-1",
+					runId: "run-1",
+					source: "agent_workflow_event",
+				}),
+			}),
+		);
+		expect(invalidPayload.status).toBe(400);
+		expect(events).toEqual([]);
+
+		await createInboxMessage(app, {
+			workspaceId: "workspace-1",
+			userId: "user-1",
+			runId: "run-1",
+			source: "agent_workflow_event",
+			kind: "agent_message",
+			body: "Agent completed coding",
+			createdAt: "2026-05-15T10:01:00.000Z",
+		});
+
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			type: "inbox.message.created",
+			message: {
+				workspaceId: "workspace-1",
+				userId: "user-1",
+				runId: "run-1",
+				body: "Agent completed coding",
+			},
+		});
+	});
 });
 
-function createApp(db: ServerDatabase["db"]) {
+function createApp(
+	db: ServerDatabase["db"],
+	realtimeEvents?: RealtimeEventPublisher,
+) {
 	return createHandleRequest({
 		cliExecutor: {
 			execute: async (request) => ({ status: "succeeded", request }),
@@ -144,6 +195,7 @@ function createApp(db: ServerDatabase["db"]) {
 			getHistory: () => [],
 		},
 		db,
+		realtimeEvents,
 	});
 }
 

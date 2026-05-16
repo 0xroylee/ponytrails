@@ -15,7 +15,7 @@
 		"build:web": "bun run --filter web build",
 		"dev:landing": "bun run --filter landing dev",
 		"dev:cli-daemon": "bun run ./packages/cli/src/index.ts daemon --cli-only",
-		"dev:server": "PIV_SERVER_PORT=3001 bun run --filter devos-server start",
+		"dev:server": "bun run --filter devos-server start",
 		"dev:web": "bun run --filter web dev",
 		"dev": "bun run ./scripts/dev.ts",
 		"db:view": "bun run ./scripts/view-server-db.ts",

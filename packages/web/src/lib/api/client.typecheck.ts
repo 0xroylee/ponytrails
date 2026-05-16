@@ -32,6 +32,11 @@ const workspaceProjectsPromise: Promise<WorkspaceProjectRecord[]> =
 	webClient.listWorkspaceProjects("owner-1");
 const projectBoardPromise: Promise<ProjectBoardRecord> =
 	webClient.getProjectBoard("owner-1", "project-1");
+const inboxMessagesPromise = webClient.listInboxMessages({
+	workspaceId: "workspace-1",
+	userId: "user-1",
+	runId: "run-1",
+});
 const boardTasksPromise: Promise<ProjectBoardTaskRecord[]> =
 	webClient.listBoardTasks();
 const taskMutationRequest: TaskMutationRequest = {
@@ -56,6 +61,7 @@ void taskCreateResponsePromise;
 void unassignedTaskCreateResponsePromise;
 void workspaceProjectsPromise;
 void projectBoardPromise;
+void inboxMessagesPromise;
 void boardTasksPromise;
 void createdBoardTaskPromise;
 void updatedBoardTaskPromise;

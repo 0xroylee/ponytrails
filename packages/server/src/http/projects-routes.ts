@@ -2,6 +2,10 @@ import type { ServerDatabase } from "../db";
 import { createProjectRepository, createProjectService } from "../projects";
 import type { ProjectServiceResult } from "../projects";
 import {
+	type RealtimeEventPublisher,
+	toRealtimeProjectRecord,
+} from "../realtime";
+import {
 	badRequest,
 	methodNotAllowed,
 	notFound,
@@ -16,6 +20,7 @@ import {
 export async function handleProjectsRoute(
 	request: Request,
 	db: ServerDatabase["db"],
+	realtimeEvents: RealtimeEventPublisher | undefined,
 	pathname: string,
 ): Promise<Response | null> {
 	const service = createProjectService(createProjectRepository(db));
@@ -35,11 +40,9 @@ export async function handleProjectsRoute(
 			if (!payload.ok) {
 				return badRequest(payload.error);
 			}
-			return mapProjectResult(
-				await service.createProject(payload.value),
-				"Invalid project create payload",
-				201,
-			);
+			const result = await service.createProject(payload.value);
+			publishProjectEvent(realtimeEvents, "project.created", result);
+			return mapProjectResult(result, "Invalid project create payload", 201);
 		}
 		return methodNotAllowed();
 	}
@@ -68,17 +71,15 @@ export async function handleProjectsRoute(
 		if (!payload.ok) {
 			return badRequest(payload.error);
 		}
-		return mapProjectResult(
-			await service.updateProject(id, payload.value),
-			"Invalid project update payload",
-		);
+		const result = await service.updateProject(id, payload.value);
+		publishProjectEvent(realtimeEvents, "project.updated", result);
+		return mapProjectResult(result, "Invalid project update payload");
 	}
 
 	if (request.method === "DELETE") {
-		return mapProjectResult(
-			await service.deleteProject(id),
-			"Invalid project delete payload",
-		);
+		const result = await service.deleteProject(id);
+		publishProjectEvent(realtimeEvents, "project.deleted", result);
+		return mapProjectResult(result, "Invalid project delete payload");
 	}
 
 	return methodNotAllowed();
@@ -103,4 +104,17 @@ function mapProjectResult<T>(
 			? "Update payload must include at least one field"
 			: invalidPayloadError,
 	);
+}
+
+function publishProjectEvent(
+	realtimeEvents: RealtimeEventPublisher | undefined,
+	type: "project.created" | "project.updated" | "project.deleted",
+	result: ProjectServiceResult<Parameters<typeof toRealtimeProjectRecord>[0]>,
+): void {
+	if (result.status === "ok") {
+		realtimeEvents?.publish({
+			type,
+			project: toRealtimeProjectRecord(result.value),
+		});
+	}
 }

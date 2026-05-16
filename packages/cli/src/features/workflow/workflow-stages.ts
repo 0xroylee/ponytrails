@@ -5,6 +5,7 @@ import type {
 	WorkflowStage,
 } from "../../features/types";
 import { shouldSquashMergePullRequestForComplexityScore } from "./plan";
+import { emitActionProgress, emitStageProgress } from "./progress";
 import { matchesIssueStateConfigValue } from "./workflow-linear-state";
 import type { WorkflowLinearClient, WorkflowRuntime } from "./workflow-runtime";
 import type { WorkflowIssue } from "./workflow.types";
@@ -37,10 +38,14 @@ export async function handleReceivedStage(
 		saveRunState: (workspacePath: string, state: RunState) => Promise<void>;
 	},
 ): Promise<void> {
+	emitStageProgress(state, "received", "started", "Received issue");
+	emitActionProgress(state, "received", "start-planning", "started");
 	await linear.markStage(state.issue.id, "planning");
 	await linear.comment(state.issue.id, "devos.ing started planning.");
 	Object.assign(state, deps.transitionStage(state, "planning"));
 	await deps.saveRunState(config.workspacePath, state);
+	emitActionProgress(state, "received", "start-planning", "succeeded");
+	emitStageProgress(state, "received", "succeeded", "Moved to planning");
 }
 
 export async function handlePrCreatedStage(
@@ -52,10 +57,12 @@ export async function handlePrCreatedStage(
 		saveRunState: (workspacePath: string, state: RunState) => Promise<void>;
 	},
 ): Promise<void> {
+	emitStageProgress(state, "pr_created", "started", "Preparing review");
 	Object.assign(state, deps.transitionStage(state, "reviewing"));
 	await deps.saveRunState(config.workspacePath, state);
 	await linear.markStage(state.issue.id, "reviewing");
 	await linear.applyStageLabel(state.issue.id, "reviewing");
+	emitStageProgress(state, "pr_created", "succeeded", "Moved to review");
 }
 
 export async function handleDoneReviewMergeStage(
@@ -120,8 +127,10 @@ export async function handleDoneReviewMergeStage(
 
 	const merged = await deps.safeSquashMergePullRequest(config, state, runtime);
 	if (!merged) {
+		emitActionProgress(state, "done", "squash-merge-pr", "failed");
 		return;
 	}
+	emitActionProgress(state, "done", "squash-merge-pr", "succeeded");
 
 	await deps.finalizeIssueAfterReviewMerge(
 		config,

@@ -5,6 +5,7 @@ import {
 	handlePlanningStage,
 	shouldSquashMergePullRequestForComplexityScore,
 } from "./plan";
+import { emitActionProgress, emitStageProgress } from "./progress";
 import {
 	finalizeIssueAfterReviewMerge as finalizeIssueAfterReviewMergeInternal,
 	handleReviewTestingStage as handleReviewTestingStageInternal,
@@ -654,6 +655,10 @@ async function processIssue(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		const failedStage = runState.stage;
+		emitActionProgress(runState, failedStage, "workflow", "failed", {
+			error: message,
+		});
+		emitStageProgress(runState, failedStage, "failed", message);
 		runState.lastError = message;
 		if (runState.stage === "done") {
 			await saveRunState(config.workspacePath, runState);
@@ -1071,7 +1076,7 @@ export {
 	parsePlannerIssueRefinement,
 } from "./plan-refinement";
 export { parsePlannerSplitTasks } from "./plan-split-tasks";
-export type { PlannerDecision, PlannerIssueRefinement } from "./plan";
+export type { PlannerDecision, PlannerIssueRefinement } from "./plan.types";
 export {
 	normalizeFailedReviewBugs,
 	readyPullRequestAfterPassingReview,

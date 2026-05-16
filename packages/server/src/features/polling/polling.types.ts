@@ -6,6 +6,7 @@ import type {
 import type { CliExecutor } from "../../app.types";
 import type { ServerDatabase } from "../../db";
 import type { ServerLogger } from "../../logger.types";
+import type { RealtimeEventPublisher } from "../../realtime";
 
 export interface LinearTaskPollingSchedulerOptions {
 	config: LoadedConfig;
@@ -43,6 +44,7 @@ export interface InternalTaskPollingSchedulerOptions {
 	db: ServerDatabase["db"];
 	cliExecutor: CliExecutor;
 	logger: ServerLogger;
+	realtimeEvents?: RealtimeEventPublisher;
 }
 
 export type InternalTaskPollingSchedulerDeps = LinearTaskPollingSchedulerDeps;

@@ -1,4 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import {
+	WORKFLOW_PROGRESS_SENTINEL,
+	serializeWorkflowProgressEvent,
+} from "../src/features/server";
 import { CliCommandExecutor } from "../src/features/server/cli-command-executor";
 import type {
 	CliCommandExecutionResult,
@@ -106,6 +110,73 @@ describe("CliCommandExecutor", () => {
 		expect(events[2]).toEqual({ type: "stderr", text: "warn\n" });
 		expect(events[3]).toEqual({ type: "complete", result });
 		assertHistory(executor.getHistory()[0], result);
+	});
+
+	it("converts workflow progress sentinels into typed stream events", async () => {
+		const events: CliCommandStreamEvent[] = [];
+		const progressEvent = {
+			schema: "devos.workflow.stream.v1" as const,
+			emittedAt: "2026-05-16T00:00:00.000Z",
+			kind: "stage" as const,
+			projectId: "default",
+			issueKey: "TASK-1",
+			stage: "planning",
+			status: "started" as const,
+		};
+		const runCommandFn: RunCommandFn = async (_command, _args, options) => {
+			options.onStdout?.("before\n");
+			options.onStdout?.(serializeWorkflowProgressEvent(progressEvent));
+			options.onStdout?.("after\n");
+			return {
+				code: 0,
+				stdout: "before\nafter\n",
+				stderr: "",
+			};
+		};
+		const executor = new CliCommandExecutor({
+			...DEFAULT_OPTIONS,
+			runCommandFn,
+		});
+
+		const result = await executor.executeStream(
+			{ action: "projects" },
+			(event) => events.push(event),
+		);
+
+		expect(events.map((event) => event.type)).toEqual([
+			"start",
+			"stdout",
+			"progress",
+			"stdout",
+			"complete",
+		]);
+		expect(events[2]).toEqual({ type: "progress", event: progressEvent });
+		expect(result.commandResult?.stdout).toBe("before\nafter\n");
+	});
+
+	it("turns malformed workflow progress sentinels into progress log events", async () => {
+		const events: CliCommandStreamEvent[] = [];
+		const runCommandFn: RunCommandFn = async (_command, _args, options) => {
+			options.onStdout?.(`${WORKFLOW_PROGRESS_SENTINEL}{not-json}\n`);
+			return { code: 0, stdout: "", stderr: "" };
+		};
+		const executor = new CliCommandExecutor({
+			...DEFAULT_OPTIONS,
+			runCommandFn,
+		});
+
+		await executor.executeStream({ action: "projects" }, (event) =>
+			events.push(event),
+		);
+
+		expect(events[1]).toMatchObject({
+			type: "progress",
+			event: {
+				kind: "log",
+				stream: "daemon",
+				level: "error",
+			},
+		});
 	});
 
 	it("streams rejected requests without spawning", async () => {

@@ -19,16 +19,13 @@ import type {
 	PlannerDecision,
 	PlanningLinearClient,
 } from "./plan.types";
+import {
+	emitActionProgress,
+	emitPlanningSummaryProgress,
+	emitStageProgress,
+} from "./progress";
 import { loadRunState } from "./state";
 
-export type {
-	HandlePlanningStageDeps,
-	PlannerDecision,
-	PlannerIssueRefinement,
-	PlanningLinearClient,
-} from "./plan.types";
-
-const DEFAULT_PLANNER_COMPLEXITY_SCORE = 4;
 const HUMAN_REVIEW_COMPLEXITY_THRESHOLD = 5;
 const DEFAULT_NEEDS_INFO_QUESTIONS = [
 	"What outcome should this task accomplish, and how should review/testing verify it?",
@@ -46,6 +43,8 @@ export async function handlePlanningStage(
 		deps.buildIssueJobLogFields(state, "planning"),
 		"Planning issue",
 	);
+	emitStageProgress(state, "planning", "started", "Planning issue");
+	emitActionProgress(state, "planning", "plan", "started");
 	const supplemental = await selectPlanningSupplementalSkills(
 		config,
 		state.issue,
@@ -138,6 +137,10 @@ export async function handlePlanningStage(
 			"blocked",
 			state.lastError,
 		);
+		emitActionProgress(state, "planning", "plan", "blocked", {
+			detail: state.lastError,
+		});
+		emitStageProgress(state, "planning", "blocked", state.lastError);
 		deps.loggerInfo(
 			deps.buildIssueJobLogFields(state, "planning"),
 			"Plan needs clarification",
@@ -158,6 +161,9 @@ export async function handlePlanningStage(
 			state.issue.id,
 			buildPlanComment(state.issue.key, state.planSummary, result.usage),
 		);
+		emitPlanningSummaryProgress(state, { planSummary: state.planSummary });
+		emitActionProgress(state, "planning", "plan", "succeeded");
+		emitStageProgress(state, "planning", "succeeded", "Plan completed");
 		deps.loggerInfo(
 			deps.buildIssueJobLogFields(state, "planning"),
 			"Plan completed",
@@ -186,6 +192,15 @@ export async function handlePlanningStage(
 		}),
 	);
 	await deps.safeNotifyTaskOutcome(notifications, state, "done");
+	emitPlanningSummaryProgress(state, {
+		planSummary: state.planSummary,
+		splitTasks: parsedPlan.splitTasks,
+	});
+	emitActionProgress(state, "planning", "split-tasks", "succeeded", {
+		detail: `${createdTasks.length} tasks created`,
+	});
+	emitActionProgress(state, "planning", "plan", "succeeded");
+	emitStageProgress(state, "planning", "succeeded", "Plan completed");
 	deps.loggerInfo(
 		deps.buildIssueJobLogFields(state, "planning"),
 		"Plan completed",

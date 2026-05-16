@@ -2,6 +2,7 @@ import type {
 	CliCommandExecutionResult,
 	CliCommandInvocation,
 	CliCommandRequest,
+	WorkflowProgressEvent,
 } from "../server";
 
 export type CliDaemonInboundFrame =
@@ -34,6 +35,11 @@ export type CliDaemonOutboundFrame =
 			type: "stdout" | "stderr";
 			requestId: string;
 			text: string;
+	  }
+	| {
+			type: "progress";
+			requestId: string;
+			event: WorkflowProgressEvent;
 	  }
 	| {
 			type: "error";

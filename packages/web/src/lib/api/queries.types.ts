@@ -1,4 +1,5 @@
 import type { AgentUpdateRequest } from "./client.types";
+import type { InboxMessageScope } from "./client.types";
 
 export interface ServerStateQueryOptions {
 	enabled?: boolean;
@@ -31,3 +32,5 @@ export interface AgentUpdateMutationInput {
 	agentId: string;
 	agent: AgentUpdateRequest;
 }
+
+export type InboxMessagesQueryInput = InboxMessageScope;

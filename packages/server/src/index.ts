@@ -17,12 +17,14 @@ import {
 	createNotificationService,
 } from "./notifications/notifications-service";
 import { createResendClient } from "./notifications/resend-client";
+import { createRealtimeEventBus } from "./realtime";
 import { createReadRepositories } from "./repositories";
 import {
 	resolveServerDatabasePath,
 	resolveServerWorkspacePath,
 } from "./startup-paths";
 import { attachCliStreamProxy } from "./ws/cli-stream-proxy";
+import { attachRealtimeEventsSocket } from "./ws/realtime-events";
 
 const DEFAULT_SERVER_PORT = 3001;
 const DEFAULT_CLI_DAEMON_WS_URL = "ws://127.0.0.1:3002";
@@ -49,6 +51,7 @@ export async function startServer(
 		pgliteDebug,
 	});
 	const cliExecutor = createCliDaemonClient({ url: daemonUrl });
+	const realtimeEvents = createRealtimeEventBus();
 	const app = createExpressApp(
 		createHandleRequest({
 			db: serverDatabase.db,
@@ -61,6 +64,7 @@ export async function startServer(
 				config: createNotificationConfigFromEnv(process.env),
 				resendClient: createResendClient(process.env.RESEND_API_KEY ?? ""),
 			}),
+			realtimeEvents,
 			repositories: createReadRepositories(serverDatabase),
 		}),
 		{ logger },
@@ -70,6 +74,7 @@ export async function startServer(
 		db: serverDatabase.db,
 		cliExecutor,
 		logger,
+		realtimeEvents,
 	});
 	const server = await listenExpressApp(app, port);
 	const cliStreamProxy = attachCliStreamProxy({
@@ -77,9 +82,15 @@ export async function startServer(
 		path: "/api/cli/stream",
 		daemonUrl,
 	});
+	const realtimeEventsSocket = attachRealtimeEventsSocket({
+		server,
+		path: "/api/events",
+		eventBus: realtimeEvents,
+	});
 	server.once("close", () => {
 		taskPolling.stop();
 		void cliStreamProxy.close();
+		void realtimeEventsSocket.close();
 	});
 	const address = server.address();
 	const listeningPort = typeof address === "object" ? address?.port : port;

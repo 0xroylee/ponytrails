@@ -1,0 +1,27 @@
+import type { InboxMessageScope } from "./client.types";
+
+export const serverStateQueryKeys = {
+	tokenUsage: ["server-state", "token-usage"] as const,
+	jobs: ["server-state", "jobs"] as const,
+	agents: ["server-state", "agents"] as const,
+	skills: ["server-state", "skills"] as const,
+	commandHistory: ["server-state", "command-history"] as const,
+	boardTasks: ["server-state", "board-tasks"] as const,
+	boardTask: (taskId: string) =>
+		["server-state", "board-task", taskId] as const,
+	taskActivity: (taskId: string) =>
+		["server-state", "task-activity", taskId] as const,
+	workspaceProjects: (workspaceId: string) =>
+		["server-state", "workspace-projects", workspaceId] as const,
+	projectBoards: ["server-state", "project-board"] as const,
+	projectBoard: (workspaceId: string, projectId: string) =>
+		["server-state", "project-board", workspaceId, projectId] as const,
+	inboxMessages: (scope: InboxMessageScope) =>
+		[
+			"server-state",
+			"inbox-messages",
+			scope.workspaceId,
+			scope.userId,
+			scope.runId,
+		] as const,
+};

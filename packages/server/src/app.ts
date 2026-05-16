@@ -39,6 +39,7 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 			const projectResponse = await handleProjectsRoute(
 				request,
 				deps.db,
+				deps.realtimeEvents,
 				pathname,
 			);
 			if (projectResponse) {
@@ -51,6 +52,7 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 				request,
 				deps.db,
 				deps.cliExecutor,
+				deps.realtimeEvents,
 				pathname,
 			);
 			if (taskResponse) {
@@ -62,6 +64,7 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 			const inboxResponse = await handleInboxMessagesRoute(
 				request,
 				deps.db,
+				deps.realtimeEvents,
 				pathname,
 			);
 			if (inboxResponse) {

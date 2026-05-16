@@ -4,8 +4,12 @@ import {
 	boardProjectsTable,
 	projectBoardsTable,
 } from "../src/db";
+import type { RealtimeEventPublisher } from "../src/realtime";
 
-export function createTaskRouteTestApp(db: ServerDatabase["db"]) {
+export function createTaskRouteTestApp(
+	db: ServerDatabase["db"],
+	realtimeEvents?: RealtimeEventPublisher,
+) {
 	return createHandleRequest({
 		cliExecutor: {
 			execute: async (request) => ({ status: "succeeded", request }),
@@ -13,6 +17,7 @@ export function createTaskRouteTestApp(db: ServerDatabase["db"]) {
 			getHistory: () => [],
 		},
 		db,
+		realtimeEvents,
 	});
 }
 

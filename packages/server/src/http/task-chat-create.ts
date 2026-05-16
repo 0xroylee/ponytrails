@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { CliExecutor } from "../app.types";
 import type { ServerDatabase } from "../db";
+import type { RealtimeEventPublisher } from "../realtime";
 import { createTaskRepository, createTaskService } from "../tasks";
 import {
 	composeTaskChatCreate,
@@ -28,6 +29,7 @@ export async function handleTaskChatCreateRoute(
 	request: Request,
 	db: ServerDatabase["db"],
 	cliExecutor: CliExecutor,
+	realtimeEvents?: RealtimeEventPublisher,
 ): Promise<Response> {
 	if (request.method !== "POST") {
 		return methodNotAllowed();
@@ -51,6 +53,9 @@ export async function handleTaskChatCreateRoute(
 			return persisted.value;
 		},
 	});
+	if (result.status === "created") {
+		realtimeEvents?.publish({ type: "issue.created", issue: result.task });
+	}
 	return jsonSuccess(result);
 }
 

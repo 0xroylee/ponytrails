@@ -48,4 +48,22 @@ describe("CLI daemon websocket protocol", () => {
 			}),
 		).toBe('{"type":"stdout","requestId":"req-1","text":"hello"}');
 	});
+
+	it("serializes workflow progress frames as JSON", () => {
+		expect(
+			serializeCliDaemonFrame({
+				type: "progress",
+				requestId: "req-1",
+				event: {
+					schema: "devos.workflow.stream.v1",
+					emittedAt: "2026-05-16T00:00:00.000Z",
+					kind: "stage",
+					projectId: "default",
+					issueKey: "TASK-1",
+					stage: "planning",
+					status: "started",
+				},
+			}),
+		).toContain('"type":"progress"');
+	});
 });

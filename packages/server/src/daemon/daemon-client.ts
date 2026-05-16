@@ -102,6 +102,9 @@ function toStreamEvent(
 	if (frame.type === "stdout" || frame.type === "stderr") {
 		return { type: frame.type, text: frame.text };
 	}
+	if (frame.type === "progress") {
+		return { type: "progress", event: frame.event };
+	}
 	if (frame.type === "error") {
 		return { type: "error", error: frame.error };
 	}

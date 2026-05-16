@@ -8,6 +8,7 @@ import type {
 	CliCommandStreamEmit,
 	SupportedCliCommandRequest,
 } from "./cli-command-executor.types";
+import { createWorkflowProgressStdoutProcessor } from "./workflow-progress-stream";
 export type {
 	CliCommandExecutionHistoryEntry,
 	CliCommandExecutionResult,
@@ -104,6 +105,7 @@ export class CliCommandExecutor {
 		}
 		const invocation = resolution.invocation;
 		emit({ type: "start", request, invocation });
+		const stdoutProcessor = createWorkflowProgressStdoutProcessor(emit);
 
 		try {
 			const commandResult = await (this.options.runCommandFn ?? runCommand)(
@@ -112,23 +114,29 @@ export class CliCommandExecutor {
 				{
 					cwd: this.options.cwd,
 					env: this.options.env,
-					streamStdout: true,
+					streamStdout: false,
 					streamStderr: true,
-					onStdout: (text) => emit({ type: "stdout", text }),
+					onStdout: (text) => stdoutProcessor.push(text),
 					onStderr: (text) => emit({ type: "stderr", text }),
 				},
 			);
+			stdoutProcessor.flush();
+			const sanitizedCommandResult = {
+				...commandResult,
+				stdout: stdoutProcessor.stdout(),
+			};
 			const status = commandResult.code === 0 ? "succeeded" : "failed";
 			const result = this.record({
 				requestedAt,
 				request,
 				status,
 				invocation,
-				commandResult,
+				commandResult: sanitizedCommandResult,
 			});
 			emit({ type: "complete", result });
 			return result;
 		} catch (error) {
+			stdoutProcessor.flush();
 			const message = error instanceof Error ? error.message : String(error);
 			const result = this.record({
 				requestedAt,

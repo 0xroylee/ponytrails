@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { boardTasksTable, taskTagsTable } from "../src/db";
+import type { RealtimeEventPayload } from "../src/realtime";
 import {
 	type DrizzleServerTestDatabase,
 	createDrizzleServerTestDatabase,
@@ -227,6 +228,64 @@ describe("task routes", () => {
 		expect(fkDelete.status).toBe(400);
 		expect((await fkDelete.json()) as { error: string }).toEqual({
 			error: "Foreign key constraint failed",
+		});
+	});
+
+	it("publishes realtime issue events only for successful mutations", async () => {
+		testDatabase = await createDrizzleServerTestDatabase();
+		const events: RealtimeEventPayload[] = [];
+		const app = createTaskRouteTestApp(testDatabase.db, {
+			publish: (event) => events.push(event),
+		});
+		await seedTaskRouteProject(testDatabase.db, "project-1");
+
+		const invalid = await app(
+			new Request("http://localhost/api/tasks", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ title: "Missing fields" }),
+			}),
+		);
+		expect(invalid.status).toBe(400);
+		expect(events).toEqual([]);
+
+		const createResponse = await app(
+			new Request("http://localhost/api/tasks", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					projectId: "project-1",
+					title: "Task 1",
+					content: "Body",
+					priority: 1,
+					status: "open",
+					creatorId: "owner-1",
+				}),
+			}),
+		);
+		const created = (await createResponse.json()) as { id: string };
+
+		await app(
+			new Request(`http://localhost/api/tasks/${created.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ status: "done" }),
+			}),
+		);
+		await app(
+			new Request(`http://localhost/api/tasks/${created.id}`, {
+				method: "DELETE",
+			}),
+		);
+
+		expect(events.map((event) => event.type)).toEqual([
+			"issue.created",
+			"issue.updated",
+			"issue.deleted",
+		]);
+		expect(events[0]).toMatchObject({
+			type: "issue.created",
+			issue: { id: created.id },
 		});
 	});
 });

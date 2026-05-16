@@ -36,7 +36,7 @@ export function startCliCommandDaemon(
 		cwd: options.cwd,
 		command: "bun",
 		baseArgs: ["run", "./packages/cli/src/index.ts"],
-		env: options.env,
+		env: { ...options.env, DEVOS_WORKFLOW_PROGRESS_STREAM: "1" },
 	});
 	const server = Bun.serve<{ connectedAt: string }>({
 		port,

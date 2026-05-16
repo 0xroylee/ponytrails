@@ -10,6 +10,8 @@ export type {
 	HealthRequestOptions,
 	HealthResponse,
 	HealthStatus,
+	InboxMessageRecord,
+	InboxMessageScope,
 	JobRecord,
 	ProjectBoardRecord,
 	ProjectBoardStatusColumn,
