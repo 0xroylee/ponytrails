@@ -1,5 +1,6 @@
 import {
 	type BoardTaskRow,
+	type ServerDb,
 	boardTasksTable,
 	generateBoardTaskKey,
 	initializeServerDatabase,
@@ -150,7 +151,7 @@ async function linkPullRequest(
 }
 
 async function insertSystemComment(
-	db: Awaited<ReturnType<typeof initializeServerDatabase>>["db"],
+	db: ServerDb,
 	taskId: string,
 	body: string,
 	createdAt: string,
@@ -203,9 +204,7 @@ function formatValue(value: unknown): string {
 
 async function withDatabase<T>(
 	databasePath: string,
-	run: (
-		db: Awaited<ReturnType<typeof initializeServerDatabase>>["db"],
-	) => Promise<T>,
+	run: (db: ServerDb) => Promise<T>,
 ): Promise<T> {
 	const database = await initializeServerDatabase(databasePath);
 	try {

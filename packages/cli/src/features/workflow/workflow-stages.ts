@@ -17,11 +17,11 @@ export function resolveReviewOnlyBootstrapStage(
 	state: WorkflowIssue["state"],
 	statusMap: ResolvedProjectConfig["linear"]["statusMap"],
 ): WorkflowStage {
-	if (matchesIssueStateConfigValue(state, statusMap.pr_created)) {
-		return "pr_created";
-	}
 	if (matchesIssueStateConfigValue(state, statusMap.reviewing)) {
 		return "reviewing";
+	}
+	if (matchesIssueStateConfigValue(state, statusMap.pr_created)) {
+		return "pr_created";
 	}
 	if (matchesIssueStateConfigValue(state, statusMap.done)) {
 		return "done";

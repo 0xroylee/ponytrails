@@ -80,6 +80,7 @@ describe("web api client task activity", () => {
 			status: "planning",
 			dueDate: null,
 			creatorId: "roy",
+			assigneeId: null,
 			linkedPr: null,
 			linearIssueId: null,
 			linearIdentifier: null,

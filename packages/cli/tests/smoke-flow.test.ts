@@ -33,7 +33,6 @@ describe("deterministic workflow smoke flow", () => {
 		expect(h.linear("default").stageCalls.map((c) => c.stage)).toEqual([
 			"planning",
 			"implementing",
-			"pr_created",
 			"reviewing",
 			"testing",
 			"reviewing",

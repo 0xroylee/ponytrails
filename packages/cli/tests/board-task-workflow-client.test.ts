@@ -34,13 +34,17 @@ afterEach(async () => {
 });
 
 describe("BoardTaskWorkflowClient", () => {
-	it("polls planning tasks and allows targeted task lookup by key", async () => {
+	it("polls todo tasks and allows targeted task lookup by key", async () => {
 		const { database, config } = await setupDatabase();
-		await seedTask(database, { id: "task-1", taskKey: "TASK-000001" });
+		await seedTask(database, {
+			id: "task-1",
+			taskKey: "TASK-000001",
+			status: "todo",
+		});
 		await seedTask(database, {
 			id: "task-2",
 			taskKey: "TASK-000002",
-			status: "implementing",
+			status: "planning",
 		});
 		await seedTask(database, {
 			id: "task-3",
@@ -55,6 +59,8 @@ describe("BoardTaskWorkflowClient", () => {
 		expect(
 			(await client.fetchWork("TASK-000002")).map((task) => task.identifier),
 		).toEqual(["TASK-000002"]);
+		expect(await client.isAssignedState("todo")).toBe(true);
+		expect(await client.isAssignedState("planning")).toBe(false);
 	});
 
 	it("updates task status and freshness when marking a stage", async () => {
@@ -74,6 +80,17 @@ describe("BoardTaskWorkflowClient", () => {
 				comment: "changed status from `planning` to `implementing`",
 			}),
 		);
+	});
+
+	it("stores PR-created workflow stages as reviewing", async () => {
+		const { database, config, databasePath } = await setupDatabase();
+		await seedTask(database, { id: "task-1", taskKey: "TASK-000001" });
+		const client = createBoardTaskWorkflowClient(config);
+
+		await client.markStage("task-1", "pr_created");
+
+		const task = await readTask(databasePath, "task-1");
+		expect(task?.status).toBe("reviewing");
 	});
 
 	it("persists task comments and bumps task freshness", async () => {
@@ -135,6 +152,22 @@ describe("BoardTaskWorkflowClient", () => {
 		);
 		expect(task?.pullRequest?.number).toBe(7);
 		expect(task?.pullRequest?.branch).toBe("codex/task-000001");
+	});
+
+	it("normalizes legacy PR-created task state during review-only discovery", async () => {
+		const { database, config } = await setupDatabase();
+		await seedTask(database, {
+			id: "task-1",
+			taskKey: "TASK-000001",
+			status: "pr_created",
+			linkedPr: "https://github.com/acme/project/pull/8",
+		});
+		const client = createBoardTaskWorkflowClient(config);
+
+		const [task] = await client.fetchReviewOnlyWork();
+
+		expect(task?.state.id).toBe("reviewing");
+		expect(task?.state.name).toBe("reviewing");
 	});
 });
 

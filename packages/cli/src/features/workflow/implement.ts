@@ -171,7 +171,7 @@ export async function handleImplementingStage(
 	}
 
 	state.bugs = [];
-	const nextStage: WorkflowStage = hasExistingPr ? "reviewing" : "pr_created";
+	const nextStage: WorkflowStage = "reviewing";
 	Object.assign(state, deps.transitionStage(state, nextStage));
 	await deps.saveRunState(config.workspacePath, state);
 	await linear.markStage(state.issue.id, nextStage);

@@ -1,4 +1,5 @@
 import {
+	type ServerDb,
 	boardProjectsTable,
 	boardTasksTable,
 	generateBoardTaskKey,
@@ -66,7 +67,7 @@ async function createBoardTask(
 }
 
 async function resolveBoardProject(
-	db: Awaited<ReturnType<typeof initializeServerDatabase>>["db"],
+	db: ServerDb,
 	projectId: string,
 ): Promise<{ id: string; ownerId: string } | null> {
 	const [project] = await db

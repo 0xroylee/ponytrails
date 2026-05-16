@@ -424,11 +424,11 @@ export function resolveReviewOnlyBootstrapStage(
 	state: WorkflowIssue["state"],
 	statusMap: ResolvedProjectConfig["linear"]["statusMap"],
 ): WorkflowStage {
-	if (matchesIssueStateConfigValue(state, statusMap.pr_created)) {
-		return "pr_created";
-	}
 	if (matchesIssueStateConfigValue(state, statusMap.reviewing)) {
 		return "reviewing";
+	}
+	if (matchesIssueStateConfigValue(state, statusMap.pr_created)) {
+		return "pr_created";
 	}
 	if (matchesIssueStateConfigValue(state, statusMap.done)) {
 		return "done";
@@ -1306,7 +1306,7 @@ async function handleImplementingStage(
 	}
 
 	state.bugs = [];
-	const nextStage: WorkflowStage = hasExistingPr ? "reviewing" : "pr_created";
+	const nextStage: WorkflowStage = "reviewing";
 	Object.assign(state, transitionStage(state, nextStage));
 	await saveRunState(config.workspacePath, state);
 	await linear.markStage(state.issue.id, nextStage);

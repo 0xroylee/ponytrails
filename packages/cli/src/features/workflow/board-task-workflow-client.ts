@@ -13,7 +13,10 @@ import type {
 } from "./board-task-workflow-store.types";
 import type { WorkflowIssue, WorkflowLinearClient } from "./workflow.types";
 
-const READY_STATUS = "planning";
+const BACKLOG_STATUS = "planning";
+const READY_STATUS = "todo";
+const LEGACY_PR_CREATED_STATUS = "pr_created";
+const REVIEW_STATUS = "reviewing";
 const REVIEW_STATUSES = new Set(["pr_created", "reviewing", "testing", "done"]);
 const DEFAULT_CREATOR_ID = "member-1";
 
@@ -58,7 +61,9 @@ class BoardTaskWorkflowClient implements WorkflowLinearClient {
 	}
 
 	async markStage(issueId: string, stage: string): Promise<void> {
-		await this.store.updateTask(issueId, { status: stage });
+		await this.store.updateTask(issueId, {
+			status: normalizeBoardStatus(stage),
+		});
 	}
 
 	async markCanceled(issueId: string): Promise<void> {
@@ -77,7 +82,7 @@ class BoardTaskWorkflowClient implements WorkflowLinearClient {
 		title: string;
 		description: string;
 	}): Promise<CreatedLinearIssueRef> {
-		return this.createTask(input.title, input.description, READY_STATUS);
+		return this.createTask(input.title, input.description, BACKLOG_STATUS);
 	}
 
 	async createTodoIssueFromPlan(
@@ -151,9 +156,16 @@ function mapTaskToWorkflowIssue(
 		creatorId: task.creatorId,
 		priority: { value: task.priority, name: `P${task.priority}` },
 		labels: [],
-		state: { id: task.status, name: task.status },
+		state: {
+			id: normalizeBoardStatus(task.status),
+			name: normalizeBoardStatus(task.status),
+		},
 		pullRequest,
 	};
+}
+
+function normalizeBoardStatus(status: string): string {
+	return status === LEGACY_PR_CREATED_STATUS ? REVIEW_STATUS : status;
 }
 
 function toCreatedRef(

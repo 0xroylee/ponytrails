@@ -421,7 +421,7 @@ describe("review-only selection", () => {
 					pr_created: "In Review",
 				},
 			),
-		).toBe("pr_created");
+		).toBe("reviewing");
 		expect(
 			resolveReviewOnlyBootstrapStage(
 				{ id: "unknown", name: "Something else" },
