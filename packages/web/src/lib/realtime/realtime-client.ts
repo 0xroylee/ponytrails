@@ -121,6 +121,14 @@ export function parseRealtimeEvent(payload: string): RealtimeEvent {
 			execution: parseTaskExecutionEvent(row.execution),
 		};
 	}
+	if (type === "polling.event") {
+		return {
+			id,
+			emittedAt,
+			type,
+			polling: parsePollingEvent(row.polling),
+		};
+	}
 	throw new Error("Invalid realtime event type");
 }
 
@@ -152,6 +160,16 @@ function parseTaskExecutionEvent(value: unknown) {
 		taskId: readString(row, "taskId"),
 		executionLogId: readString(row, "executionLogId"),
 		event: parseWorkflowProgressEvent(row.event),
+	};
+}
+
+function parsePollingEvent(value: unknown) {
+	const row = assertRecord(value);
+	return {
+		pollerId: readString(row, "pollerId"),
+		eventType: readString(row, "eventType"),
+		level: readString(row, "level"),
+		message: readString(row, "message"),
 	};
 }
 

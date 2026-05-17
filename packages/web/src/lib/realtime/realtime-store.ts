@@ -74,18 +74,21 @@ export function applyRealtimeEvent(
 	if (event.type === "task.execution.event") {
 		return { ...state, lastEvent: event };
 	}
-	const key = inboxScopeKey(event.message);
-	return {
-		...state,
-		lastEvent: event,
-		inboxMessagesByScope: {
-			...state.inboxMessagesByScope,
-			[key]: upsertLatestMessage(
-				state.inboxMessagesByScope[key] ?? [],
-				event.message,
-			),
-		},
-	};
+	if (event.type === "inbox.message.created") {
+		const key = inboxScopeKey(event.message);
+		return {
+			...state,
+			lastEvent: event,
+			inboxMessagesByScope: {
+				...state.inboxMessagesByScope,
+				[key]: upsertLatestMessage(
+					state.inboxMessagesByScope[key] ?? [],
+					event.message,
+				),
+			},
+		};
+	}
+	return { ...state, lastEvent: event };
 }
 
 function isIssueEvent(event: RealtimeEvent): event is RealtimeIssueEvent {

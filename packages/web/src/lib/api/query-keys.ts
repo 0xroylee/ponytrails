@@ -6,6 +6,7 @@ export const serverStateQueryKeys = {
 	agents: ["server-state", "agents"] as const,
 	skills: ["server-state", "skills"] as const,
 	commandHistory: ["server-state", "command-history"] as const,
+	pollingStatus: ["server-state", "polling-status"] as const,
 	boardTasks: ["server-state", "board-tasks"] as const,
 	boardTask: (taskId: string) =>
 		["server-state", "board-task", taskId] as const,

@@ -26,6 +26,11 @@ export type {
 	WorkspaceProjectsResponse,
 } from "./client.types";
 export type {
+	PollingEventRecord,
+	PollingStatusRecord,
+	PollingStatusResponse,
+} from "./polling-status.types";
+export type {
 	TaskActivityKind,
 	TaskActivityRecord,
 	TaskActivityResponse,

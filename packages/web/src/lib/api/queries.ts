@@ -16,6 +16,7 @@ import type {
 	TaskCreateResponse,
 	TokenUsageRecord,
 } from "./client.types";
+import type { PollingStatusResponse } from "./polling-status.types";
 import type {
 	AgentUpdateMutationInput,
 	ServerStateQueryOptions,
@@ -116,6 +117,17 @@ export function useCommandHistoryQuery(
 	return useQuery({
 		queryKey: serverStateQueryKeys.commandHistory,
 		queryFn: () => apiClient.listCommandHistory(),
+		enabled: options?.enabled,
+		refetchInterval: resolveRefetchInterval(options),
+	});
+}
+
+export function usePollingStatusQuery(
+	options?: ServerStateQueryOptions,
+): UseQueryResult<PollingStatusResponse, Error> {
+	return useQuery({
+		queryKey: serverStateQueryKeys.pollingStatus,
+		queryFn: () => apiClient.listPollingStatus(),
 		enabled: options?.enabled,
 		refetchInterval: resolveRefetchInterval(options),
 	});

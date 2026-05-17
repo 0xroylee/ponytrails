@@ -4,6 +4,8 @@ export { agentsTable } from "./agents.schema";
 export { commandHistoryTable } from "./command-history.schema";
 export { inboxMessagesTable } from "./inbox-messages.schema";
 export { jobsTable } from "./jobs.schema";
+export { pollingEventsTable } from "./polling-events.schema";
+export { pollingStatusTable } from "./polling-status.schema";
 export { projectCronJobsTable } from "./project-cron-jobs.schema";
 export { projectBoardsTable } from "./project-boards.schema";
 export { skillsTable } from "./skills.schema";

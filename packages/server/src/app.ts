@@ -1,6 +1,7 @@
 import type { AppDeps, RouteHandler } from "./app.types";
 import { handleCliRoute } from "./http/cli-routes";
 import { handleInboxMessagesRoute } from "./http/inbox-routes";
+import { handlePollingStatusRoute } from "./http/polling-status-routes";
 import { handleProjectsRoute } from "./http/projects-routes";
 import { withRequestLogging } from "./http/request-logger";
 import {
@@ -33,6 +34,17 @@ export function createHandleRequest(deps: AppDeps): RouteHandler {
 		);
 		if (cliResponse) {
 			return cliResponse;
+		}
+
+		if (deps.db) {
+			const pollingStatusResponse = await handlePollingStatusRoute(
+				request,
+				deps.db,
+				pathname,
+			);
+			if (pollingStatusResponse) {
+				return pollingStatusResponse;
+			}
 		}
 
 		if (deps.db) {

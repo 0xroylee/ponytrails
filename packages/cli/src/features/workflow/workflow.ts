@@ -7,6 +7,7 @@ import {
 	handlePlanningStage,
 	shouldSquashMergePullRequestForComplexityScore,
 } from "./plan";
+import { recordCliPollingEvent } from "./polling-observability";
 import { emitActionProgress, emitStageProgress } from "./progress";
 import {
 	finalizeIssueAfterReviewMerge as finalizeIssueAfterReviewMergeInternal,
@@ -136,6 +137,17 @@ export async function runWorkflow(
 				}
 				cycleHadError = true;
 				const message = error instanceof Error ? error.message : String(error);
+				await recordCliPollingEvent(context.config, globalPolling, {
+					eventType: "cycle_failed",
+					level: "error",
+					message: "Linear polling cycle failed",
+					state: "error",
+					cycle,
+					lastError: message,
+					errorAt: new Date().toISOString(),
+					finishedAt: new Date().toISOString(),
+					metadata: { error: message },
+				});
 				const errorLogPath = projectErrorLogPath(
 					context.config.workspacePath,
 					context.config.id,
@@ -187,6 +199,19 @@ export async function runWorkflow(
 				cycleHadError,
 			)
 		) {
+			await Promise.all(
+				projectContexts.map((context) =>
+					recordCliPollingEvent(context.config, globalPolling, {
+						eventType: "polling_stopped",
+						level: "info",
+						message: "Linear polling stopped",
+						state: "stopped",
+						cycle,
+						finishedAt: new Date().toISOString(),
+						metadata: { totalIssues, cycleHadError },
+					}),
+				),
+			);
 			return;
 		}
 
@@ -289,6 +314,15 @@ async function runProjectCycle(
 	runtime: WorkflowRuntime,
 ): Promise<number> {
 	const projectLogger = logger.child({ projectId: config.id });
+	const startedAt = new Date().toISOString();
+	await recordCliPollingEvent(config, polling, {
+		eventType: "cycle_started",
+		level: "info",
+		message: "Linear polling cycle started",
+		state: "running",
+		cycle,
+		startedAt,
+	});
 	const { issueQueue, staleRetryCount } = await buildIssueQueueForProjectCycle(
 		config,
 		options,
@@ -330,6 +364,20 @@ async function runProjectCycle(
 				runtime,
 			),
 	);
+	await recordCliPollingEvent(config, polling, {
+		eventType: "cycle_completed",
+		level: "info",
+		message: "Linear polling cycle completed",
+		state: "success",
+		cycle,
+		counts: {
+			issueCount: issueQueue.length,
+			staleRetryCount,
+		},
+		finishedAt: new Date().toISOString(),
+		successAt: new Date().toISOString(),
+		lastError: null,
+	});
 
 	return issueQueue.length;
 }

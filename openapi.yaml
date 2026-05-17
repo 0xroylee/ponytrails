@@ -11,6 +11,7 @@ tags:
   - name: Read Models
   - name: Board
   - name: Notifications
+  - name: Polling
 paths:
   /health:
     get:
@@ -305,6 +306,17 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BoardTaskRecord'
+  /api/polling/status:
+    get:
+      tags: [Polling]
+      summary: Read polling health and recent operational events
+      responses:
+        '200':
+          description: Poller status rows and recent event rows.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollingStatusResponse'
   /api/workspaces/{workspaceId}/projects:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -723,3 +735,71 @@ components:
           type: integer
         executedAt:
           type: string
+    PollingStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [pollers, events]
+      properties:
+        pollers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PollingStatusRecord'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/PollingEventRecord'
+    PollingStatusRecord:
+      type: object
+      additionalProperties: false
+      required:
+        [id, sourceType, sourceId, projectId, state, intervalMs, lastStartedAt, lastFinishedAt, lastSuccessAt, lastErrorAt, lastIssueCount, lastStaleRetryCount, lastReadyTaskCount, lastDispatchCount, consecutiveFailures, lastError, updatedAt]
+      properties:
+        id: { type: string }
+        sourceType: { type: string }
+        sourceId: { type: string }
+        projectId:
+          type: string
+          nullable: true
+        state: { type: string }
+        intervalMs: { type: integer }
+        lastStartedAt:
+          type: string
+          nullable: true
+        lastFinishedAt:
+          type: string
+          nullable: true
+        lastSuccessAt:
+          type: string
+          nullable: true
+        lastErrorAt:
+          type: string
+          nullable: true
+        lastIssueCount: { type: integer }
+        lastStaleRetryCount: { type: integer }
+        lastReadyTaskCount: { type: integer }
+        lastDispatchCount: { type: integer }
+        consecutiveFailures: { type: integer }
+        lastError:
+          type: string
+          nullable: true
+        updatedAt: { type: string }
+    PollingEventRecord:
+      type: object
+      additionalProperties: false
+      required:
+        [id, pollerId, sourceType, sourceId, projectId, level, eventType, message, metadata, createdAt]
+      properties:
+        id: { type: string }
+        pollerId: { type: string }
+        sourceType: { type: string }
+        sourceId: { type: string }
+        projectId:
+          type: string
+          nullable: true
+        level: { type: string }
+        eventType: { type: string }
+        message: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string }

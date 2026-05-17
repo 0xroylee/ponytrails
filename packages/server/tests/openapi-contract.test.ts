@@ -33,6 +33,7 @@ const IMPLEMENTED_ROUTES = [
 	["GET", "/api/workspaces/{workspaceId}/projects/{projectId}/board"],
 	["POST", "/api/notifications"],
 	["POST", "/api/notifications/email"],
+	["GET", "/api/polling/status"],
 ] as const;
 
 function extractOpenApiRoutes(openApiDocument: string): Set<string> {

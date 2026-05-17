@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { WorkflowProgressEvent } from "devos/features/server";
-import { boardTasksTable, taskExecutionLogsTable } from "../src/db";
+import {
+	boardTasksTable,
+	pollingEventsTable,
+	pollingStatusTable,
+	taskExecutionLogsTable,
+} from "../src/db";
 import { startInternalTaskPollingScheduler } from "../src/features/polling";
 import type { InternalTaskPollingIntervalHandle } from "../src/features/polling";
 import {
@@ -87,18 +92,37 @@ describe("startInternalTaskPollingScheduler", () => {
 			"stage",
 			"log",
 		]);
-		expect(realtimeEvents).toHaveLength(3);
+		const taskEvents = realtimeEvents.filter(
+			(event) => (event as { type?: string }).type === "task.execution.event",
+		);
+		expect(taskEvents).toHaveLength(3);
 		release?.();
 		await waitFor(async () => {
 			const [log] = await db.select().from(taskExecutionLogsTable);
 			return log?.status === "success" && Boolean(log.finishedAt);
 		});
+		const [status] = await db.select().from(pollingStatusTable);
+		expect(status).toMatchObject({
+			id: "internal-tasks:server",
+			state: "success",
+			lastReadyTaskCount: 1,
+			lastDispatchCount: 1,
+			consecutiveFailures: 0,
+		});
+		const pollingEvents = await db.select().from(pollingEventsTable);
+		expect(pollingEvents.map((event) => event.eventType)).toContain(
+			"tick_completed",
+		);
 
 		expect(intervalCalls).toEqual([30000]);
 		expect(requests).toEqual([
 			{ action: "run", projectId: "project-1", issueKey: "TASK-000001" },
 		]);
 		scheduler.stop();
+		await waitFor(async () => {
+			const [stopped] = await db.select().from(pollingStatusTable);
+			return stopped?.state === "stopped";
+		});
 	});
 
 	it("marks rejected daemon runs failed and blocks still-ready tasks", async () => {
@@ -133,6 +157,12 @@ describe("startInternalTaskPollingScheduler", () => {
 		});
 		const [log] = await db.select().from(taskExecutionLogsTable);
 		expect(log?.log).toContain("daemon rejected task");
+		const [status] = await db.select().from(pollingStatusTable);
+		expect(status).toMatchObject({
+			state: "success",
+			lastReadyTaskCount: 1,
+			lastDispatchCount: 1,
+		});
 	});
 
 	it("skips overlapping ticks while a polling cycle is active", async () => {
@@ -175,6 +205,10 @@ describe("startInternalTaskPollingScheduler", () => {
 		tick?.();
 		await Promise.resolve();
 		expect(calls).toBe(1);
+		await waitFor(async () => {
+			const events = await db.select().from(pollingEventsTable);
+			return events.some((event) => event.eventType === "tick_skipped");
+		});
 		release?.();
 		await waitFor(async () => {
 			const [log] = await db.select().from(taskExecutionLogsTable);

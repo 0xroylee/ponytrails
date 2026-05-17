@@ -2,6 +2,7 @@ import { createApiClient } from "./client";
 import type {
 	AgentRecord,
 	HealthResponse,
+	PollingStatusResponse,
 	ProjectBoardRecord,
 	ProjectBoardTaskRecord,
 	TaskCreateRequest,
@@ -39,6 +40,8 @@ const inboxMessagesPromise = webClient.listInboxMessages({
 });
 const boardTasksPromise: Promise<ProjectBoardTaskRecord[]> =
 	webClient.listBoardTasks();
+const pollingStatusPromise: Promise<PollingStatusResponse> =
+	webClient.listPollingStatus();
 const taskMutationRequest: TaskMutationRequest = {
 	projectId: "project-1",
 	title: "Add issue board",
@@ -64,6 +67,7 @@ void workspaceProjectsPromise;
 void projectBoardPromise;
 void inboxMessagesPromise;
 void boardTasksPromise;
+void pollingStatusPromise;
 void createdBoardTaskPromise;
 void updatedBoardTaskPromise;
 void deletedBoardTaskPromise;

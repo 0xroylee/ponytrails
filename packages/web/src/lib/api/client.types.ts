@@ -2,7 +2,26 @@ import type {
 	CliCommandStreamHandler,
 	CliCommandStreamRequest,
 } from "./command-stream-client.types";
+import type { PollingStatusResponse } from "./polling-status.types";
 import type { TaskActivityResponse } from "./task-activity.types";
+import type {
+	ProjectBoardRecord,
+	ProjectBoardTaskRecord,
+	TaskCreateRequest,
+	TaskCreateResponse,
+	TaskMutationRequest,
+} from "./task.types";
+
+export type {
+	ProjectBoardRecord,
+	ProjectBoardStatusColumn,
+	ProjectBoardTaskRecord,
+	TaskCreateAnswer,
+	TaskCreateRequest,
+	TaskCreateResponse,
+	TaskMutationRequest,
+} from "./task.types";
+export type { PollingStatusResponse } from "./polling-status.types";
 
 export type HealthStatus = "ok";
 
@@ -94,35 +113,6 @@ export interface WorkspaceProjectRecord {
 	updatedAt: string;
 }
 
-export interface ProjectBoardTaskRecord {
-	id: string;
-	taskKey: string;
-	projectId: string | null;
-	title: string;
-	content: string;
-	priority: number;
-	status: string;
-	dueDate: string | null;
-	creatorId: string;
-	assigneeId: string | null;
-	linkedPr: string | null;
-	linearIssueId: string | null;
-	linearIdentifier: string | null;
-	linearUrl: string | null;
-	createdAt: string;
-	updatedAt: string;
-}
-
-export interface ProjectBoardRecord {
-	project: WorkspaceProjectRecord;
-	statusColumns: ProjectBoardStatusColumn[];
-}
-
-export interface ProjectBoardStatusColumn {
-	status: string;
-	tasks: ProjectBoardTaskRecord[];
-}
-
 export interface InboxMessageScope {
 	workspaceId: string;
 	userId: string;
@@ -144,40 +134,6 @@ export interface WorkspaceProjectsResponse {
 	workspaceId: string;
 	projects: WorkspaceProjectRecord[];
 }
-
-export interface TaskMutationRequest {
-	projectId?: string | null;
-	title: string;
-	content: string;
-	priority: number;
-	status: string;
-	creatorId: string;
-	assigneeId?: string | null;
-	dueDate?: string | null;
-	linkedPr?: string | null;
-}
-
-export interface TaskCreateAnswer {
-	question: string;
-	answer: string;
-}
-
-export interface TaskCreateRequest {
-	request: string;
-	projectId?: string;
-	answers?: TaskCreateAnswer[];
-}
-
-export type TaskCreateResponse =
-	| {
-			status: "created";
-			task: ProjectBoardTaskRecord;
-	  }
-	| {
-			status: "needs_info";
-			questions: string[];
-	  }
-	| { status: "db_error"; error: string };
 
 export interface ApiClientOptions {
 	baseUrl?: string;
@@ -201,6 +157,9 @@ export interface ApiClient {
 	listCommandHistory(
 		options?: HealthRequestOptions,
 	): Promise<CommandHistoryRecord[]>;
+	listPollingStatus(
+		options?: HealthRequestOptions,
+	): Promise<PollingStatusResponse>;
 	listBoardTasks(
 		options?: HealthRequestOptions,
 	): Promise<ProjectBoardTaskRecord[]>;

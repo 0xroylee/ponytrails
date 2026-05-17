@@ -39,6 +39,12 @@ export function applyRealtimeEventToQueryClient(
 		});
 		return;
 	}
+	if (event.type === "polling.event") {
+		void queryClient.invalidateQueries({
+			queryKey: serverStateQueryKeys.pollingStatus,
+		});
+		return;
+	}
 	prependInboxMessage(queryClient, event.message);
 }
 

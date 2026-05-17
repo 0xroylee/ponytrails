@@ -5,6 +5,8 @@ import type {
 	commandHistoryTable,
 	inboxMessagesTable,
 	jobsTable,
+	pollingEventsTable,
+	pollingStatusTable,
 	projectBoardsTable,
 	projectCronJobsTable,
 	skillsTable,
@@ -29,6 +31,10 @@ export type InboxMessageRow = typeof inboxMessagesTable.$inferSelect;
 export type NewInboxMessageRow = typeof inboxMessagesTable.$inferInsert;
 export type JobRow = typeof jobsTable.$inferSelect;
 export type NewJobRow = typeof jobsTable.$inferInsert;
+export type PollingEventRow = typeof pollingEventsTable.$inferSelect;
+export type NewPollingEventRow = typeof pollingEventsTable.$inferInsert;
+export type PollingStatusRow = typeof pollingStatusTable.$inferSelect;
+export type NewPollingStatusRow = typeof pollingStatusTable.$inferInsert;
 export type ProjectBoardRow = typeof projectBoardsTable.$inferSelect;
 export type NewProjectBoardRow = typeof projectBoardsTable.$inferInsert;
 export type ProjectCronJobRow = typeof projectCronJobsTable.$inferSelect;

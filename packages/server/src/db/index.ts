@@ -4,7 +4,12 @@ export {
 } from "./database";
 export { runMigrations } from "./migrations";
 export { generateBoardTaskKey } from "./task-keys";
+export {
+	recordPollingEvent,
+	recordPollingStatus,
+} from "./polling-observability";
 export * from "./schema";
+export type * from "./polling-observability.types";
 export type * from "./schema.types";
 export type {
 	InitializeServerDatabaseOptions,

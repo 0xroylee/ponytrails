@@ -34,6 +34,13 @@ export interface RealtimeTaskExecutionEventRecord {
 	event: WorkflowProgressEvent;
 }
 
+export interface RealtimePollingEventRecord {
+	pollerId: string;
+	eventType: string;
+	level: string;
+	message: string;
+}
+
 export type RealtimeEventPayload =
 	| {
 			type: RealtimeIssueEventType;
@@ -50,6 +57,10 @@ export type RealtimeEventPayload =
 	| {
 			type: "task.execution.event";
 			execution: RealtimeTaskExecutionEventRecord;
+	  }
+	| {
+			type: "polling.event";
+			polling: RealtimePollingEventRecord;
 	  };
 
 export type RealtimeEvent = RealtimeEventPayload & {

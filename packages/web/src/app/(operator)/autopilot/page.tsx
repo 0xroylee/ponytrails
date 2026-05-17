@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 
-import { OperatorSectionPanel } from "@/components/web-shell/operator-section-panel";
+import { PollingMonitorPanel } from "@/components/polling-monitor/polling-monitor-panel";
 
 export default function AutopilotPage(): ReactElement {
-	return <OperatorSectionPanel sectionKey="autopilot" />;
+	return <PollingMonitorPanel />;
 }

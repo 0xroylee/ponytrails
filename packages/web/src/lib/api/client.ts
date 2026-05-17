@@ -6,6 +6,7 @@ import type {
 } from "./client.types";
 import { createCommandStreamApiMethods } from "./command-stream-client";
 import { createInboxApiMethods } from "./inbox-client";
+import { parsePollingStatusResponse } from "./polling-status-client";
 import { encodePathSegment } from "./response-utils";
 import { requestJson } from "./response-utils";
 import {
@@ -88,6 +89,14 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 				requestOptions,
 			);
 			return parseServerList.commandHistory(payload);
+		},
+		async listPollingStatus(requestOptions) {
+			const payload = await requestWithBase(
+				"/api/polling/status",
+				"GET",
+				requestOptions,
+			);
+			return parsePollingStatusResponse(payload);
 		},
 		listBoardTasks: taskApiMethods.listBoardTasks,
 		getBoardTask: taskApiMethods.getBoardTask,

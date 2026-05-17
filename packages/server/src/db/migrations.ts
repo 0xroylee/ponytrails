@@ -26,6 +26,10 @@ const MIGRATIONS: Migration[] = [
 		id: "0009_merge_pr_created_status",
 		fileName: "0009_merge_pr_created_status.sql",
 	},
+	{
+		id: "0010_polling_observability",
+		fileName: "0010_polling_observability.sql",
+	},
 ];
 
 async function ensureMigrationsTable(client: PGlite): Promise<void> {

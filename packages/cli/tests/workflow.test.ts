@@ -2,6 +2,11 @@ import { describe, expect, it, mock } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import {
+	initializeServerDatabase,
+	pollingEventsTable,
+	pollingStatusTable,
+} from "devos-server/db";
 import type { LoadedConfig } from "../src/features/config";
 import type {
 	IssueRef,
@@ -15,6 +20,7 @@ import {
 	applyRunLease,
 	isRunLeaseExpired,
 	normalizeBlockedPlanningFailureForResume,
+	projectErrorLogPath,
 	saveRunState,
 	transitionStage,
 } from "../src/features/workflow/state";
@@ -662,6 +668,84 @@ describe("processIssueQueueBounded", () => {
 });
 
 describe("runWorkflow parallel issue regression", () => {
+	it("records CLI polling cycle status and events", async () => {
+		const workspacePath = await mkdtemp(
+			path.join(os.tmpdir(), "adhd-workflow-polling-"),
+		);
+		const config = createProject("default");
+		config.workspacePath = workspacePath;
+		config.executionPath = workspacePath;
+		config.server.database.databasePath = path.join(workspacePath, "server-db");
+		const runtime = {
+			createLinearClient: () =>
+				({
+					fetchWork: mock(async () => []),
+				}) as unknown,
+		} as unknown as WorkflowRuntime;
+
+		await runWorkflow(createLoadedConfig(config), { poll: true }, runtime);
+
+		const database = await initializeServerDatabase(
+			config.server.database.databasePath,
+		);
+		try {
+			const [status] = await database.db.select().from(pollingStatusTable);
+			const events = await database.db.select().from(pollingEventsTable);
+			expect(status).toMatchObject({
+				id: "linear:default",
+				state: "stopped",
+				lastIssueCount: 0,
+				lastStaleRetryCount: 0,
+				consecutiveFailures: 0,
+			});
+			expect(events.map((event) => event.eventType)).toEqual([
+				"cycle_started",
+				"cycle_completed",
+				"polling_stopped",
+			]);
+		} finally {
+			await database.close();
+		}
+	});
+
+	it("records CLI polling errors without replacing project error logs", async () => {
+		const workspacePath = await mkdtemp(
+			path.join(os.tmpdir(), "adhd-workflow-polling-error-"),
+		);
+		const config = createProject("default");
+		config.workspacePath = workspacePath;
+		config.executionPath = workspacePath;
+		config.server.database.databasePath = path.join(workspacePath, "server-db");
+		const runtime = {
+			createLinearClient: () =>
+				({
+					fetchWork: mock(async () => {
+						throw new Error("Linear unavailable");
+					}),
+				}) as unknown,
+		} as unknown as WorkflowRuntime;
+
+		await runWorkflow(createLoadedConfig(config), { poll: true }, runtime);
+
+		const database = await initializeServerDatabase(
+			config.server.database.databasePath,
+		);
+		try {
+			const [status] = await database.db.select().from(pollingStatusTable);
+			const events = await database.db.select().from(pollingEventsTable);
+			const errorLog = await readFile(
+				projectErrorLogPath(config.workspacePath, config.id),
+				"utf8",
+			);
+			expect(status?.lastError).toBe("Linear unavailable");
+			expect(status?.consecutiveFailures).toBe(1);
+			expect(events.map((event) => event.eventType)).toContain("cycle_failed");
+			expect(errorLog).toContain("Linear unavailable");
+		} finally {
+			await database.close();
+		}
+	});
+
 	it("processes multiple issues with concurrency and prepares isolated paths per issue", async () => {
 		const workspacePath = await mkdtemp(
 			path.join(os.tmpdir(), "adhd-workflow-parallel-"),

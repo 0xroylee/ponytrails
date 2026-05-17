@@ -56,7 +56,13 @@ export function normalizeSandboxValue(
 		return undefined;
 	}
 	const value = input.trim().toLowerCase();
-	if (!value || value === "off" || value === "none" || value === "0") {
+	if (
+		!value ||
+		value === "off" ||
+		value === "none" ||
+		value === "0" ||
+		value === "seatbelt"
+	) {
 		return undefined;
 	}
 	if (value === "read-only" || value === "workspace-write") {

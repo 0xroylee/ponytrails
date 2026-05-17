@@ -6,6 +6,8 @@ import {
 	createInternalTaskExecutionLog,
 	formatStreamLogEvent,
 } from "./internal-task-execution-log";
+import { recordInternalPolling } from "./internal-task-polling-observability";
+import { blockTaskIfStillReady } from "./internal-task-state";
 import type {
 	InternalTaskPollingScheduler,
 	InternalTaskPollingSchedulerDeps,
@@ -23,12 +25,19 @@ export function startInternalTaskPollingScheduler(
 	const clearIntervalFn = deps.clearIntervalFn ?? clearInterval;
 	let stopped = false;
 	let inFlight = false;
+	let consecutiveFailures = 0;
 
 	const runTick = async (): Promise<void> => {
 		if (stopped) {
 			return;
 		}
 		if (inFlight) {
+			await recordInternalPolling(options, {
+				eventType: "tick_skipped",
+				level: "warn",
+				message: "Skipped overlapping internal task polling tick",
+				state: "skipped",
+			});
 			options.logger.info(
 				{ intervalMs },
 				"Skipping overlapping internal task polling tick",
@@ -37,18 +46,63 @@ export function startInternalTaskPollingScheduler(
 		}
 
 		inFlight = true;
+		const startedAt = new Date().toISOString();
+		let readyTaskCount = 0;
+		let dispatchCount = 0;
 		try {
+			await recordInternalPolling(options, {
+				eventType: "tick_started",
+				level: "info",
+				message: "Internal task polling tick started",
+				state: "running",
+				startedAt,
+			});
 			const tasks = await options.db
 				.select()
 				.from(boardTasksTable)
 				.where(eq(boardTasksTable.status, READY_STATUS));
+			readyTaskCount = tasks.length;
 			for (const task of tasks) {
 				if (!task.projectId) {
 					continue;
 				}
+				dispatchCount += 1;
+				await recordInternalPolling(options, {
+					eventType: "task_dispatched",
+					level: "info",
+					message: "Internal task dispatched",
+					state: "running",
+					metadata: { taskId: task.id, taskKey: task.taskKey },
+				});
 				await runInternalTask(options, task);
 			}
+			consecutiveFailures = 0;
+			await recordInternalPolling(options, {
+				eventType: "tick_completed",
+				level: "info",
+				message: "Internal task polling tick completed",
+				state: "success",
+				finishedAt: new Date().toISOString(),
+				successAt: new Date().toISOString(),
+				counts: { readyTaskCount, dispatchCount },
+				consecutiveFailures,
+				lastError: null,
+			});
 		} catch (error) {
+			consecutiveFailures += 1;
+			const message = normalizeError(error).message ?? "Unknown polling error";
+			await recordInternalPolling(options, {
+				eventType: "tick_failed",
+				level: "error",
+				message: "Internal task polling tick failed",
+				state: "error",
+				finishedAt: new Date().toISOString(),
+				errorAt: new Date().toISOString(),
+				counts: { readyTaskCount, dispatchCount },
+				consecutiveFailures,
+				lastError: message,
+				metadata: { error: message },
+			});
 			options.logger.error(
 				{ intervalMs, err: normalizeError(error) },
 				"Internal task polling command failed",
@@ -66,6 +120,12 @@ export function startInternalTaskPollingScheduler(
 		{ intervalMs },
 		"Internal task polling scheduler started",
 	);
+	void recordInternalPolling(options, {
+		eventType: "scheduler_started",
+		level: "info",
+		message: "Internal task polling scheduler started",
+		state: "idle",
+	});
 	void runTick();
 
 	return {
@@ -75,6 +135,13 @@ export function startInternalTaskPollingScheduler(
 			}
 			stopped = true;
 			clearIntervalFn(intervalHandle);
+			void recordInternalPolling(options, {
+				eventType: "scheduler_stopped",
+				level: "info",
+				message: "Internal task polling scheduler stopped",
+				state: "stopped",
+				finishedAt: new Date().toISOString(),
+			});
 			options.logger.info(
 				{ intervalMs },
 				"Internal task polling scheduler stopped",
@@ -173,21 +240,4 @@ async function runInternalTask(
 			"Internal task polling command failed",
 		);
 	}
-}
-
-async function blockTaskIfStillReady(
-	options: InternalTaskPollingSchedulerOptions,
-	taskId: string,
-): Promise<void> {
-	const [task] = await options.db
-		.select({ status: boardTasksTable.status })
-		.from(boardTasksTable)
-		.where(eq(boardTasksTable.id, taskId));
-	if (task?.status !== READY_STATUS) {
-		return;
-	}
-	await options.db
-		.update(boardTasksTable)
-		.set({ status: "blocked", updatedAt: new Date().toISOString() })
-		.where(eq(boardTasksTable.id, taskId));
 }
