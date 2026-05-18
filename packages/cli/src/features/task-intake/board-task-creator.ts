@@ -1,6 +1,6 @@
 import type { WorkflowBoardTaskRecord } from "devos-server/workflow-data";
-import { createWorkflowDataClient } from "../workflow/workflow-data-client";
 import type { ResolvedProjectConfig } from "../types";
+import { createWorkflowDataClient } from "../workflow/workflow-data-client";
 import type {
 	TaskIntakeCreatedTask,
 	TaskIntakeTask,
@@ -30,9 +30,7 @@ function toCreatePayload(config: ResolvedProjectConfig, input: TaskIntakeTask) {
 	};
 }
 
-function toCreatedTask(
-	task: WorkflowBoardTaskRecord,
-): TaskIntakeCreatedTask {
+function toCreatedTask(task: WorkflowBoardTaskRecord): TaskIntakeCreatedTask {
 	return {
 		id: task.id,
 		taskKey: task.taskKey,

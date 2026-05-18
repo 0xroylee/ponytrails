@@ -1,8 +1,8 @@
 import type { WorkflowPollingRecordInput } from "devos-server/workflow-data";
 import type { ResolvedProjectConfig } from "../../features/types";
 import { logger, normalizeError } from "../../utils/logger";
-import type { PollingSettings } from "./workflow.types";
 import { createWorkflowDataClient } from "./workflow-data-client";
+import type { PollingSettings } from "./workflow.types";
 
 const failureCounts = new Map<string, number>();
 

@@ -2,6 +2,9 @@ import type { ServerDatabase } from "../db";
 import type { RealtimeEventPublisher } from "../realtime";
 import { createTaskRepository, createTaskService } from "../tasks";
 import {
+	type TaskCommentRequest,
+	type TaskPullRequestRequest,
+	type TaskUpdateRequest,
 	addComment,
 	createIntakeTask,
 	createTask,
@@ -10,17 +13,14 @@ import {
 	listTasks,
 	recordPolling,
 	updateTask,
-	type TaskCommentRequest,
-	type TaskPullRequestRequest,
-	type TaskUpdateRequest,
 } from "./workflow-data-actions";
+import { WorkflowDataError, workflowError } from "./workflow-data-error";
 import type {
 	WorkflowDataAction,
 	WorkflowDataService,
 	WorkflowPollingRecordInput,
 	WorkflowTaskCreatePayload,
 } from "./workflow-data.types";
-import { WorkflowDataError, workflowError } from "./workflow-data-error";
 
 export function createWorkflowDataService(
 	db: ServerDatabase["db"],
@@ -46,7 +46,10 @@ async function handleWorkflowAction(
 		case "tasks.getByKey":
 			return getTaskByKey(context, readPayload<{ taskKey: string }>(payload));
 		case "tasks.createWorkflowTask":
-			return createTask(context, readPayload<WorkflowTaskCreatePayload>(payload));
+			return createTask(
+				context,
+				readPayload<WorkflowTaskCreatePayload>(payload),
+			);
 		case "tasks.createIntakeTask":
 			return createIntakeTask(
 				context,
@@ -59,16 +62,25 @@ async function handleWorkflowAction(
 		case "tasks.addComment":
 			return addComment(context, readPayload<TaskCommentRequest>(payload));
 		case "tasks.linkPullRequest":
-			return linkPullRequest(context, readPayload<TaskPullRequestRequest>(payload));
+			return linkPullRequest(
+				context,
+				readPayload<TaskPullRequestRequest>(payload),
+			);
 		case "polling.record":
-			await recordPolling(context, readPayload<WorkflowPollingRecordInput>(payload));
+			await recordPolling(
+				context,
+				readPayload<WorkflowPollingRecordInput>(payload),
+			);
 			return { recorded: true };
 	}
 }
 
 function readPayload<T>(payload: unknown): T {
 	if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-		throw workflowError("invalid_payload", "Workflow payload must be an object");
+		throw workflowError(
+			"invalid_payload",
+			"Workflow payload must be an object",
+		);
 	}
 	return payload as T;
 }

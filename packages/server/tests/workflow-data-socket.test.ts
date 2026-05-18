@@ -99,7 +99,9 @@ describe("workflow data websocket", () => {
 			message: "done",
 		});
 
-		expect(workflow.payload).toEqual(expect.objectContaining({ status: "todo" }));
+		expect(workflow.payload).toEqual(
+			expect.objectContaining({ status: "todo" }),
+		);
 		expect(intake.payload).toEqual(
 			expect.objectContaining({ status: "planning", creatorId: "owner-1" }),
 		);
@@ -117,8 +119,18 @@ describe("workflow data websocket", () => {
 			status: "error",
 			code: "invalid_json",
 		});
-		expect(shouldHandleWorkflowDataUpgrade(request("/api/workflow"), WORKFLOW_DATA_WS_PATH)).toBe(true);
-		expect(shouldHandleWorkflowDataUpgrade(request("/api/events"), WORKFLOW_DATA_WS_PATH)).toBe(false);
+		expect(
+			shouldHandleWorkflowDataUpgrade(
+				request("/api/workflow"),
+				WORKFLOW_DATA_WS_PATH,
+			),
+		).toBe(true);
+		expect(
+			shouldHandleWorkflowDataUpgrade(
+				request("/api/events"),
+				WORKFLOW_DATA_WS_PATH,
+			),
+		).toBe(false);
 	});
 });
 
@@ -148,7 +160,11 @@ async function setupSocket() {
 	return { socket, events, db: testDatabase.db };
 }
 
-async function send(socket: FakeWorkflowDataSocket, action: string, payload?: unknown) {
+async function send(
+	socket: FakeWorkflowDataSocket,
+	action: string,
+	payload?: unknown,
+) {
 	const requestId = crypto.randomUUID();
 	socket.emitMessage(
 		JSON.stringify({ type: "workflow.request", requestId, action, payload }),
@@ -160,7 +176,10 @@ function request(url: string): IncomingMessage {
 	return { url } as IncomingMessage;
 }
 
-class FakeWorkflowDataSocket extends EventEmitter implements WorkflowDataSocket {
+class FakeWorkflowDataSocket
+	extends EventEmitter
+	implements WorkflowDataSocket
+{
 	readyState: number = WebSocket.OPEN;
 	readonly sent: string[] = [];
 	private sendResolver: ((message: string) => void) | undefined;

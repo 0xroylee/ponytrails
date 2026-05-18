@@ -8,6 +8,9 @@ export class WorkflowDataError extends Error {
 	}
 }
 
-export function workflowError(code: string, message: string): WorkflowDataError {
+export function workflowError(
+	code: string,
+	message: string,
+): WorkflowDataError {
 	return new WorkflowDataError(code, message);
 }

@@ -6,16 +6,16 @@ import {
 	createWorkflowDataService,
 } from "./workflow-data-service";
 import type {
-	WorkflowDataAction,
-	WorkflowDataRequestFrame,
-	WorkflowDataResponseFrame,
-} from "./workflow-data.types";
-import type {
 	WorkflowDataSocket,
 	WorkflowDataSocketOptions,
 	WorkflowDataSocketProxy,
 	WorkflowDataWebSocketServer,
 } from "./workflow-data-socket.types";
+import type {
+	WorkflowDataAction,
+	WorkflowDataRequestFrame,
+	WorkflowDataResponseFrame,
+} from "./workflow-data.types";
 
 const WORKFLOW_ACTIONS = new Set<string>([
 	"tasks.list",
@@ -105,7 +105,9 @@ async function handleWorkflowDataMessage(
 	}
 }
 
-function parseWorkflowDataRequest(input: string):
+function parseWorkflowDataRequest(
+	input: string,
+):
 	| { status: "ok"; frame: WorkflowDataRequestFrame }
 	| { status: "error"; frame: WorkflowDataResponseFrame } {
 	let value: unknown;
@@ -121,7 +123,11 @@ function parseWorkflowDataRequest(input: string):
 		return errorParseFrame("invalid_request_id", "requestId is required");
 	}
 	if (typeof value.action !== "string" || !value.action.trim()) {
-		return errorParseFrame("invalid_action", "action is required", value.requestId);
+		return errorParseFrame(
+			"invalid_action",
+			"action is required",
+			value.requestId,
+		);
 	}
 	if (!WORKFLOW_ACTIONS.has(value.action)) {
 		return errorParseFrame(
@@ -146,7 +152,13 @@ function errorParseFrame(
 ): { status: "error"; frame: WorkflowDataResponseFrame } {
 	return {
 		status: "error",
-		frame: { type: "workflow.response", requestId, status: "error", code, error },
+		frame: {
+			type: "workflow.response",
+			requestId,
+			status: "error",
+			code,
+			error,
+		},
 	};
 }
 
@@ -166,7 +178,10 @@ function toErrorFrame(
 	};
 }
 
-function sendFrame(client: WorkflowDataSocket, frame: WorkflowDataResponseFrame) {
+function sendFrame(
+	client: WorkflowDataSocket,
+	frame: WorkflowDataResponseFrame,
+) {
 	if (client.readyState === WebSocket.OPEN) {
 		client.send(JSON.stringify(frame));
 	}

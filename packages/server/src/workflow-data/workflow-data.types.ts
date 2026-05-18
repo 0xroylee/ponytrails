@@ -1,7 +1,7 @@
 import type {
 	PollingEventLevel,
-	PollingStatusCounts,
 	PollingState,
+	PollingStatusCounts,
 } from "../db";
 import type {
 	CreateTaskPayload,

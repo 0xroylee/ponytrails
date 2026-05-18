@@ -9,8 +9,10 @@ import {
 	taskPullRequestsTable,
 } from "../db";
 import type { RealtimeEventPublisher } from "../realtime";
-import { createTaskService } from "../tasks";
+import type { createTaskService } from "../tasks";
 import type { BoardTaskApiRecord } from "../tasks/task-service.types";
+import { workflowError } from "./workflow-data-error";
+import { parsePrNumber, withPullRequests } from "./workflow-data-mappers";
 import type {
 	WorkflowBoardTaskRecord,
 	WorkflowPollingRecordInput,
@@ -18,8 +20,6 @@ import type {
 	WorkflowTaskCreatePayload,
 	WorkflowTaskUpdatePayload,
 } from "./workflow-data.types";
-import { parsePrNumber, withPullRequests } from "./workflow-data-mappers";
-import { workflowError } from "./workflow-data-error";
 
 const DEFAULT_TASK_CREATOR_ID = "member-1";
 const DEFAULT_TASK_PRIORITY = 1;
@@ -99,7 +99,10 @@ export async function updateTask(
 	context: WorkflowDataContext,
 	input: TaskUpdateRequest,
 ): Promise<WorkflowBoardTaskRecord> {
-	const result = await context.taskService.updateTask(input.taskId, input.values);
+	const result = await context.taskService.updateTask(
+		input.taskId,
+		input.values,
+	);
 	const task = assertTaskResult(result, "Task update failed");
 	context.realtimeEvents?.publish({ type: "issue.updated", issue: task });
 	return (await withPullRequests(context.db, [task]))[0] ?? task;
@@ -140,7 +143,8 @@ export async function linkPullRequest(
 		taskId: input.taskId,
 		values: { linkedPr: input.pullRequest.url ?? null },
 	});
-	const prNumber = input.pullRequest.number ?? parsePrNumber(input.pullRequest.url);
+	const prNumber =
+		input.pullRequest.number ?? parsePrNumber(input.pullRequest.url);
 	if (prNumber) {
 		await upsertPullRequest(context, input, prNumber);
 	}

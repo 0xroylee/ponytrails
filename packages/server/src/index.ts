@@ -22,14 +22,14 @@ import {
 	resolveServerDatabasePath,
 	resolveServerWorkspacePath,
 } from "./startup-paths";
+import { WORKFLOW_DATA_WS_PATH } from "./workflow-data";
+import { attachWorkflowDataSocket } from "./workflow-data/workflow-data-socket";
 import { attachCliStreamProxy } from "./ws/cli-stream-proxy";
 import {
 	DAEMON_EVENTS_PATH,
 	attachDaemonEventsSocket,
 } from "./ws/daemon-events";
 import { attachRealtimeEventsSocket } from "./ws/realtime-events";
-import { WORKFLOW_DATA_WS_PATH } from "./workflow-data";
-import { attachWorkflowDataSocket } from "./workflow-data/workflow-data-socket";
 
 const DEFAULT_SERVER_PORT = 3001;
 const DEFAULT_CLI_DAEMON_WS_URL = "ws://127.0.0.1:3002";

@@ -40,7 +40,9 @@ function toPullRequest(
 	}
 	return {
 		number:
-			typeof number === "number" && Number.isFinite(number) ? number : undefined,
+			typeof number === "number" && Number.isFinite(number)
+				? number
+				: undefined,
 		url,
 		branch: `codex/${task.taskKey.toLowerCase()}`,
 		title: `[codex] ${task.taskKey}: ${task.title}`,

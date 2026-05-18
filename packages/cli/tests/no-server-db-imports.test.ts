@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 describe("CLI server DB boundary", () => {
 	it("does not import devos-server/db from production CLI source", async () => {
-		const files = await listTypeScriptFiles(path.resolve(import.meta.dir, "../src"));
+		const files = await listTypeScriptFiles(
+			path.resolve(import.meta.dir, "../src"),
+		);
 		const offenders: string[] = [];
 		for (const file of files) {
 			const source = await readFile(file, "utf8");

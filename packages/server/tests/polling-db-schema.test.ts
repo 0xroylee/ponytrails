@@ -67,7 +67,10 @@ describe("polling observability schema", () => {
 			.select()
 			.from(pollingEventsTable)
 			.where(eq(pollingEventsTable.id, event.id));
-		expect(statusRow).toEqual({ ...status, projectId: status.projectId ?? null });
+		expect(statusRow).toEqual({
+			...status,
+			projectId: status.projectId ?? null,
+		});
 		expect(eventRow).toEqual({ ...event, projectId: event.projectId ?? null });
 	});
 });

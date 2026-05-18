@@ -738,12 +738,12 @@ describe("runWorkflow parallel issue regression", () => {
 				projectErrorLogPath(config.workspacePath, config.id),
 				"utf8",
 			);
-			expect(calls.find((call) => call.eventType === "cycle_failed")).toMatchObject(
-				{
-					lastError: "Linear unavailable",
-					consecutiveFailures: 1,
-				},
-			);
+			expect(
+				calls.find((call) => call.eventType === "cycle_failed"),
+			).toMatchObject({
+				lastError: "Linear unavailable",
+				consecutiveFailures: 1,
+			});
 			expect(errorLog).toContain("Linear unavailable");
 		} finally {
 			restore();
