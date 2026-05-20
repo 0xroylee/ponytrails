@@ -46,9 +46,7 @@ export async function collectSetupDraft(
 		"Project ID",
 		normalizeProjectId(projectName),
 	);
-	const executionPath = resolveUserPath(
-		await promptText(prompts, "Local repository path", cwd),
-	);
+	const executionPath = resolveUserPath(cwd);
 	const defaults = await inferDefaults(executionPath);
 	const sandbox = normalizeSandbox(
 		await prompts.select({

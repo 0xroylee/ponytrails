@@ -9,11 +9,6 @@ const config: DeepPartial<DevosRootConfig> = {
 			"name": "Default Project",
 			"workspacePath": "/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents",
 			"executionPath": "/Users/roy/Desktop/SourceCode/agentic/show-me-ur-agents",
-			"repo": {
-				"owner": "1997roylee",
-				"name": "show-me-ur-agents",
-				"baseBranch": "main"
-			},
 			"linear": {
 				"statusMap": {
 					"backlog": "Backlog",

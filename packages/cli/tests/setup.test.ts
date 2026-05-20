@@ -196,7 +196,6 @@ describe("setup helpers", () => {
 					text: {
 						"Project name": "Demo Project",
 						"Project ID": "demo-project",
-						"Local repository path": "/tmp/demo",
 						"Planning model": "gpt-5.5",
 						"Implementation model": "gpt-5.3-codex",
 						"Review/testing model": "gpt-5.3-codex",
@@ -221,6 +220,8 @@ describe("setup helpers", () => {
 			expect(draft.repoOwner).toBe("octo");
 			expect(draft.repoName).toBe("demo");
 			expect(draft.baseBranch).toBe("main");
+			expect(draft.workspacePath).toBe("/tmp/demo");
+			expect(draft.executionPath).toBe("/tmp/demo");
 			expect(draft.linearApiKey).toBe("lin_secret_123");
 			expect(draft.linearProjectId).toBeUndefined();
 			expect(draft.linearTeamId).toBeUndefined();
@@ -276,7 +277,7 @@ describe("setup helpers", () => {
 			const output = await captureStdout(() =>
 				runSetupWizard(tempDir, {
 					runCommand: async () => okCommand(),
-					prompts: onboardingPromptAdapter(tempDir),
+					prompts: onboardingPromptAdapter(),
 					collectSetupChecks: collectChecks,
 				}),
 			);
@@ -855,12 +856,11 @@ async function captureStdout(run: () => Promise<void>): Promise<string> {
 	}
 }
 
-function onboardingPromptAdapter(workspacePath: string): PromptAdapter {
+function onboardingPromptAdapter(): PromptAdapter {
 	return promptAdapter({
 		text: {
 			"Project name": "Demo Project",
 			"Project ID": "demo-project",
-			"Local repository path": workspacePath,
 			"Planning model": "gpt-5.5",
 			"Implementation model": "gpt-5.3-codex",
 			"Review/testing model": "gpt-5.3-codex",
