@@ -1,7 +1,8 @@
 import type { CodexReasoningEffort } from "../../features/types";
 import type { CommandResult } from "../../utils/shell";
-import type { LoadedConfig } from "../config";
+import type { LoadedConfig, ResolvedEnv } from "../config";
 import type { PromptAdapter } from "../prompts";
+import type { InstanceConfigLoadResult } from "./instance-config.types";
 
 export interface SetupDraft {
 	projectId: string;
@@ -67,6 +68,8 @@ export interface SetupCheck {
 
 export interface SetupCheckDeps {
 	loadConfig?: (cwd: string) => Promise<LoadedConfig>;
+	loadResolvedEnv?: (cwd: string) => Promise<ResolvedEnv>;
+	loadInstanceConfig?: (cwd: string) => Promise<InstanceConfigLoadResult>;
 	runCommand?: (
 		command: string,
 		args: string[],
@@ -74,6 +77,11 @@ export interface SetupCheckDeps {
 	) => Promise<CommandResult>;
 	access?: (targetPath: string) => Promise<void>;
 	readFile?: (targetPath: string, encoding: BufferEncoding) => Promise<string>;
+	mkdir?: (
+		targetPath: string,
+		options: { recursive: true },
+	) => Promise<string | undefined>;
+	canBindPort?: (host: string, port: number) => Promise<boolean>;
 }
 
 export interface GitHubDefaults {
@@ -90,4 +98,5 @@ export interface SetupDraftPromptDeps {
 export interface SetupWizardDeps extends Partial<SetupDraftPromptDeps> {
 	runCommand?: SetupCheckDeps["runCommand"];
 	writeSetupFiles?: (cwd: string, draft: SetupDraft) => Promise<void>;
+	collectSetupChecks?: (cwd: string) => Promise<SetupCheck[]>;
 }

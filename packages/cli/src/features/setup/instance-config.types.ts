@@ -55,3 +55,7 @@ export interface OnboardInstanceConfig {
 		};
 	};
 }
+
+export type InstanceConfigLoadResult =
+	| { ok: true; config: OnboardInstanceConfig }
+	| { ok: false; message: string };

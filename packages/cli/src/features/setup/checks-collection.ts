@@ -1,9 +1,12 @@
 import { access, readFile } from "node:fs/promises";
 import { runCommand } from "../../utils/shell";
-import { loadConfig } from "../config";
+import { loadConfig, loadResolvedEnv } from "../config";
 import type { LoadedConfig } from "../config";
 import { addBinaryChecks } from "./checks-binaries";
+import { collectConfigFileCheck } from "./checks-config-file";
 import { checkTrackedConfigSecrets } from "./checks-helpers";
+import { collectInstanceSetupChecks } from "./checks-instance";
+import { loadInstanceConfig } from "./instance-config";
 import type { SetupCheck, SetupCheckDeps } from "./setup.types";
 
 export async function collectSetupChecks(
@@ -11,27 +14,30 @@ export async function collectSetupChecks(
 	deps: SetupCheckDeps = {},
 ): Promise<SetupCheck[]> {
 	const configLoader = deps.loadConfig ?? loadConfig;
+	const envLoader = deps.loadResolvedEnv ?? loadResolvedEnv;
+	const instanceLoader = deps.loadInstanceConfig ?? loadInstanceConfig;
 	const commandRunner = deps.runCommand ?? runCommand;
 	const accessPath = deps.access ?? access;
 	const readText = deps.readFile ?? readFile;
 	const checks: SetupCheck[] = [];
 
-	let config: LoadedConfig;
-	try {
-		config = await configLoader(cwd);
-		checks.push({
-			name: "Config",
-			status: "pass",
-			message: "configuration loaded successfully",
-		});
-	} catch (error) {
-		checks.push({
-			name: "Config",
-			status: "fail",
-			message: error instanceof Error ? error.message : String(error),
-		});
-		return checks;
-	}
+	const { check, config, instanceResult } = await collectConfigFileCheck({
+		cwd,
+		configLoader,
+		instanceLoader,
+		accessPath,
+	});
+	checks.push(check);
+	const env = await loadEnvForChecks(envLoader, cwd);
+	checks.push(
+		...(await collectInstanceSetupChecks({
+			env,
+			instanceResult,
+			mkdir: deps.mkdir,
+			canBindPort: deps.canBindPort,
+		})),
+	);
+	if (!config) return checks;
 
 	addProjectConfigChecks(checks, config);
 	await addProjectPathChecks(checks, config, accessPath);
@@ -40,6 +46,17 @@ export async function collectSetupChecks(
 	await addBinaryChecks(checks, config, commandRunner, cwd);
 	checks.push(await checkTrackedConfigSecrets(cwd, config, readText));
 	return checks;
+}
+
+async function loadEnvForChecks(
+	envLoader: NonNullable<SetupCheckDeps["loadResolvedEnv"]>,
+	cwd: string,
+): Promise<Record<string, string | undefined>> {
+	try {
+		return await envLoader(cwd);
+	} catch {
+		return {};
+	}
 }
 
 function addProjectConfigChecks(

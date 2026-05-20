@@ -1,6 +1,9 @@
 import { runCommand } from "../../utils/shell";
 import { clackPromptAdapter } from "../prompts";
+import { renderDevosBanner } from "./banner";
 import {
+	collectSetupChecks,
+	formatSetupChecks,
 	renderSetupGitHubInstallPrompt,
 	renderSetupRtkInstallPrompt,
 } from "./checks";
@@ -17,6 +20,7 @@ export async function runSetupWizard(
 	const commandRunner = deps.runCommand ?? runCommand;
 	const prompts = deps.prompts ?? clackPromptAdapter;
 	const writeFiles = deps.writeSetupFiles ?? writeSetupFiles;
+	const collectChecks = deps.collectSetupChecks ?? collectSetupChecks;
 	const rtk = await safeRun(commandRunner, "rtk", ["--version"], cwd);
 	if (rtk.code !== 0) process.stdout.write(renderSetupRtkInstallPrompt());
 	const gh = await safeRun(commandRunner, "gh", ["auth", "status"], cwd);
@@ -28,6 +32,13 @@ export async function runSetupWizard(
 	});
 	await writeFiles(cwd, draft);
 	process.stdout.write(
-		`Onboarding files written: ${ENV_FILE}, ${LOCAL_CONFIG_FILE}, ${INSTANCE_CONFIG_FILE}; secrets saved to .devos/config/env.sqlite\nRun 'devos onboard --check' to validate this machine.\n`,
+		`Onboarding files written: ${ENV_FILE}, ${LOCAL_CONFIG_FILE}, ${INSTANCE_CONFIG_FILE}; secrets saved to .devos/config/env.sqlite\n`,
 	);
+	process.stdout.write(`${renderDevosBanner()}\n`);
+	process.stdout.write("Running doctor checks...\n");
+	const checks = await collectChecks(cwd);
+	process.stdout.write(formatSetupChecks(checks));
+	if (checks.some((check) => check.status === "fail")) {
+		throw new Error("Setup check failed");
+	}
 }

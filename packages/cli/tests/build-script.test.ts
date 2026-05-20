@@ -8,15 +8,15 @@ import {
 } from "../scripts/build";
 
 describe("CLI build script", () => {
-	it("resolves PGlite from the server database boundary", async () => {
+	it("resolves PGlite from the database package boundary", async () => {
 		const calls: Array<{ specifier: string; parent: string }> = [];
-		const serverDbEntry = "/workspace/packages/server/src/db/index.ts";
+		const dbEntry = "/workspace/packages/db/src/index.ts";
 		const pgliteEntry = "/workspace/node_modules/pglite/dist/index.js";
 
 		const entry = await resolvePglitePackageEntry(async (specifier, parent) => {
 			calls.push({ specifier, parent });
-			if (specifier === "devos-server/db") {
-				return serverDbEntry;
+			if (specifier === "devos-db") {
+				return dbEntry;
 			}
 			if (specifier === "@electric-sql/pglite") {
 				return pgliteEntry;
@@ -27,10 +27,10 @@ describe("CLI build script", () => {
 		expect(entry).toBe(pgliteEntry);
 		expect(calls).toEqual([
 			{
-				specifier: "devos-server/db",
+				specifier: "devos-db",
 				parent: path.resolve(import.meta.dir, ".."),
 			},
-			{ specifier: "@electric-sql/pglite", parent: serverDbEntry },
+			{ specifier: "@electric-sql/pglite", parent: dbEntry },
 		]);
 	});
 

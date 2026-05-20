@@ -15,6 +15,14 @@ export async function addBinaryChecks(
 	cwd: string,
 ): Promise<void> {
 	const commandCwd = config.projects[0]?.executionPath ?? cwd;
+	const backends = new Set(
+		config.projects.map((project) => project.agent?.backend ?? "codex"),
+	);
+	checks.push({
+		name: "LLM provider",
+		status: "pass",
+		message: `configured: ${Array.from(backends).join(", ")}`,
+	});
 	const gh = await safeRun(commandRunner, "gh", ["auth", "status"], commandCwd);
 	checks.push(
 		gh.code === 0

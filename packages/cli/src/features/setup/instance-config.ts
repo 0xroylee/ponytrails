@@ -1,5 +1,10 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { OnboardInstanceConfig } from "./instance-config.types";
+import { INSTANCE_CONFIG_FILE } from "./constants";
+import type {
+	InstanceConfigLoadResult,
+	OnboardInstanceConfig,
+} from "./instance-config.types";
 
 const DEFAULT_INSTANCE_ID = "default";
 const DEFAULT_INSTANCE_PORT = 3100;
@@ -10,6 +15,47 @@ export function renderInstanceConfig(
 	updatedAt = new Date().toISOString(),
 ): string {
 	return `${JSON.stringify(createInstanceConfig(cwd, updatedAt), null, "\t")}\n`;
+}
+
+export function renderInstanceConfigDocument(
+	config: OnboardInstanceConfig,
+): string {
+	return `${JSON.stringify(config, null, "\t")}\n`;
+}
+
+export async function loadInstanceConfig(
+	cwd: string,
+	readText: (
+		targetPath: string,
+		encoding: BufferEncoding,
+	) => Promise<string> = readFile,
+): Promise<InstanceConfigLoadResult> {
+	const configPath = path.join(cwd, INSTANCE_CONFIG_FILE);
+	let content: string;
+	try {
+		content = await readText(configPath, "utf8");
+	} catch {
+		return {
+			ok: false,
+			message: `${INSTANCE_CONFIG_FILE} missing or inaccessible`,
+		};
+	}
+
+	try {
+		const parsed = JSON.parse(content) as unknown;
+		const validationMessage = validateInstanceConfig(parsed);
+		if (validationMessage) {
+			return { ok: false, message: validationMessage };
+		}
+		return { ok: true, config: parsed as OnboardInstanceConfig };
+	} catch (error) {
+		return {
+			ok: false,
+			message: `${INSTANCE_CONFIG_FILE} is malformed: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		};
+	}
 }
 
 export function createInstanceConfig(
@@ -79,4 +125,39 @@ export function createInstanceConfig(
 			},
 		},
 	};
+}
+
+function validateInstanceConfig(config: unknown): string | undefined {
+	if (!isRecord(config)) return `${INSTANCE_CONFIG_FILE} must be an object`;
+	const storage = config.storage;
+	if (!isRecord(storage) || !isRecord(storage.localDisk)) {
+		return `${INSTANCE_CONFIG_FILE} is missing storage.localDisk`;
+	}
+	if (typeof storage.localDisk.baseDir !== "string") {
+		return `${INSTANCE_CONFIG_FILE} is missing storage.localDisk.baseDir`;
+	}
+
+	const database = config.database;
+	if (!isRecord(database)) return `${INSTANCE_CONFIG_FILE} is missing database`;
+	if (typeof database.embeddedPostgresDataDir !== "string") {
+		return `${INSTANCE_CONFIG_FILE} is missing database.embeddedPostgresDataDir`;
+	}
+	if (typeof database.embeddedPostgresPort !== "number") {
+		return `${INSTANCE_CONFIG_FILE} is missing database.embeddedPostgresPort`;
+	}
+
+	const logging = config.logging;
+	if (!isRecord(logging) || typeof logging.logDir !== "string") {
+		return `${INSTANCE_CONFIG_FILE} is missing logging.logDir`;
+	}
+
+	const server = config.server;
+	if (!isRecord(server) || typeof server.port !== "number") {
+		return `${INSTANCE_CONFIG_FILE} is missing server.port`;
+	}
+	return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }

@@ -1,3 +1,4 @@
+export * from "./banner";
 export * from "./checks";
 export * from "./constants";
 export * from "./env-file";
@@ -14,5 +15,8 @@ export type {
 	SetupDraftPromptDeps,
 	SetupWizardDeps,
 } from "./setup.types";
-export type { OnboardInstanceConfig } from "./instance-config.types";
+export type {
+	InstanceConfigLoadResult,
+	OnboardInstanceConfig,
+} from "./instance-config.types";
 export * from "./wizard";

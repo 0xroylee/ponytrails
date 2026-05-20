@@ -1,5 +1,12 @@
-import { describe, expect, it } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { describe, expect, it, mock } from "bun:test";
+import {
+	access,
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import type { LoadedConfig } from "../src/features/config";
 import { loadSqliteEnv } from "../src/features/config";
@@ -13,12 +20,16 @@ import {
 	DEFAULT_REASONING_EFFORTS,
 	DEFAULT_STATUS_MAP,
 	LINEAR_API_KEY_SETTINGS_URL,
+	type SetupCheckDeps,
 	type SetupDraft,
 	collectSetupChecks,
 	collectSetupDraft,
+	createInstanceConfig,
 	formatSetupChecks,
+	loadInstanceConfig,
 	mergeEnvFile,
 	normalizeProjectId,
+	renderDevosBanner,
 	renderEnvFile,
 	renderInstanceConfig,
 	renderLocalConfig,
@@ -248,6 +259,42 @@ describe("setup helpers", () => {
 		expect(wroteFiles).toBe(false);
 	});
 
+	it("runs post-onboard doctor after writing files and keeps JWT secret out of output", async () => {
+		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-test-"));
+		const collectChecks = mock(async (cwd: string) => {
+			const sqliteEnv = await loadSqliteEnv(cwd);
+			expect(sqliteEnv?.JWT_SECRET).toBeTruthy();
+			return [{ name: "Config file", status: "pass" as const, message: "ok" }];
+		});
+		try {
+			const output = await captureStdout(() =>
+				runSetupWizard(tempDir, {
+					runCommand: async () => okCommand(),
+					prompts: onboardingPromptAdapter(tempDir),
+					collectSetupChecks: collectChecks,
+				}),
+			);
+			const sqliteEnv = await loadSqliteEnv(tempDir);
+			const jwtSecret = sqliteEnv?.JWT_SECRET ?? "missing JWT_SECRET";
+			expect(collectChecks).toHaveBeenCalledTimes(1);
+			expect(output).toContain("Onboarding files written:");
+			expect(output).toContain(renderDevosBanner());
+			expect(output).toContain("Running doctor checks...\n");
+			expect(output).toContain("PASS: Config file - ok\n");
+			expect(output).not.toContain(jwtSecret);
+
+			const successIndex = output.indexOf("Onboarding files written:");
+			const bannerIndex = output.indexOf(renderDevosBanner());
+			const doctorIndex = output.indexOf("Running doctor checks...");
+			const resultsIndex = output.indexOf("PASS: Config file - ok");
+			expect(successIndex).toBeLessThan(bannerIndex);
+			expect(bannerIndex).toBeLessThan(doctorIndex);
+			expect(doctorIndex).toBeLessThan(resultsIndex);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("merges env updates without dropping unrelated values", () => {
 		const merged = mergeEnvFile("KEEP_ME=yes\nLINEAR_API_KEY=old\n", {
 			LINEAR_API_KEY: "new secret",
@@ -264,6 +311,8 @@ describe("setup helpers", () => {
 			const sqliteEnv = await loadSqliteEnv(tempDir);
 			expect(sqliteEnv?.LINEAR_API_KEY).toBe("lin_secret_123");
 			expect(sqliteEnv?.RESEND_API_KEY).toBe("re_secret_123");
+			expect(sqliteEnv?.JWT_SECRET).toMatch(/^[A-Za-z0-9_-]+$/);
+			expect(sqliteEnv?.JWT_SECRET?.length).toBeGreaterThan(40);
 
 			const envPath = path.join(tempDir, ".env");
 			const envContent = await readFile(envPath, "utf8");
@@ -273,6 +322,7 @@ describe("setup helpers", () => {
 			expect(envContent).toContain(
 				'RESEND_TO="alerts@example.com,ops@example.com"',
 			);
+			expect(envContent).toContain(`JWT_SECRET=${sqliteEnv?.JWT_SECRET}`);
 
 			const instanceConfigPath = path.join(
 				tempDir,
@@ -286,6 +336,13 @@ describe("setup helpers", () => {
 			expect(instanceConfig.server.port).toBe(3100);
 			expect(instanceConfig.storage.localDisk.baseDir).toBe(
 				path.join(tempDir, ".devos", "instances", "default", "data", "storage"),
+			);
+			await access(instanceConfig.storage.localDisk.baseDir);
+			await access(instanceConfig.database.embeddedPostgresDataDir);
+			await access(instanceConfig.database.backup.dir);
+			await access(instanceConfig.logging.logDir);
+			await access(
+				path.dirname(instanceConfig.secrets.localEncrypted.keyFilePath),
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
@@ -302,23 +359,161 @@ describe("setup helpers", () => {
 	});
 
 	it("reports successful minimal setup checks", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),
-			access: async () => {},
-			readFile: async () => "",
-			runCommand: async () => okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
 
 		expect(checks.every((check) => check.status === "pass")).toBe(true);
+		expect(checks).toContainEqual({
+			name: "JWT secret",
+			status: "pass",
+			message: "present",
+		});
+		expect(checks).toContainEqual({
+			name: "LLM provider",
+			status: "pass",
+			message: "configured: codex",
+		});
+		expect(checks).toContainEqual({
+			name: "Server port",
+			status: "pass",
+			message: "127.0.0.1:3100 is available",
+		});
+	});
+
+	it("reports targeted instance doctor failures when instance config is missing or malformed", async () => {
+		const missingChecks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				loadInstanceConfig: async () => ({
+					ok: false,
+					message: ".devos/config/instance.config.json missing or inaccessible",
+				}),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
+
+		expect(missingChecks).toContainEqual({
+			name: "Config file",
+			status: "fail",
+			message: ".devos/config/instance.config.json missing or inaccessible",
+		});
+		expect(missingChecks).toContainEqual({
+			name: "Storage",
+			status: "fail",
+			message:
+				"instance config unavailable: .devos/config/instance.config.json missing or inaccessible",
+		});
+
+		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-test-"));
+		try {
+			await mkdir(path.join(tempDir, ".devos/config"), { recursive: true });
+			await writeFile(
+				path.join(tempDir, ".devos/config/instance.config.json"),
+				"{nope",
+			);
+			const malformed = await loadInstanceConfig(tempDir);
+			expect(malformed.ok).toBe(false);
+			if (!malformed.ok) {
+				expect(malformed.message).toContain("is malformed");
+			}
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("reports storage, database, log directory, and server port failure paths", async () => {
+		const config = createInstanceConfig(
+			"/tmp/demo",
+			"2026-05-12T16:13:11.419Z",
+		);
+		config.database.embeddedPostgresPort = 0;
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				loadInstanceConfig: async () => ({ ok: true, config }),
+				access: async () => {},
+				readFile: async () => "",
+				mkdir: async (targetPath) => {
+					if (targetPath.includes("storage") || targetPath.includes("logs")) {
+						throw new Error("permission denied");
+					}
+					return undefined;
+				},
+				canBindPort: async () => false,
+				runCommand: async () => okCommand(),
+			}),
+		);
+
+		expect(checks).toContainEqual({
+			name: "Storage",
+			status: "fail",
+			message:
+				"storage.localDisk.baseDir /tmp/demo/.devos/instances/default/data/storage is not accessible: permission denied",
+		});
+		expect(checks).toContainEqual({
+			name: "Database",
+			status: "fail",
+			message: "embedded postgres port 0 is invalid",
+		});
+		expect(checks).toContainEqual({
+			name: "Log directory",
+			status: "fail",
+			message:
+				"logging.logDir /tmp/demo/.devos/instances/default/logs is not accessible: permission denied",
+		});
+		expect(checks).toContainEqual({
+			name: "Server port",
+			status: "fail",
+			message: "127.0.0.1:3100 is already in use",
+		});
+	});
+
+	it("reports configured LLM provider backends", async () => {
+		const claudeChecks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({
+						linearApiKey: "lin_secret_123",
+						agentBackend: "claude-code",
+					}),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
+
+		expect(claudeChecks).toContainEqual({
+			name: "LLM provider",
+			status: "pass",
+			message: "configured: claude-code",
+		});
 	});
 
 	it("reports missing Linear API key", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => loadedConfig({ linearApiKey: "" }),
-			access: async () => {},
-			readFile: async () => "",
-			runCommand: async () => okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () => loadedConfig({ linearApiKey: "" }),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "Linear API key",
@@ -328,14 +523,18 @@ describe("setup helpers", () => {
 	});
 
 	it("reports missing execution path", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),
-			access: async () => {
-				throw new Error("missing");
-			},
-			readFile: async () => "",
-			runCommand: async () => okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				access: async () => {
+					throw new Error("missing");
+				},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "Execution path (demo-project)",
@@ -345,16 +544,20 @@ describe("setup helpers", () => {
 	});
 
 	it("reports missing skill files", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),
-			access: async (targetPath) => {
-				if (targetPath === "/tmp/demo/skills/piv-implement/SKILL.md") {
-					throw new Error("missing");
-				}
-			},
-			readFile: async () => "",
-			runCommand: async () => okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				access: async (targetPath) => {
+					if (targetPath === "/tmp/demo/skills/piv-implement/SKILL.md") {
+						throw new Error("missing");
+					}
+				},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "Skill file (demo-project:implement)",
@@ -365,31 +568,34 @@ describe("setup helpers", () => {
 	});
 
 	it("reports missing auto-select database when database source is enabled", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => {
-				const config = loadedConfig({ linearApiKey: "lin_secret_123" });
-				const project = config.projects[0];
-				if (project) {
-					project.skills.autoSelect = {
-						enabled: true,
-						sources: {
-							folder: true,
-							database: true,
-						},
-						databasePath: "/tmp/demo/skills.db",
-						maxSelected: 3,
-					};
-				}
-				return config;
-			},
-			access: async (targetPath) => {
-				if (targetPath === "/tmp/demo/skills.db") {
-					throw new Error("missing");
-				}
-			},
-			readFile: async () => "",
-			runCommand: async () => okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () => {
+					const config = loadedConfig({ linearApiKey: "lin_secret_123" });
+					const project = config.projects[0];
+					if (project) {
+						project.skills.autoSelect = {
+							enabled: true,
+							sources: {
+								folder: true,
+								database: true,
+							},
+							databasePath: "/tmp/demo/skills.db",
+							maxSelected: 3,
+						};
+					}
+					return config;
+				},
+				access: async (targetPath) => {
+					if (targetPath === "/tmp/demo/skills.db") {
+						throw new Error("missing");
+					}
+				},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "Skill auto-select database (demo-project)",
@@ -399,13 +605,17 @@ describe("setup helpers", () => {
 	});
 
 	it("reports secrets in tracked config", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),
-			access: async () => {},
-			readFile: async (filePath) =>
-				filePath.endsWith("devos.config.ts") ? "lin_secret_123" : "",
-			runCommand: async () => okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				access: async () => {},
+				readFile: async (filePath) =>
+					filePath.endsWith("devos.config.ts") ? "lin_secret_123" : "",
+				runCommand: async () => okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "Tracked config secrets",
@@ -415,19 +625,23 @@ describe("setup helpers", () => {
 	});
 
 	it("reports missing rtk binary", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () => loadedConfig({ linearApiKey: "lin_secret_123" }),
-			access: async () => {},
-			readFile: async () => "",
-			runCommand: async (command) =>
-				command === "rtk"
-					? {
-							code: 1,
-							stdout: "",
-							stderr: "command not found: rtk",
-						}
-					: okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123" }),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async (command) =>
+					command === "rtk"
+						? {
+								code: 1,
+								stdout: "",
+								stderr: "command not found: rtk",
+							}
+						: okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "RTK binary",
@@ -438,20 +652,23 @@ describe("setup helpers", () => {
 	});
 
 	it("reports missing docker binary when codex docker is enabled", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () =>
-				loadedConfig({ linearApiKey: "lin_secret_123", dockerEnabled: true }),
-			access: async () => {},
-			readFile: async () => "",
-			runCommand: async (command) =>
-				command === "docker"
-					? {
-							code: 1,
-							stdout: "",
-							stderr: "command not found: docker",
-						}
-					: okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123", dockerEnabled: true }),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async (command) =>
+					command === "docker"
+						? {
+								code: 1,
+								stdout: "",
+								stderr: "command not found: docker",
+							}
+						: okCommand(),
+			}),
+		);
 
 		expect(checks).toContainEqual({
 			name: "Docker binary",
@@ -462,20 +679,23 @@ describe("setup helpers", () => {
 	});
 
 	it("skips host codex check when only docker-backed codex projects are configured", async () => {
-		const checks = await collectSetupChecks("/tmp/demo", {
-			loadConfig: async () =>
-				loadedConfig({ linearApiKey: "lin_secret_123", dockerEnabled: true }),
-			access: async () => {},
-			readFile: async () => "",
-			runCommand: async (command) =>
-				command === "codex"
-					? {
-							code: 1,
-							stdout: "",
-							stderr: "command not found: codex",
-						}
-					: okCommand(),
-		});
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({ linearApiKey: "lin_secret_123", dockerEnabled: true }),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async (command) =>
+					command === "codex"
+						? {
+								code: 1,
+								stdout: "",
+								stderr: "command not found: codex",
+							}
+						: okCommand(),
+			}),
+		);
 
 		expect(
 			checks.find((check) => check.name === "Codex binary"),
@@ -503,9 +723,11 @@ describe("setup helpers", () => {
 function loadedConfig({
 	linearApiKey,
 	dockerEnabled = false,
+	agentBackend,
 }: {
 	linearApiKey: string;
 	dockerEnabled?: boolean;
+	agentBackend?: "codex" | "claude-code";
 }): LoadedConfig {
 	return {
 		projects: [
@@ -549,6 +771,7 @@ function loadedConfig({
 				workflow: {
 					issueConcurrency: 1,
 				},
+				...(agentBackend ? { agent: { backend: agentBackend } } : {}),
 				dryRun: false,
 				skills: {
 					root: "/tmp/demo/skills",
@@ -579,6 +802,67 @@ function okCommand(): CommandResult {
 		stdout: "ok",
 		stderr: "",
 	};
+}
+
+function setupCheckDeps(overrides: SetupCheckDeps = {}): SetupCheckDeps {
+	return {
+		loadResolvedEnv: async () => ({ JWT_SECRET: "present" }),
+		loadInstanceConfig: async () => ({
+			ok: true,
+			config: createInstanceConfig("/tmp/demo", "2026-05-12T16:13:11.419Z"),
+		}),
+		mkdir: async () => undefined,
+		canBindPort: async () => true,
+		...overrides,
+	};
+}
+
+async function captureStdout(run: () => Promise<void>): Promise<string> {
+	const previousWrite = process.stdout.write;
+	let output = "";
+	process.stdout.write = ((chunk: string | Uint8Array) => {
+		output += String(chunk);
+		return true;
+	}) as typeof process.stdout.write;
+	try {
+		await run();
+		return output;
+	} finally {
+		process.stdout.write = previousWrite;
+	}
+}
+
+function onboardingPromptAdapter(workspacePath: string): PromptAdapter {
+	return promptAdapter({
+		text: {
+			"Project name": "Demo Project",
+			"Project ID": "demo-project",
+			"Local repository path": workspacePath,
+			"GitHub owner": "octo",
+			"GitHub repository name": "demo",
+			"GitHub base branch": "main",
+			"Linear project ID filter (optional)": "",
+			"Linear team ID filter (optional; inferred from project when possible)":
+				"",
+			"Planning model": "gpt-5.5",
+			"Implementation model": "gpt-5.3-codex",
+			"Review/testing model": "gpt-5.3-codex",
+		},
+		password: {
+			"Linear API key (create one: https://linear.app/settings/account/security)":
+				"lin_secret_123",
+		},
+		confirm: {
+			"Enable email notifications?": false,
+			"Enable GitHub and Linear Codex plugins?": true,
+		},
+		select: {
+			"Codex sandbox": "workspace-write",
+			"Planning reasoning effort": "low",
+			"Implementation reasoning effort": "low",
+			"Review/testing reasoning effort": "medium",
+		},
+	});
 }
 
 function promptAdapter(values: {

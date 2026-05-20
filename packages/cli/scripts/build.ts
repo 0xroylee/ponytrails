@@ -9,7 +9,7 @@ interface BuildCliPackageOptions {
 }
 
 const packageRoot = path.resolve(import.meta.dir, "..");
-const serverDatabaseExport = "devos-server/db";
+const databaseExport = "devos-db";
 
 export async function buildCliPackage(
 	options: BuildCliPackageOptions = {},
@@ -50,8 +50,8 @@ export async function resolvePglitePackageEntry(
 		parent,
 	) => Bun.resolve(specifier, parent),
 ): Promise<string> {
-	const serverDbEntry = await resolveModule(serverDatabaseExport, packageRoot);
-	return resolveModule("@electric-sql/pglite", serverDbEntry);
+	const dbEntry = await resolveModule(databaseExport, packageRoot);
+	return resolveModule("@electric-sql/pglite", dbEntry);
 }
 
 function formatBuildErrors(logs: Array<{ message: string }>): string {

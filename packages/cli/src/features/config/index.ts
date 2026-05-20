@@ -63,4 +63,6 @@ function resolvePolling(
 }
 
 export { loadSqliteEnv, saveSqliteEnv, sqliteEnvDbPath };
+export { loadResolvedEnv };
 export type { LoadedConfig } from "./config.types";
+export type { ResolvedEnv } from "./env";
