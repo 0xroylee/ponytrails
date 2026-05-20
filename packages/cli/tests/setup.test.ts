@@ -14,6 +14,7 @@ import {
 	mergeEnvFile,
 	normalizeProjectId,
 	renderEnvFile,
+	renderInstanceConfig,
 	renderLocalConfig,
 	renderSetupGitHubInstallPrompt,
 	renderSetupRtkInstallPrompt,
@@ -91,6 +92,70 @@ describe("setup helpers", () => {
 		expect(DEFAULT_REASONING_EFFORTS.implement).toBe("low");
 	});
 
+	it("renders onboarding instance config from the local workspace", () => {
+		const config = JSON.parse(
+			renderInstanceConfig("/tmp/demo", "2026-05-12T16:13:11.419Z"),
+		);
+
+		expect(config).toEqual({
+			$meta: {
+				version: 1,
+				updatedAt: "2026-05-12T16:13:11.419Z",
+				source: "onboard",
+			},
+			database: {
+				mode: "embedded-postgres",
+				embeddedPostgresDataDir: "/tmp/demo/.devos/instances/default/db",
+				embeddedPostgresPort: 54329,
+				backup: {
+					enabled: true,
+					intervalMinutes: 60,
+					retentionDays: 30,
+					dir: "/tmp/demo/.devos/instances/default/data/backups",
+				},
+			},
+			logging: {
+				mode: "file",
+				logDir: "/tmp/demo/.devos/instances/default/logs",
+			},
+			server: {
+				deploymentMode: "local_trusted",
+				exposure: "private",
+				bind: "loopback",
+				host: "127.0.0.1",
+				port: 3100,
+				allowedHostnames: [],
+				serveUi: true,
+			},
+			auth: {
+				baseUrlMode: "auto",
+				disableSignUp: false,
+			},
+			telemetry: {
+				enabled: true,
+			},
+			storage: {
+				provider: "local_disk",
+				localDisk: {
+					baseDir: "/tmp/demo/.devos/instances/default/data/storage",
+				},
+				s3: {
+					bucket: "devos",
+					region: "us-east-1",
+					prefix: "",
+					forcePathStyle: false,
+				},
+			},
+			secrets: {
+				provider: "local_encrypted",
+				strictMode: false,
+				localEncrypted: {
+					keyFilePath: "/tmp/demo/.devos/instances/default/secrets/master.key",
+				},
+			},
+		});
+	});
+
 	it("uses low as default planning reasoning effort", () => {
 		expect(DEFAULT_REASONING_EFFORTS.plan).toBe("low");
 	});
@@ -125,6 +190,20 @@ describe("setup helpers", () => {
 			expect(envContent).toContain("RESEND_FROM=devos@example.com");
 			expect(envContent).toContain(
 				'RESEND_TO="alerts@example.com,ops@example.com"',
+			);
+
+			const instanceConfigPath = path.join(
+				tempDir,
+				".devos/config/instance.config.json",
+			);
+			const instanceConfig = JSON.parse(
+				await readFile(instanceConfigPath, "utf8"),
+			);
+			expect(instanceConfig.$meta.source).toBe("onboard");
+			expect(instanceConfig.database.mode).toBe("embedded-postgres");
+			expect(instanceConfig.server.port).toBe(3100);
+			expect(instanceConfig.storage.localDisk.baseDir).toBe(
+				path.join(tempDir, ".devos", "instances", "default", "data", "storage"),
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });

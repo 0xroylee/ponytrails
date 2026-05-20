@@ -1,8 +1,5 @@
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import readline from "node:readline/promises";
 import { runCommand } from "../../utils/shell";
-import { saveSqliteEnv } from "../config";
 import {
 	renderSetupGitHubInstallPrompt,
 	renderSetupRtkInstallPrompt,
@@ -15,12 +12,12 @@ import {
 	DEFAULT_REASONING_EFFORTS,
 	DEFAULT_STATUS_MAP,
 	ENV_FILE,
+	INSTANCE_CONFIG_FILE,
 	LINEAR_API_KEY_SETTINGS_URL,
 	LOCAL_CONFIG_FILE,
 } from "./constants";
-import { buildEnvUpdates, mergeEnvFile } from "./env-file";
-import { renderLocalConfig } from "./local-config";
 import { normalizeProjectId } from "./normalize";
+import { writeSetupFiles } from "./setup-files";
 import type { SetupDraft } from "./setup.types";
 import {
 	ask,
@@ -30,7 +27,6 @@ import {
 	normalizeSandbox,
 	parseRecipients,
 	parseYesNo,
-	readExistingFile,
 	resolveUserPath,
 } from "./wizard-helpers";
 
@@ -214,24 +210,9 @@ export async function runSetupWizard(cwd: string): Promise<void> {
 
 		await writeSetupFiles(cwd, draft);
 		process.stdout.write(
-			`Onboarding files written: ${ENV_FILE}, ${LOCAL_CONFIG_FILE}; secrets saved to .devos/config/env.sqlite\nRun 'devos onboard --check' to validate this machine.\n`,
+			`Onboarding files written: ${ENV_FILE}, ${LOCAL_CONFIG_FILE}, ${INSTANCE_CONFIG_FILE}; secrets saved to .devos/config/env.sqlite\nRun 'devos onboard --check' to validate this machine.\n`,
 		);
 	} finally {
 		io.close();
 	}
-}
-
-export async function writeSetupFiles(
-	cwd: string,
-	draft: SetupDraft,
-): Promise<void> {
-	const envPath = path.join(cwd, ENV_FILE);
-	const configPath = path.join(cwd, LOCAL_CONFIG_FILE);
-	const existingEnv = await readExistingFile(envPath);
-	await writeFile(envPath, mergeEnvFile(existingEnv, buildEnvUpdates(draft)));
-	await saveSqliteEnv(cwd, {
-		LINEAR_API_KEY: draft.linearApiKey,
-		RESEND_API_KEY: draft.notifications.email.resendApiKey,
-	});
-	await writeFile(configPath, renderLocalConfig(draft));
 }

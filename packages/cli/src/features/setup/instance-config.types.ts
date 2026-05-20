@@ -1,0 +1,57 @@
+export interface OnboardInstanceConfig {
+	$meta: {
+		version: 1;
+		updatedAt: string;
+		source: "onboard";
+	};
+	database: {
+		mode: "embedded-postgres";
+		embeddedPostgresDataDir: string;
+		embeddedPostgresPort: number;
+		backup: {
+			enabled: boolean;
+			intervalMinutes: number;
+			retentionDays: number;
+			dir: string;
+		};
+	};
+	logging: {
+		mode: "file";
+		logDir: string;
+	};
+	server: {
+		deploymentMode: "local_trusted";
+		exposure: "private";
+		bind: "loopback";
+		host: "127.0.0.1";
+		port: number;
+		allowedHostnames: string[];
+		serveUi: boolean;
+	};
+	auth: {
+		baseUrlMode: "auto";
+		disableSignUp: boolean;
+	};
+	telemetry: {
+		enabled: boolean;
+	};
+	storage: {
+		provider: "local_disk";
+		localDisk: {
+			baseDir: string;
+		};
+		s3: {
+			bucket: string;
+			region: string;
+			prefix: string;
+			forcePathStyle: boolean;
+		};
+	};
+	secrets: {
+		provider: "local_encrypted";
+		strictMode: boolean;
+		localEncrypted: {
+			keyFilePath: string;
+		};
+	};
+}

@@ -278,7 +278,7 @@ After linking/installing the package bin, you can also use `devos ...` directly.
 
 - Primary config: `devos.config.ts`.
 - Local overrides (gitignored): `devos.local.config.ts`.
-- Guided onboarding stores local secrets in `.devos/config/env.sqlite` (and writes `.env` for compatibility).
+- Guided onboarding stores local secrets in `.devos/config/env.sqlite` (and writes `.env` for compatibility) and writes `.devos/config/instance.config.json` for the local trusted instance.
 - Docker-isolated Codex execution status and caveats (ROY-95): [docs/RELIABILITY.md#docker-isolated-codex-execution](docs/RELIABILITY.md#docker-isolated-codex-execution)
 
 For full config shape, polling, env vars, and routing behavior, use:
