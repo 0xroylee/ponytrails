@@ -24,6 +24,7 @@ describe("handleStatusCommand status output", () => {
 		const project = createProject("default", workspaceRoot);
 		const config: LoadedConfig = {
 			projects: [project],
+			server: project.server,
 			polling: {
 				intervalMs: 30000,
 				maxCycles: 1,

@@ -39,6 +39,11 @@ export async function createSmokeHarness(): Promise<SmokeHarness> {
 	);
 	const config: LoadedConfig = {
 		projects,
+		server: {
+			database: {
+				databasePath: path.join(workspacePath, ".devos", "config", "server-db"),
+			},
+		},
 		polling: {
 			intervalMs: 1,
 			exitWhenIdle: true,

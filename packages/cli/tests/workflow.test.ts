@@ -876,6 +876,7 @@ describe("runWorkflow parallel issue regression", () => {
 
 		const loadedConfig: LoadedConfig = {
 			projects: [config],
+			server: config.server,
 			polling: {
 				intervalMs: 1,
 				maxCycles: 1,
@@ -940,6 +941,7 @@ describe("runWorkflow parallel issue regression", () => {
 
 		const loadedConfig: LoadedConfig = {
 			projects: [config],
+			server: config.server,
 			polling: {
 				intervalMs: 1,
 				maxCycles: 1,
@@ -2717,6 +2719,7 @@ describe("prepareImplementationBranchForStage", () => {
 function createLoadedConfig(config: ResolvedProjectConfig): LoadedConfig {
 	return {
 		projects: [config],
+		server: config.server,
 		polling: {
 			intervalMs: 1,
 			maxCycles: 1,

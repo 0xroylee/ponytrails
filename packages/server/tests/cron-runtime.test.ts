@@ -189,6 +189,7 @@ function createLoadedConfig(): LoadedConfig {
 				dryRun: false,
 			},
 		],
+		server: { database: { databasePath: "/tmp/devos.sqlite" } },
 		polling: {
 			intervalMs: 30000,
 			maxCycles: undefined,

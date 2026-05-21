@@ -869,6 +869,11 @@ function loadedConfig({
 				},
 			},
 		],
+		server: {
+			database: {
+				databasePath: "/tmp/demo/.devos/config/server-db",
+			},
+		},
 		polling: {
 			intervalMs: 30000,
 			exitWhenIdle: true,

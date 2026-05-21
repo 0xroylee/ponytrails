@@ -1,5 +1,4 @@
 import { stat } from "node:fs/promises";
-import path from "node:path";
 import {
 	boardProjectsTable,
 	inArray,
@@ -12,6 +11,7 @@ import type {
 	ResolvedProjectConfig,
 } from "../../features/types";
 import { resolveProjects } from "./project-resolution";
+import { resolveServerDatabasePathForRoot } from "./server-resolution";
 
 export async function applyDatabaseProjectMetadata(
 	projects: ResolvedProjectConfig[],
@@ -61,7 +61,11 @@ async function loadDatabaseProjects(options: {
 	base: ProjectRuntimeConfig;
 	root: DevosRootConfig;
 }): Promise<ResolvedProjectConfig[]> {
-	const databasePath = resolveDatabasePathForRoot(options);
+	const databasePath = resolveServerDatabasePathForRoot(
+		options.configCwd,
+		options.base,
+		options.root,
+	);
 	if (!(await pathExists(databasePath))) {
 		return [];
 	}
@@ -97,17 +101,6 @@ function applyProjectRows(
 		const metadata = rowsByProjectId.get(project.id);
 		return metadata ? applyProjectRow(project, metadata) : project;
 	});
-}
-
-function resolveDatabasePathForRoot(options: {
-	configCwd: string;
-	base: ProjectRuntimeConfig;
-	root: DevosRootConfig;
-}): string {
-	const override = options.root.server?.database?.databasePath?.trim();
-	return override
-		? path.resolve(options.configCwd, override)
-		: options.base.server.database.databasePath;
 }
 
 function groupProjectsByDatabasePath(projects: ResolvedProjectConfig[]) {

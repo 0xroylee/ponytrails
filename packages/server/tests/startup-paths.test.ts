@@ -37,6 +37,18 @@ describe("server startup paths", () => {
 		).toBe(databasePath);
 	});
 
+	it("uses the root server database path when projects are empty", () => {
+		const databasePath = path.join("/tmp", "workspace", ".devos", "server-db");
+
+		expect(
+			resolveServerDatabasePath(
+				{},
+				"/tmp/workspace",
+				createConfig(databasePath, []),
+			),
+		).toBe(databasePath);
+	});
+
 	it("resolves PIV_SERVER_DATABASE_PATH relative to the workspace path", () => {
 		const workspacePath = path.join("/tmp", "workspace");
 
@@ -50,12 +62,12 @@ describe("server startup paths", () => {
 	});
 });
 
-function createConfig(databasePath: string): ServerStartupConfig {
+function createConfig(
+	databasePath: string,
+	projects: unknown[] = [{ server: { database: { databasePath } } }],
+): ServerStartupConfig {
 	return {
-		projects: [
-			{
-				server: { database: { databasePath } },
-			},
-		],
+		projects,
+		server: { database: { databasePath } },
 	} as ServerStartupConfig;
 }

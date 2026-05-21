@@ -26,8 +26,13 @@ export function resolveServerDatabasePath(
 
 	const defaultProjectDatabasePath =
 		config.projects[0]?.server.database.databasePath;
-	if (!defaultProjectDatabasePath) {
+	if (defaultProjectDatabasePath) {
+		return defaultProjectDatabasePath;
+	}
+
+	const rootDatabasePath = config.server.database.databasePath;
+	if (!rootDatabasePath) {
 		throw new Error("Server database path could not be resolved from config");
 	}
-	return defaultProjectDatabasePath;
+	return rootDatabasePath;
 }

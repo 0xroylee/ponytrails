@@ -186,6 +186,9 @@ describe("loadConfig", () => {
 			expect(config.projects[0]?.server.database.databasePath).toBe(
 				path.join(tempDir, ".devos", "config", "server-db"),
 			);
+			expect(config.server.database.databasePath).toBe(
+				path.join(tempDir, ".devos", "config", "server-db"),
+			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
@@ -225,6 +228,9 @@ describe("loadConfig", () => {
 			expect(config.projects[0]?.server.database.databasePath).toBe(
 				path.resolve(tempDir, "./project/server-db"),
 			);
+			expect(config.server.database.databasePath).toBe(
+				path.resolve(tempDir, "./root/server-db"),
+			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
@@ -242,6 +248,9 @@ describe("loadConfig", () => {
 		try {
 			const config = await loadConfig(tempDir);
 			expect(config.projects).toEqual([]);
+			expect(config.server.database.databasePath).toBe(
+				path.join(tempDir, ".devos", "config", "server-db"),
+			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}

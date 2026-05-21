@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { withRequestLogging } from "../src/http/request-logger";
-import type { ServerLogContext, ServerLogger } from "../src/logger.types";
+import type { ServerLogMethod, ServerLogger } from "../src/logger.types";
 
 interface LogEntry {
-	level: "info" | "error" | "fatal";
-	context: ServerLogContext;
+	level: "info" | "warn" | "error" | "fatal";
+	context: Record<string, unknown>;
 	message: string;
 }
 
@@ -93,16 +93,25 @@ describe("request logger", () => {
 });
 
 function createLogger(entries: LogEntry[]): ServerLogger {
+	const record =
+		(level: LogEntry["level"]): ServerLogMethod =>
+		(...args) => {
+			const [contextOrMessage, maybeMessage] = args;
+			const context =
+				typeof contextOrMessage === "string" ? {} : contextOrMessage;
+			const message =
+				typeof contextOrMessage === "string" ? contextOrMessage : maybeMessage;
+			entries.push({
+				level,
+				context: context as Record<string, unknown>,
+				message: message ?? "",
+			});
+		};
 	return {
-		info: (context, message) => {
-			entries.push({ level: "info", context, message });
-		},
-		error: (context, message) => {
-			entries.push({ level: "error", context, message });
-		},
-		fatal: (context, message) => {
-			entries.push({ level: "fatal", context, message });
-		},
+		info: record("info"),
+		warn: record("warn"),
+		error: record("error"),
+		fatal: record("fatal"),
 	};
 }
 
