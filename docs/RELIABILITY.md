@@ -57,6 +57,16 @@ devos.ing combines queue behavior, per-issue leases, and execution-path locking 
 3. Stale in-progress runs are eligible for requeue only after lease expiry and timeout.
 4. `--all-projects --issue` must resolve to one unique project mapping.
 
+## Server DB Readiness Recovery
+
+PGlite startup failures during `wait_ready` usually mean the server DB is already owned by a live process or the previous process left stale runtime files. Preserve the database first:
+
+1. Stop all `devos daemon`, `devos-server`, and related Bun processes that may own the server DB.
+2. Back up the affected DB directory before changing it. For the old package-local path, use `cp -R packages/server/.devos/config/server-db packages/server/.devos/config/server-db.backup-$(date +%Y%m%d%H%M%S)`.
+3. Prefer validating a copied database with `bun run db:recover -- --db packages/server/.devos/config/server-db` before applying recovery.
+4. Remove `postmaster.pid` only after confirming no live process owns the DB, or only from a copied database that you will validate before restoring.
+5. If validation fails, keep the backup and do not replace the original DB.
+
 ## Daemon-Owned Workflow Polling
 
 The previous server-owned poller design is superseded. Continuous workflow polling belongs to the CLI daemon process, while the API server stays focused on HTTP, realtime proxying, database reads/writes, and command-stream forwarding.

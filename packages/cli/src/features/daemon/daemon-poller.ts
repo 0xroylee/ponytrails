@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import type { Readable } from "node:stream";
 import { createDaemonProgressPrinter } from "./daemon-progress-printer";
+import { resolveDaemonWorkspaceEnv } from "./daemon-workspace-env";
 import type { DaemonReadinessHandle } from "./daemon.types";
 
 interface SignalTarget {
@@ -59,7 +60,7 @@ export function buildWorkflowPollerInvocation() {
 export function startAttachedWorkflowPoller(
 	options: AttachedPollerOptions,
 ): AttachedPoller {
-	const env = buildAttachedPollerEnv(options.env ?? process.env);
+	const env = buildAttachedPollerEnv(options.env ?? process.env, options.cwd);
 	const spawnPoller = options.spawnPoller ?? spawnAttachedPoller;
 	const invocation = buildWorkflowPollerInvocation();
 	const child = spawnPoller(invocation.command, invocation.args, {
@@ -117,10 +118,12 @@ export function superviseCliCommandDaemonWithPoller(
 
 export function buildAttachedPollerEnv(
 	env: NodeJS.ProcessEnv,
+	cwd?: string,
 ): NodeJS.ProcessEnv {
+	const workspaceEnv = resolveDaemonWorkspaceEnv(env, cwd);
 	const serverBaseUrl = env.DEVOS_SERVER_BASE_URL ?? "http://127.0.0.1:3001";
 	return {
-		...env,
+		...workspaceEnv,
 		DEVOS_SERVER_BASE_URL: serverBaseUrl,
 		DEVOS_SERVER_EVENTS_WS_URL:
 			env.DEVOS_SERVER_EVENTS_WS_URL ?? resolveServerEventsWsUrl(serverBaseUrl),

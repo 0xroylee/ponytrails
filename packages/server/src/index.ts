@@ -1,5 +1,5 @@
 import { initializeServerDatabase } from "devos-db";
-import { loadConfig } from "devos/features/config";
+import { loadServerStartupConfig } from "devos/features/config";
 import { createHandleRequest } from "./app";
 import { createBoardRepository } from "./board";
 import { createCliDaemonClient } from "./daemon/daemon-client";
@@ -39,7 +39,7 @@ export async function startServer(
 ): Promise<ServerInstance> {
 	const cwd = process.cwd();
 	const workspacePath = resolveServerWorkspacePath(process.env);
-	const config = await loadConfig(workspacePath);
+	const config = await loadServerStartupConfig(workspacePath);
 	const databasePath = resolveServerDatabasePath(
 		process.env,
 		workspacePath,

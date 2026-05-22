@@ -513,8 +513,10 @@ describe("loadConfig", () => {
 
 	it("loads Cursor Agent backend from AGENT_BACKEND env", async () => {
 		process.env.AGENT_BACKEND = "cursor-agent";
-		const config = await loadConfig(process.cwd());
-		expect(config.projects[0]?.agent?.backend).toBe("cursor-agent");
+		await withTempConfig(async (tempDir) => {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.agent?.backend).toBe("cursor-agent");
+		});
 	});
 
 	it("defaults agent backend to undefined when not set", async () => {
@@ -540,14 +542,15 @@ describe("loadConfig", () => {
 		process.env.CURSOR_AGENT_FORCE = "true";
 		process.env.CURSOR_API_KEY = "cursor_secret";
 
-		const config = await loadConfig(process.cwd());
-
-		expect(config.projects[0]?.cursor).toEqual({
-			binary: "custom-cursor-agent",
-			streamLogs: false,
-			model: "gpt-5",
-			force: true,
-			apiKey: "cursor_secret",
+		await withTempConfig(async (tempDir) => {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.cursor).toEqual({
+				binary: "custom-cursor-agent",
+				streamLogs: false,
+				model: "gpt-5",
+				force: true,
+				apiKey: "cursor_secret",
+			});
 		});
 	});
 

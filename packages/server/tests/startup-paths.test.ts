@@ -25,6 +25,30 @@ describe("server startup paths", () => {
 		).toBe(workspacePath);
 	});
 
+	it("keeps repo-root database resolution when launched from a package cwd", () => {
+		const workspacePath = path.join("/tmp", "repo");
+		const packageCwd = path.join(workspacePath, "packages", "server");
+		const databasePath = path.join(
+			workspacePath,
+			".devos",
+			"config",
+			"server-db",
+		);
+		const resolvedWorkspacePath = resolveServerWorkspacePath(
+			{ PIV_WORKSPACE_PATH: workspacePath },
+			packageCwd,
+		);
+
+		expect(resolvedWorkspacePath).toBe(workspacePath);
+		expect(
+			resolveServerDatabasePath(
+				{},
+				resolvedWorkspacePath,
+				createConfig(databasePath, []),
+			),
+		).toBe(databasePath);
+	});
+
 	it("uses the resolved default project database path without env override", () => {
 		const databasePath = path.join("/tmp", "workspace", ".devos", "server-db");
 

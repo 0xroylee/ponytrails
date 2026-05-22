@@ -17,6 +17,7 @@ import {
 	resolveWebUrl,
 	resolveWorkflowWsUrl,
 } from "./daemon-urls";
+import { resolveDaemonWorkspaceEnv } from "./daemon-workspace-env";
 import type {
 	DaemonChild,
 	DaemonReadinessHandle,
@@ -31,6 +32,7 @@ const SIGNALS = ["SIGINT", "SIGTERM"] as const;
 
 export function buildDaemonCommands(
 	env: NodeJS.ProcessEnv = process.env,
+	cwd?: string,
 ): DaemonServiceCommand[] {
 	const { serverPort, webPort, cliDaemonPort } = resolveDaemonPorts(env);
 	const cliDaemonWsUrl =
@@ -43,7 +45,8 @@ export function buildDaemonCommands(
 	const serverWsUrl =
 		env.NEXT_PUBLIC_DEVOS_SERVER_WS_URL ??
 		`ws://127.0.0.1:${serverPort}/api/cli/stream`;
-	const baseEnv = { ...env, NODE_ENV: "production" };
+	const workspaceEnv = resolveDaemonWorkspaceEnv(env, cwd);
+	const baseEnv = { ...workspaceEnv, NODE_ENV: "production" };
 	const pollerInvocation = buildWorkflowPollerInvocation();
 
 	return [
@@ -91,11 +94,12 @@ export async function runProductionDaemon(
 	const env = options.env ?? process.env;
 	const serverBaseUrl = resolveServerBaseUrl(env);
 	const write = options.write ?? process.stdout.write.bind(process.stdout);
-	const services = buildDaemonCommands(env);
+	const workspaceEnv = resolveDaemonWorkspaceEnv(env, cwd);
+	const services = buildDaemonCommands(env, cwd);
 	const commandDaemon = (options.startCommandDaemon ?? startCliCommandDaemon)({
 		cwd,
 		env: {
-			...env,
+			...workspaceEnv,
 			DEVOS_SERVER_BASE_URL: serverBaseUrl,
 			DEVOS_SERVER_EVENTS_WS_URL:
 				env.DEVOS_SERVER_EVENTS_WS_URL ??
