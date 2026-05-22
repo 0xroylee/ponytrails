@@ -41,6 +41,10 @@ export function formatMissingDockerMessage(
 	return `${dockerBinary} unavailable for codex.docker.enabled projects: ${output}`;
 }
 
+export function formatMissingCursorAgentMessage(cursorBinary: string): string {
+	return `${cursorBinary} binary not found. Install Cursor Agent CLI and run: cursor-agent login`;
+}
+
 export async function checkTrackedConfigSecrets(
 	cwd: string,
 	config: LoadedConfig,
@@ -50,6 +54,9 @@ export async function checkTrackedConfigSecrets(
 	for (const project of config.projects) {
 		if (project.linear.apiKey) {
 			secretValues.add(project.linear.apiKey);
+		}
+		if (project.cursor?.apiKey) {
+			secretValues.add(project.cursor.apiKey);
 		}
 	}
 	if (config.notifications.email.resendApiKey) {

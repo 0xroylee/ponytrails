@@ -590,6 +590,72 @@ describe("setup helpers", () => {
 		});
 	});
 
+	it("reports cursor agent provider and binary failures", async () => {
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({
+						linearApiKey: "lin_secret_123",
+						agentBackend: "cursor-agent",
+					}),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async (command) =>
+					command === "cursor-agent"
+						? {
+								code: 1,
+								stdout: "",
+								stderr: "command not found: cursor-agent",
+							}
+						: okCommand(),
+			}),
+		);
+
+		expect(checks).toContainEqual({
+			name: "LLM provider",
+			status: "pass",
+			message: "configured: cursor-agent",
+		});
+		expect(checks).toContainEqual({
+			name: "Cursor Agent binary",
+			status: "fail",
+			message:
+				"cursor-agent binary not found. Install Cursor Agent CLI and run: cursor-agent login",
+		});
+	});
+
+	it("reports custom cursor agent binary failures with the configured binary", async () => {
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({
+						linearApiKey: "lin_secret_123",
+						agentBackend: "cursor-agent",
+						cursorBinary: "custom-cursor-agent",
+					}),
+				access: async () => {},
+				readFile: async () => "",
+				runCommand: async (command) =>
+					command === "custom-cursor-agent"
+						? {
+								code: 1,
+								stdout: "",
+								stderr: "command not found: custom-cursor-agent",
+							}
+						: okCommand(),
+			}),
+		);
+
+		expect(checks).toContainEqual({
+			name: "Cursor Agent binary",
+			status: "fail",
+			message:
+				"custom-cursor-agent binary not found. Install Cursor Agent CLI and run: cursor-agent login",
+		});
+	});
+
 	it("reports missing Linear API key", async () => {
 		const checks = await collectSetupChecks(
 			"/tmp/demo",
@@ -710,6 +776,29 @@ describe("setup helpers", () => {
 		});
 	});
 
+	it("reports cursor api keys in tracked config", async () => {
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () =>
+					loadedConfig({
+						linearApiKey: "lin_secret_123",
+						cursorApiKey: "cursor_secret_123",
+					}),
+				access: async () => {},
+				readFile: async (filePath) =>
+					filePath.endsWith("devos.config.ts") ? "cursor_secret_123" : "",
+				runCommand: async () => okCommand(),
+			}),
+		);
+
+		expect(checks).toContainEqual({
+			name: "Tracked config secrets",
+			status: "fail",
+			message: "devos.config.ts contains a configured secret",
+		});
+	});
+
 	it("reports missing rtk binary", async () => {
 		const checks = await collectSetupChecks(
 			"/tmp/demo",
@@ -810,10 +899,14 @@ function loadedConfig({
 	linearApiKey,
 	dockerEnabled = false,
 	agentBackend,
+	cursorApiKey,
+	cursorBinary = "cursor-agent",
 }: {
 	linearApiKey: string;
 	dockerEnabled?: boolean;
-	agentBackend?: "codex" | "claude-code";
+	agentBackend?: "codex" | "claude-code" | "cursor-agent";
+	cursorApiKey?: string;
+	cursorBinary?: string;
 }): LoadedConfig {
 	return {
 		projects: [
@@ -845,6 +938,11 @@ function loadedConfig({
 								image: "codex:latest",
 							}
 						: undefined,
+				},
+				cursor: {
+					binary: cursorBinary,
+					apiKey: cursorApiKey,
+					streamLogs: false,
 				},
 				github: {
 					useGhCli: true,
