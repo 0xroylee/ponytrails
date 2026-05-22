@@ -1,19 +1,21 @@
 # devos.ing Web Agent Instructions
 
-The web package owns the Next.js operator UI. Build useful monitoring and
-control surfaces directly, and keep UI behavior aligned with the repository's
-server/API contracts.
+The web package owns the Next.js operator UI. Build useful monitoring,
+configuration, and control surfaces directly, and keep UI behavior aligned with
+the repository's server/API and realtime contracts.
 
 ## Ownership Rules
 
 1. Keep web UI code under `packages/web/src/`.
 2. Use the existing React Query and provider plumbing for client-side data
    fetching and app-level state.
-3. Keep API access isolated in web library/client modules instead of scattering
-   fetch logic through components.
-4. Keep reusable UI behavior in components and helpers that match the existing
+3. Keep API access isolated in `src/lib/api/` client/query/mutation modules
+   instead of scattering fetch logic through components.
+4. Keep realtime behavior isolated in `src/lib/realtime/` and shared UI state
+   in `src/lib/ui-store/`.
+5. Keep reusable UI behavior in components and helpers that match the existing
    Next.js, TypeScript, and Tailwind setup.
-5. Do not move workflow orchestration, CLI execution, or integration logic into
+6. Do not move workflow orchestration, CLI execution, or integration logic into
    the web package.
 
 ## Frontend Quality
@@ -33,8 +35,8 @@ server/API contracts.
 
 1. Use Zustand for complex client-side stores.
 2. Do not put setters into `useEffect`.
-3. Use `useMemo` to optimize performance when derived values are expensive,
-   passed to memoized children, or likely to be shared with React Native code.
+3. Use `useMemo` only when derived values are expensive, passed to memoized
+   children, or reused across renders in a way that benefits from memoization.
 4. Do not create custom hooks for simple data fetching. Use `useQuery` and
    `useMutation` directly.
 
@@ -62,7 +64,9 @@ server/API contracts.
 2. Otherwise, run the relevant package checks for visible or data-flow changes:
    - `bun run --filter web typecheck`
    - `bun run --filter web build`
-3. For repo-wide changes, still run the root quality gates from the root
+3. After meaningful visible UI changes, run the local web app and verify the
+   affected viewport in a browser.
+4. For repo-wide changes, still run the root quality gates from the root
    `AGENTS.md`.
 
 ## Workflow Checkpoints

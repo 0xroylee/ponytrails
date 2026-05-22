@@ -1,41 +1,46 @@
 # devos.ing CLI Agent Instructions
 
 The CLI package owns command parsing, runtime configuration, workflow
-orchestration, agent integrations, and local run state. Keep CLI behavior
-project-agnostic across all configured workspaces.
+orchestration, local run state, task intake, skills management, and integration
+boundaries. Keep CLI behavior project-agnostic across configured workspaces.
 
 ## Ownership Rules
 
 1. Keep CLI parsing and dispatch in `packages/cli/src/args.ts`,
-   `packages/cli/src/index.ts`, and command handlers.
-2. Resolve env vars and config only through CLI config modules. Preserve
-   `packages/cli/src/features/config/index.ts` as the canonical runtime config entry.
-3. Keep stage transitions, sequencing, retries, and orchestration in
+   `packages/cli/src/index.ts`, and feature command handlers.
+2. Put new CLI behavior under `packages/cli/src/features/*`; keep older
+   compatibility modules narrow when they exist.
+3. Resolve env vars and runtime config through `packages/cli/src/features/config/`;
+   keep `index.ts` as the config entrypoint.
+4. Keep stage transitions, sequencing, retries, planning, implementation,
+   review, polling, queues, worktrees, and run state in
    `packages/cli/src/features/workflow/`.
-4. Keep run-state path logic in `packages/cli/src/features/workflow/state.ts`
-   and related workflow state helpers.
-5. Keep integrations isolated in:
-   - `packages/cli/src/integrations/linear/`
-   - `packages/cli/src/integrations/github/`
-   - `packages/agent-adapters/` for runtime agent adapters, with
-     compatibility re-exports under `packages/cli/src/integrations/agent-adapters/`
-   - `packages/cli/src/integrations/notifications/`
-6. Keep CLI-facing server helpers in `packages/cli/src/features/server/` until
-   they are intentionally moved behind an explicit shared/server boundary.
-7. Do not construct raw shell command strings in workflow logic; use helper
+5. Keep daemon and command-stream behavior in `packages/cli/src/features/daemon/`
+   and CLI-facing server helpers in `packages/cli/src/features/server/`.
+6. Keep task intake in `packages/cli/src/features/task-intake/` and skills
+   catalog/management/prompt behavior in `packages/cli/src/features/skills/`.
+7. Keep Linear, GitHub, notifications, and runtime agent adapter integration
+   boundaries isolated. Provider execution belongs in `packages/agent-adapters/`;
+   CLI adapter modules should remain compatibility or wiring code.
+8. Do not construct raw shell command strings in workflow logic; use helper
    modules that pass command arguments as structured arrays.
 
 ## Contracts And Tests
 
 1. Keep TypeScript interfaces/type aliases in dedicated `*.types.ts` modules
    when adding or changing contracts.
-2. Keep review parsing contract stable:
+2. Preserve stable planner and review contracts:
+   - `PLANNING_RESULT`, `SUCCESS_GOAL`, and `COMPLEXITY_SCORE`
    - `RESULT: PASS|FAIL`
    - `SUMMARY: ...`
    - `BUGS_JSON: [...]`
-3. Add tests for any new CLI flag, config shape, state path, integration
-   behavior, or workflow stage transition.
-4. Prefer focused CLI tests under `packages/cli/tests/` for CLI package changes.
+3. Add focused tests under `packages/cli/tests/` for new flags, config shapes,
+   task intake, skills behavior, state paths, integration wiring, or workflow
+   stage transitions.
+4. Use Bun for package-level validation:
+   - `bun run --filter devos check`
+   - `bun run --filter devos typecheck`
+   - `bun run --filter devos test`
 
 ## Workflow Checkpoints
 

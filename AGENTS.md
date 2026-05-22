@@ -1,8 +1,8 @@
 # devos.ing Agent Entry
 
 This repository orchestrates multi-project agent workflows across CLI, server,
-and web UI packages. Keep behavior project-agnostic and avoid coupling logic to a
-single workspace.
+database, adapter, landing, and web UI packages. Keep behavior project-agnostic
+and avoid coupling workflow logic to a single workspace.
 
 ## Shared Must-Follow Rules
 
@@ -21,6 +21,21 @@ single workspace.
    - `RESULT: PASS|FAIL`
    - `SUMMARY: ...`
    - `BUGS_JSON: [...]`
+7. Keep planner parsing markers stable:
+   - `PLANNING_RESULT: READY|NEEDS_INFO`
+   - `SUCCESS_GOAL: ...`
+   - `COMPLEXITY_SCORE: <0..10>`
+
+## Execution Discipline
+
+- State assumptions and tradeoffs before coding when requirements or existing
+  patterns are unclear.
+- Prefer the simplest change that satisfies the scoped goal; do not add
+  speculative configurability, abstractions, or adjacent cleanup.
+- Keep edits surgical. Every changed line should trace to the request, and any
+  unrelated dead code or risk should be mentioned instead of silently refactored.
+- Define success criteria and verification before or during implementation, then
+  loop until the relevant checks pass or a blocker is explicit.
 
 ## Workflow Checkpoints
 
@@ -34,13 +49,20 @@ single workspace.
 ## Package Ownership Map
 
 - `packages/cli/`: CLI parsing, config resolution, workflow orchestration,
-  run-state handling, integrations, agent adapters, and interactions with
-  Codex, Claude, Git, and CLI workflows.
-- `packages/server/`: Database, server runtime, and API responsibilities
-  including request handling, server contracts, health/readiness behavior, and
-  server-specific tests.
+  run-state handling, daemon/server helpers, task intake, skills management,
+  integrations, and interactions with Codex, Claude, Git, and workflow agents.
+- `packages/server/`: API process responsibilities including HTTP routes,
+  realtime/ws behavior, cron runtime, workflow-data boundaries, repositories,
+  daemon bridge, health/readiness behavior, and server-specific tests.
 - `packages/web/`: Next.js operator UI, client-side data access, providers,
-  components, styles, and frontend verification.
+  realtime state, components, styles, and frontend verification.
+- `packages/db/`: Shared database schema, migrations, database helpers, scripts,
+  and db package tests.
+- `packages/landing/`: Public landing site pages, marketing components, and
+  landing-specific styles.
+- `packages/agent-adapters/`: Runtime adapters for external coding agents,
+  provider registries, command argument construction, and normalized agent
+  output contracts.
 
 Package-local `AGENTS.md` files add instructions for each workspace. Follow the
 root rules everywhere, then follow the closest package-specific file for the

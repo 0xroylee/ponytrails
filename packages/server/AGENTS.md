@@ -1,41 +1,41 @@
 # devos.ing Server Agent Instructions
 
-The server package owns the HTTP/API runtime for operator-facing services. Keep
-server code focused on request handling, API process concerns, and explicit
-boundaries to CLI or shared behavior.
+The server package owns the HTTP/API process, realtime events, cron runtime,
+workflow-data boundary, repositories, and daemon bridge for operator-facing
+services. Keep server code focused on server process concerns and explicit
+boundaries to CLI, database, and shared adapter behavior.
 
 ## Ownership Rules
 
-1. Keep server runtime and HTTP/API process concerns under
-   `packages/server/src/`.
-2. Organize server behavior into feature-oriented modules for API/domain
-   behavior and keep cross-cutting concerns in centralized infrastructure
-   modules.
-3. Treat database access, shared config/env resolution, middleware, logging,
-   and health/readiness behavior as infrastructure concerns with explicit
-   boundaries.
-4. Keep request handlers small, route behavior explicit, and validate boundary
-   inputs (payloads, query params, path params, webhooks, and third-party data)
-   at the edge.
-5. Keep server contracts in dedicated `*.types.ts` modules separate from runtime
+1. Keep server runtime code under `packages/server/src/`.
+2. Keep HTTP request handling, validation, and response mapping in `src/http/`
+   or route-specific modules with small handlers.
+3. Keep realtime and websocket concerns in `src/realtime/` and `src/ws/`.
+4. Keep cron scheduling/runtime behavior in `src/features/cron/` and legacy
+   cron exports narrow.
+5. Keep workflow-data behavior in `src/workflow-data/` and repository/data
+   access boundaries explicit.
+6. Treat database initialization, middleware, logging, startup paths, and
+   health/readiness behavior as infrastructure concerns with deterministic tests.
+7. Keep server contracts in dedicated `*.types.ts` modules separate from runtime
    implementation.
-6. Use stable error categories and status mapping so route failures produce
+8. Use stable error categories and status mapping so route failures produce
    predictable response shapes for callers and tests.
-7. Do not duplicate CLI workflow, config, or integration business logic in the
+9. Do not duplicate CLI workflow, config, or integration business logic in the
    server package.
-8. Call CLI-facing or shared APIs only through explicit boundaries. If a new
+10. Call CLI-facing or shared APIs only through explicit boundaries. If a new
    boundary is needed, define the contract first, then keep the runtime adapter
    narrow.
-9. Keep middleware and logs security-minded: include request/failure context
+11. Keep middleware and logs security-minded: include request/failure context
    without exposing secrets, credentials, tokens, or private user content.
-10. Keep health and readiness behavior simple, deterministic, and covered by
+12. Keep health and readiness behavior simple, deterministic, and covered by
    tests.
 
 ## Tests
 
 1. Add or update tests under `packages/server/tests/` for new routes, response
-   shapes, boundary validation, health/readiness behavior, server config, and
-   error handling/status mapping.
+   shapes, boundary validation, realtime/ws behavior, cron behavior,
+   health/readiness behavior, server config, and error handling/status mapping.
 2. Run package-level checks when server behavior changes:
    - `bun run --filter devos-server check`
    - `bun run --filter devos-server typecheck`
