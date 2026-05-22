@@ -2,6 +2,7 @@ import { findClaudeBinary } from "../../utils/claude-path";
 import type { LoadedConfig } from "../config";
 import {
 	commandFailureMessage,
+	formatMissingCursorAgentMessage,
 	formatMissingDockerMessage,
 	formatMissingRtkMessage,
 	safeRun,
@@ -132,5 +133,31 @@ export async function addBinaryChecks(
 					"claude binary not found. Install with: npm install -g @anthropic-ai/claude-code",
 			});
 		}
+	}
+
+	const cursorBackends = config.projects.filter(
+		(project) => project.agent?.backend === "cursor-agent",
+	);
+	if (cursorBackends.length > 0) {
+		const cursorBinary = cursorBackends[0]?.cursor?.binary ?? "cursor-agent";
+		const cursor = await safeRun(
+			commandRunner,
+			cursorBinary,
+			["--version"],
+			commandCwd,
+		);
+		checks.push(
+			cursor.code === 0
+				? {
+						name: "Cursor Agent binary",
+						status: "pass",
+						message: `${cursorBinary} is available`,
+					}
+				: {
+						name: "Cursor Agent binary",
+						status: "fail",
+						message: formatMissingCursorAgentMessage(cursorBinary),
+					},
+		);
 	}
 }
