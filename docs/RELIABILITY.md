@@ -57,17 +57,17 @@ devos.ing combines queue behavior, per-issue leases, and execution-path locking 
 3. Stale in-progress runs are eligible for requeue only after lease expiry and timeout.
 4. `--all-projects --issue` must resolve to one unique project mapping.
 
-## Daemon-Owned Workflow Polling
+## Server-Owned Workflow Websocket
 
-The previous server-owned poller design is superseded. Continuous workflow polling belongs to the CLI daemon process, while the API server stays focused on HTTP, realtime proxying, database reads/writes, and command-stream forwarding.
+The API server owns the single workflow websocket at `/api/workflow`. Continuous workflow polling and command execution still run in CLI-owned processes, but those processes connect outbound to the server instead of exposing a local port.
 
-1. `devos daemon` starts a supervised `run --all-projects --poll-forever` child alongside the API server and web UI.
+1. `devos daemon` starts the API server, web UI, outbound CLI workflow worker, and a supervised `run --all-projects --poll-forever` child.
 2. `--poll-forever` implies polling, ignores configured max cycles, disables idle exit, and cannot be combined with `--max-poll-cycles`.
 3. Workflow duplicate prevention remains in the existing per-issue run lease and stale-run recovery model.
 4. CLI polling records status/events in the polling observability tables, which the server exposes through `/api/polling/status`.
-5. CLI daemon task mutations notify the server over `/daemon/events` with only a task ID; the server rereads the database and publishes trusted `/api/events` updates.
-6. `/api/cli/stream` remains request-scoped command streaming and is not used for background polling notifications.
-7. Server cron remains separate as `devos-server cron`; it is not started by the API server process.
+5. CLI workflow database reads and writes use typed `workflow.request` frames on `/api/workflow`.
+6. Browser command streams use `command` frames on `/api/workflow`; the server forwards them to the connected CLI worker with `cli.dispatch` frames and relays `start`, `stdout`, `stderr`, `progress`, `error`, and `complete` events back to the requester.
+7. Browser realtime updates still use `/api/events`, while server cron remains separate as `devos-server cron`.
 
 ## Verification Signal Contract
 
