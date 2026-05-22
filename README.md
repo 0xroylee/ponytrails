@@ -41,10 +41,10 @@ npx devos onboard --check
 
 # local workspace startup/build shortcuts
 bun run dev
+devos daemon
 bun run dev:server
 bun run dev:web
-bun run dev:daemon
-devos daemon
+bun run build:server
 bun run build:web
 bun run build
 
@@ -65,6 +65,12 @@ bun run --filter devos-server cron
 
 # run the first enabled automation job once now
 bun run cron:once
+
+# run the hourly PR review job
+bun run review:hourly
+
+# run the hourly PR review job once now
+bun run review:hourly:once
 
 # create a release changeset
 bun run changeset
@@ -89,13 +95,11 @@ After `bun install` and `bun run build`, use `npx devos ...` from the repo root 
 
 ## Local Server/Web Notes
 
-Use `bun run dev` from the repository root to start the local API server, web UI, and CLI daemon together. The combined entrypoint runs `dev:server` on port `3001`, `dev:web` with `PORT=3000`, and `dev:daemon` on `ws://127.0.0.1:3002`.
+Use `bun run dev` from the repository root to start the local API server and web UI together. The combined entrypoint runs `dev:server` with `PIV_SERVER_PORT=3001` and `dev:web` with `PORT=3002` so the two local servers do not contend for the same port.
 
 Use `bun run dev:server` or `bun run dev:web` when you only need one side of the local stack.
 
-Use `bun run dev:daemon` to start only the CLI daemon websocket on `ws://127.0.0.1:3002` for local command streaming. This is the companion process the API server connects to when browser command streams go through `/api/cli/stream`.
-
-Use `devos daemon` to run the production API server, web UI, CLI command daemon, and workflow poller together in the foreground after production artifacts already exist. The command starts the server on `PIV_SERVER_PORT=3001`, the web UI on `PORT=3000`, and a supervised `run --all-projects --poll-forever` worker by default, with the web UI proxying to `DEVOS_SERVER_BASE_URL=http://127.0.0.1:3001`. Override those environment variables before starting when needed.
+Use `devos daemon` to run the production API server, web UI, outbound CLI workflow worker, and workflow poller together in the foreground after production artifacts already exist. The command starts the server on `PIV_SERVER_PORT=3001`, the web UI on `PORT=3000`, and a supervised `run --all-projects --poll-forever` worker by default, with command and database websocket traffic sharing `DEVOS_WORKFLOW_WS_URL` at `/api/workflow`. Override those environment variables before starting when needed.
 
 Server cron remains a separate scheduled automation runner. Start it with `bun run --filter devos-server cron` when you want server-owned cron jobs, or use `bun run cron:once` to run the first enabled automation job once now.
 
