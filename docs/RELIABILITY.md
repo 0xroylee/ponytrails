@@ -67,6 +67,16 @@ PGlite startup failures during `wait_ready` usually mean the server DB is alread
 4. Remove `postmaster.pid` only after confirming no live process owns the DB, or only from a copied database that you will validate before restoring.
 5. If validation fails, keep the backup and do not replace the original DB.
 
+## Daemon-Owned Workflow Polling
+
+PGlite startup failures during `wait_ready` usually mean the server DB is already owned by a live process or the previous process left stale runtime files. Preserve the database first:
+
+1. Stop all `devos daemon`, `devos-server`, and related Bun processes that may own the server DB.
+2. Back up the affected DB directory before changing it. For the old package-local path, use `cp -R packages/server/.devos/config/server-db packages/server/.devos/config/server-db.backup-$(date +%Y%m%d%H%M%S)`.
+3. Prefer validating a copied database with `bun run db:recover -- --db packages/server/.devos/config/server-db` before applying recovery.
+4. Remove `postmaster.pid` only after confirming no live process owns the DB, or only from a copied database that you will validate before restoring.
+5. If validation fails, keep the backup and do not replace the original DB.
+
 ## Server-Owned Workflow Websocket
 
 The API server owns the single workflow websocket at `/api/workflow`. Continuous workflow polling and command execution still run in CLI-owned processes, but those processes connect outbound to the server instead of exposing a local port.
