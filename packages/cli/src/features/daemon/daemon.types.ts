@@ -35,6 +35,28 @@ export type DaemonSpawn = (
 	options: DaemonSpawnOptions,
 ) => DaemonChild;
 
+export interface DaemonPortCleanupPorts {
+	serverPort: string;
+	webPort: string;
+}
+
+export type DaemonPortCleanup = (
+	ports: DaemonPortCleanupPorts,
+) => Promise<void>;
+
+export type DaemonPortCleanupRunCommand = (
+	command: string,
+	args: string[],
+) => Promise<string>;
+
+export type DaemonPortCleanupSleep = (ms: number) => Promise<void>;
+
+export interface DaemonPortCleanupOptions {
+	runCommand?: DaemonPortCleanupRunCommand;
+	killProcess?: (pid: number, signal: NodeJS.Signals) => void;
+	sleep?: DaemonPortCleanupSleep;
+}
+
 export interface DaemonSignalTarget {
 	on(signal: NodeJS.Signals, listener: () => void): void;
 	off(signal: NodeJS.Signals, listener: () => void): void;
@@ -60,6 +82,7 @@ export interface RunProductionDaemonOptions {
 	cwd?: string;
 	env?: NodeJS.ProcessEnv;
 	readinessScheduler?: DaemonReadinessScheduler;
+	cleanupPorts?: DaemonPortCleanup;
 	spawnChild?: DaemonSpawn;
 	signalTarget?: DaemonSignalTarget;
 	startWorkflowWorker?: (options: {

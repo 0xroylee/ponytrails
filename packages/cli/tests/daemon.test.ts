@@ -126,6 +126,7 @@ describe("runProductionDaemon", () => {
 		const done = runProductionDaemon({
 			cwd: "/repo",
 			env: {},
+			cleanupPorts: async () => {},
 			spawnChild: harness.spawnChild,
 			signalTarget: harness.signalTarget,
 			startWorkflowWorker: harness.startWorkflowWorker,
@@ -165,6 +166,7 @@ describe("runProductionDaemon", () => {
 		const done = runProductionDaemon({
 			cwd: "/repo",
 			env: {},
+			cleanupPorts: async () => {},
 			spawnChild: harness.spawnChild,
 			signalTarget: harness.signalTarget,
 			startWorkflowWorker: harness.startWorkflowWorker,

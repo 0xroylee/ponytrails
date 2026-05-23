@@ -3,6 +3,10 @@ export {
 	runProductionDaemon,
 } from "./daemon";
 export {
+	cleanupDaemonPorts,
+	findListenerPids,
+} from "./daemon-port-cleanup";
+export {
 	resolveServerBaseUrl,
 	resolveWebUrl,
 	resolveWorkflowWorkerUrl,
@@ -28,6 +32,9 @@ export {
 } from "./daemon-readiness";
 export type {
 	DaemonChild,
+	DaemonPortCleanup,
+	DaemonPortCleanupOptions,
+	DaemonPortCleanupPorts,
 	DaemonReadinessHandle,
 	DaemonReadinessScheduler,
 	DaemonServiceCommand,

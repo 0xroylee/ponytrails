@@ -1,11 +1,14 @@
 import { spawn } from "node:child_process";
 import { buildWorkflowPollerInvocation } from "./daemon-poller";
+import { cleanupDaemonPorts } from "./daemon-port-cleanup";
 import { resolveDaemonPorts } from "./daemon-ports";
 import { scheduleDaemonReadyMessage } from "./daemon-readiness";
-import { resolveServerBaseUrl, resolveWorkflowWsUrl } from "./daemon-urls";
+import { resolveWorkflowWsUrl } from "./daemon-urls";
 import { resolveDaemonWorkspaceEnv } from "./daemon-workspace-env";
 import type {
 	DaemonChild,
+	DaemonPortCleanup,
+	DaemonPortCleanupPorts,
 	DaemonReadinessHandle,
 	DaemonServiceCommand,
 	DaemonSignalTarget,
@@ -20,8 +23,16 @@ export function buildDaemonCommands(
 	env: NodeJS.ProcessEnv = process.env,
 	cwd?: string,
 ): DaemonServiceCommand[] {
-	const { serverPort, webPort } = resolveDaemonPorts(env);
-	const serverBaseUrl = resolveServerBaseUrl(env);
+	return buildDaemonCommandsForPorts(env, resolveDaemonPorts(env), cwd);
+}
+
+function buildDaemonCommandsForPorts(
+	env: NodeJS.ProcessEnv,
+	ports: DaemonPortCleanupPorts,
+	cwd?: string,
+): DaemonServiceCommand[] {
+	const serverBaseUrl =
+		env.DEVOS_SERVER_BASE_URL ?? `http://127.0.0.1:${ports.serverPort}`;
 	const workflowWsUrl =
 		env.DEVOS_WORKFLOW_WS_URL ?? resolveWorkflowWsUrl(serverBaseUrl);
 	const baseEnv = {
@@ -37,7 +48,7 @@ export function buildDaemonCommands(
 			args: ["run", "--filter", "devos-server", "start"],
 			env: {
 				...baseEnv,
-				PIV_SERVER_PORT: serverPort,
+				PIV_SERVER_PORT: ports.serverPort,
 			},
 		},
 		{
@@ -46,7 +57,7 @@ export function buildDaemonCommands(
 			args: ["run", "--filter", "web", "start"],
 			env: {
 				...baseEnv,
-				PORT: webPort,
+				PORT: ports.webPort,
 				DEVOS_SERVER_BASE_URL: serverBaseUrl,
 				NEXT_PUBLIC_DEVOS_WORKFLOW_WS_URL: workflowWsUrl,
 			},
@@ -71,9 +82,12 @@ export async function runProductionDaemon(
 	const spawnChild = options.spawnChild ?? spawnDaemonChild;
 	const signalTarget = options.signalTarget ?? process;
 	const env = options.env ?? process.env;
-	const serverBaseUrl = resolveServerBaseUrl(env);
+	const ports = resolveDaemonPorts(env);
+	const serverBaseUrl =
+		env.DEVOS_SERVER_BASE_URL ?? `http://127.0.0.1:${ports.serverPort}`;
 	const workspaceEnv = resolveDaemonWorkspaceEnv(env, cwd);
-	const services = buildDaemonCommands(env, cwd);
+	const services = buildDaemonCommandsForPorts(env, ports, cwd);
+	const cleanupPorts = options.cleanupPorts ?? cleanupDaemonPorts;
 	const workflowWorker = (
 		options.startWorkflowWorker ?? startWorkflowCommandWorker
 	)({
@@ -97,20 +111,29 @@ export async function runProductionDaemon(
 		write: options.write,
 	});
 
-	return superviseDaemonChildren(children, signalTarget, workflowWorker, ready);
+	return superviseDaemonChildren(
+		children,
+		signalTarget,
+		workflowWorker,
+		cleanupPorts,
+		ports,
+		ready,
+	);
 }
 
 function superviseDaemonChildren(
 	children: DaemonChild[],
 	signalTarget: DaemonSignalTarget,
 	workflowWorker: { stop(): Promise<void> },
+	cleanupPorts: DaemonPortCleanup,
+	ports: DaemonPortCleanupPorts,
 	readiness?: DaemonReadinessHandle,
 ): Promise<number> {
 	return new Promise((resolve) => {
 		let resolved = false;
 		let isShuttingDown = false;
 
-		const finish = (code: number) => {
+		const finish = (code: number, cleanupOnFailure = false) => {
 			if (resolved) {
 				return;
 			}
@@ -119,8 +142,13 @@ function superviseDaemonChildren(
 			for (const signal of SIGNALS) {
 				signalTarget.off(signal, signalHandlers[signal]);
 			}
-			void workflowWorker.stop();
-			resolve(code);
+			void (async () => {
+				if (cleanupOnFailure) {
+					await cleanupPorts(ports);
+				}
+				await workflowWorker.stop();
+				resolve(code);
+			})();
 		};
 
 		const shutdown = (
@@ -156,14 +184,15 @@ function superviseDaemonChildren(
 		for (const child of children) {
 			child.on("error", () => {
 				shutdown("SIGTERM", child);
-				finish(1);
+				finish(1, true);
 			});
 			child.on("close", (code, signal) => {
 				if (resolved) {
 					return;
 				}
 				shutdown(signal ?? undefined, child);
-				finish(code ?? (signal ? 1 : 0));
+				const exitCode = code ?? (signal ? 1 : 0);
+				finish(exitCode, exitCode !== 0);
 			});
 		}
 	});
