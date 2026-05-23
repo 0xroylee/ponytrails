@@ -127,15 +127,6 @@ export function WebSidebar({
 					</strong>
 				) : null}
 				<button
-					aria-label={`${themeLabel}. Switch theme`}
-					className="grid h-8 w-8 place-items-center rounded-md border border-theme-default text-theme-muted hover-bg-theme-interactive hover:text-theme-secondary"
-					onClick={cycleTheme}
-					title={`${themeLabel}. Switch theme`}
-					type="button"
-				>
-					{isExpanded ? <ThemeIcon size={16} /> : <Contrast size={16} />}
-				</button>
-				<button
 					aria-label={nextSidebarLabel(mode)}
 					className="grid h-8 w-8 place-items-center rounded-md hover-bg-theme-interactive"
 					onClick={onToggleMode}
@@ -178,7 +169,18 @@ export function WebSidebar({
 				{isExpanded ? (
 					<span className="text-xs text-theme-muted">devos.ing</span>
 				) : null}
-				<CircleHelp size={16} />
+				<div className="flex items-center gap-1">
+					<button
+						aria-label={`${themeLabel}. Switch theme`}
+						className="grid h-7 w-7 place-items-center rounded-md text-theme-dim hover:bg-theme-interactive hover:text-theme-secondary"
+						onClick={cycleTheme}
+						title={`${themeLabel}. Switch theme`}
+						type="button"
+					>
+						<ThemeIcon size={14} />
+					</button>
+					<CircleHelp size={16} />
+				</div>
 			</footer>
 		</aside>
 	);
