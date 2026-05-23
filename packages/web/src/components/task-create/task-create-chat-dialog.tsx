@@ -104,16 +104,19 @@ export function TaskCreateChatDialog({
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+		<div
+			className="fixed inset-0 z-50 grid place-items-center p-4"
+			style={{ background: "var(--backdrop-strong)" }}
+		>
 			<dialog
 				aria-labelledby="task-create-chat-title"
 				aria-modal="true"
-				className="grid max-h-[100dvh] w-full max-w-2xl gap-4 overflow-auto rounded-lg border border-zinc-800 bg-[#18191d] p-5 text-zinc-100 shadow-2xl"
+				className="grid max-h-[100dvh] w-full max-w-2xl gap-4 overflow-auto rounded-lg border border-theme-default bg-theme-card p-5 text-theme-primary shadow-2xl"
 				open
 			>
 				<header className="flex items-start justify-between gap-4">
 					<div>
-						<p className="mb-1 text-xs font-medium uppercase text-zinc-500">
+						<p className="mb-1 text-xs font-medium uppercase text-theme-muted">
 							New Issue
 						</p>
 						<h2
@@ -122,11 +125,13 @@ export function TaskCreateChatDialog({
 						>
 							Chat to create a task
 						</h2>
-						<p className="mb-0 mt-2 text-sm text-zinc-400">{statusText}</p>
+						<p className="mb-0 mt-2 text-sm text-theme-secondary">
+							{statusText}
+						</p>
 					</div>
 					<button
 						aria-label="Close dialog"
-						className="grid h-9 w-9 place-items-center rounded-md border border-zinc-700 text-zinc-400 hover:bg-zinc-800"
+						className="grid h-9 w-9 place-items-center rounded-md border border-theme-default text-theme-secondary hover-bg-theme-interactive"
 						onClick={onClose}
 						type="button"
 					>
@@ -134,7 +139,7 @@ export function TaskCreateChatDialog({
 					</button>
 				</header>
 				<div className="grid gap-3">
-					<label className="grid gap-1.5 text-sm text-zinc-400">
+					<label className="grid gap-1.5 text-sm text-theme-secondary">
 						<span>Request</span>
 						<textarea
 							className="issue-input min-h-32 resize-y"
@@ -146,7 +151,7 @@ export function TaskCreateChatDialog({
 							value={state.request}
 						/>
 					</label>
-					<label className="grid gap-1.5 text-sm text-zinc-400">
+					<label className="grid gap-1.5 text-sm text-theme-secondary">
 						<span>Project ID</span>
 						<input
 							className="issue-input"
@@ -160,10 +165,10 @@ export function TaskCreateChatDialog({
 					</label>
 				</div>
 				{state.step === "clarifying" ? (
-					<div className="grid gap-3 rounded-lg border border-zinc-800 bg-[#141519] p-3">
+					<div className="grid gap-3 rounded-lg border border-theme-default bg-theme-control p-3">
 						{state.questions.map((question, index) => (
 							<label
-								className="grid gap-1.5 text-sm text-zinc-400"
+								className="grid gap-1.5 text-sm text-theme-secondary"
 								key={question}
 							>
 								<span>{question}</span>

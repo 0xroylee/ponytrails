@@ -90,17 +90,17 @@ export function ProjectsPanel(): ReactElement {
 	}
 
 	return (
-		<section className="h-[100dvh] max-h-[100dvh] overflow-auto bg-[#0f1013] p-4 text-zinc-100">
-			<header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+		<section className="h-[100dvh] max-h-[100dvh] overflow-auto bg-theme-canvas p-4 text-theme-primary">
+			<header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-theme-default pb-4">
 				<div>
 					<h1 className="m-0 text-2xl font-semibold">Projects</h1>
-					<p className="m-0 mt-1 text-sm text-zinc-400">
+					<p className="m-0 mt-1 text-sm text-theme-secondary">
 						{projectsQuery.data?.length ?? 0} configured
 					</p>
 				</div>
 				<button
 					type="button"
-					className="inline-flex items-center gap-2 rounded border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900"
+					className="inline-flex items-center gap-2 rounded border border-theme-default px-3 py-2 text-sm text-theme-secondary hover-bg-theme-subtle"
 					onClick={() => void projectsQuery.refetch()}
 				>
 					<RefreshCw size={16} />
@@ -110,22 +110,22 @@ export function ProjectsPanel(): ReactElement {
 
 			<div className="grid gap-4 lg:grid-cols-[minmax(20rem,28rem)_1fr]">
 				<form
-					className="grid content-start gap-4 border border-zinc-800 bg-[#17181c] p-4"
+					className="grid content-start gap-4 border border-theme-default bg-theme-panel-elevated p-4"
 					onSubmit={submitProject}
 				>
 					{FIELD_GROUPS.map((group) => (
 						<fieldset
 							key={group.title}
-							className="grid gap-3 border-0 border-t border-zinc-800 p-0 pt-3 first:border-t-0 first:pt-0"
+							className="grid gap-3 border-0 border-t border-theme-default p-0 pt-3 first:border-t-0 first:pt-0"
 						>
-							<legend className="mb-1 text-sm font-medium text-zinc-300">
+							<legend className="mb-1 text-sm font-medium text-theme-secondary">
 								{group.title}
 							</legend>
 							{group.fields.map((field) => (
 								<label key={field.name} className="grid gap-1 text-sm">
-									<span className="text-zinc-400">{field.label}</span>
+									<span className="text-theme-secondary">{field.label}</span>
 									<input
-										className="h-10 border border-zinc-700 bg-[#111216] px-3 text-zinc-100 outline-none focus:border-cyan-600"
+										className="h-10 border border-theme-default bg-theme-subtle px-3 text-theme-primary outline-none focus:border-cyan-600"
 										name={field.name}
 										placeholder={field.placeholder}
 										type={field.type ?? "text"}
@@ -149,13 +149,15 @@ export function ProjectsPanel(): ReactElement {
 					</button>
 				</form>
 
-				<section className="min-w-0 border border-zinc-800 bg-[#17181c]">
-					<div className="border-b border-zinc-800 px-4 py-3">
+				<section className="min-w-0 border border-theme-default bg-theme-panel-elevated">
+					<div className="border-b border-theme-default px-4 py-3">
 						<h2 className="m-0 text-base font-semibold">Workspace projects</h2>
 					</div>
 					<div className="grid gap-0">
 						{projectsQuery.isLoading ? (
-							<p className="m-0 p-4 text-sm text-zinc-400">Loading projects</p>
+							<p className="m-0 p-4 text-sm text-theme-secondary">
+								Loading projects
+							</p>
 						) : null}
 						{projectsQuery.error ? (
 							<p className="m-0 p-4 text-sm text-red-300">
@@ -165,18 +167,18 @@ export function ProjectsPanel(): ReactElement {
 						{(projectsQuery.data ?? []).map((project) => (
 							<article
 								key={project.id}
-								className="grid gap-2 border-b border-zinc-800 p-4 last:border-b-0"
+								className="grid gap-2 border-b border-theme-default p-4 last:border-b-0"
 							>
 								<div className="flex flex-wrap items-center justify-between gap-2">
 									<h3 className="m-0 text-base font-semibold">
 										{project.name}
 									</h3>
-									<span className="text-xs text-zinc-500">{project.id}</span>
+									<span className="text-xs text-theme-muted">{project.id}</span>
 								</div>
-								<p className="m-0 text-sm text-zinc-400">
+								<p className="m-0 text-sm text-theme-secondary">
 									{project.description ?? "No description"}
 								</p>
-								<div className="flex flex-wrap gap-2 text-xs text-zinc-500">
+								<div className="flex flex-wrap gap-2 text-xs text-theme-muted">
 									<span>
 										{project.repoOwner ?? "-"} / {project.repoName ?? "-"}
 									</span>
@@ -188,7 +190,9 @@ export function ProjectsPanel(): ReactElement {
 						{!projectsQuery.isLoading &&
 						!projectsQuery.error &&
 						(projectsQuery.data?.length ?? 0) === 0 ? (
-							<p className="m-0 p-4 text-sm text-zinc-400">No projects yet</p>
+							<p className="m-0 p-4 text-sm text-theme-secondary">
+								No projects yet
+							</p>
 						) : null}
 					</div>
 				</section>

@@ -4,6 +4,70 @@
 
 :root {
 	color-scheme: dark;
+	--bg-canvas: #0f1013;
+	--bg-subtle: #111216;
+	--bg-panel: #15161a;
+	--bg-panel-elevated: #17181c;
+	--bg-card: #18191d;
+	--bg-card-strong: #1b1c21;
+	--bg-control: #141519;
+	--bg-control-subtle: #101115;
+	--bg-interactive: #27272a;
+	--bg-interactive-hover: #3f3f46;
+	--border-subtle: #18181b;
+	--border-default: #27272a;
+	--border-strong: #3f3f46;
+	--text-primary: #f4f4f5;
+	--text-secondary: #d4d4d8;
+	--text-muted: #a1a1aa;
+	--text-dim: #71717a;
+	--backdrop-strong: rgba(0, 0, 0, 0.65);
+	--status-neutral-bg: #17181c;
+	--status-neutral-border: rgba(51, 65, 85, 0.7);
+	--status-implementing-bg: #19160f;
+	--status-implementing-border: rgba(113, 63, 18, 0.5);
+	--status-reviewing-bg: #101714;
+	--status-reviewing-border: rgba(6, 78, 59, 0.5);
+	--status-testing-bg: #10181a;
+	--status-testing-border: rgba(22, 78, 99, 0.5);
+	--status-done-bg: #101421;
+	--status-done-border: rgba(49, 46, 129, 0.5);
+}
+
+html[data-theme="light"] {
+	color-scheme: light;
+	--bg-canvas: #f4f6f9;
+	--bg-subtle: #eef1f5;
+	--bg-panel: #ffffff;
+	--bg-panel-elevated: #ffffff;
+	--bg-card: #ffffff;
+	--bg-card-strong: #f9fbff;
+	--bg-control: #f3f6fb;
+	--bg-control-subtle: #edf1f7;
+	--bg-interactive: #e2e8f0;
+	--bg-interactive-hover: #d4dbe7;
+	--border-subtle: #d8dee8;
+	--border-default: #c8d2e1;
+	--border-strong: #b5c2d6;
+	--text-primary: #0f172a;
+	--text-secondary: #334155;
+	--text-muted: #475569;
+	--text-dim: #64748b;
+	--backdrop-strong: rgba(15, 23, 42, 0.45);
+	--status-neutral-bg: #edf3fb;
+	--status-neutral-border: rgba(71, 85, 105, 0.5);
+	--status-implementing-bg: #fdf2d7;
+	--status-implementing-border: rgba(180, 83, 9, 0.45);
+	--status-reviewing-bg: #ddf7ec;
+	--status-reviewing-border: rgba(5, 122, 85, 0.45);
+	--status-testing-bg: #def4fb;
+	--status-testing-border: rgba(3, 105, 161, 0.45);
+	--status-done-bg: #e7edff;
+	--status-done-border: rgba(67, 56, 202, 0.45);
+}
+
+html[data-theme="dark"] {
+	color-scheme: dark;
 }
 
 * {
@@ -16,28 +80,182 @@ body {
 	max-height: 100dvh;
 	font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 		"Segoe UI", sans-serif;
-	background: #0f1013;
-	color: #f4f4f5;
+	background: var(--bg-canvas);
+	color: var(--text-primary);
 }
 
 @layer components {
 	.issue-input {
-		@apply rounded-md border border-zinc-800 bg-[#141519] px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500;
+		@apply rounded-md border px-3 py-2 text-sm outline-none transition;
+		border-color: var(--border-default);
+		background: var(--bg-control);
+		color: var(--text-primary);
+	}
+
+	.issue-input::placeholder {
+		color: var(--text-dim);
+	}
+
+	.issue-input:focus {
+		border-color: var(--border-strong);
 	}
 
 	.issue-primary-button {
-		@apply inline-flex items-center justify-center gap-2 rounded-md border border-zinc-600 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 disabled:cursor-not-allowed;
+		@apply inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed;
+		border-color: var(--border-strong);
+		background: var(--bg-interactive);
+		color: var(--text-primary);
+	}
+
+	.issue-primary-button:hover {
+		background: var(--bg-interactive-hover);
 	}
 
 	.issue-secondary-button {
-		@apply inline-flex items-center justify-center rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800;
+		@apply inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm;
+		border-color: var(--border-default);
+		color: var(--text-secondary);
+	}
+
+	.issue-secondary-button:hover {
+		background: var(--bg-interactive);
 	}
 
 	.issue-tool-button {
-		@apply inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-zinc-800 px-3 text-sm text-zinc-300 hover:bg-zinc-900;
+		@apply inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md border px-3 text-sm;
+		border-color: var(--border-default);
+		color: var(--text-secondary);
+	}
+
+	.issue-tool-button:hover {
+		background: var(--bg-subtle);
 	}
 
 	.issue-icon-button {
-		@apply grid h-8 w-8 place-items-center rounded-md text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200;
+		@apply grid h-8 w-8 place-items-center rounded-md;
+		color: var(--text-muted);
 	}
+
+	.issue-icon-button:hover {
+		background: var(--bg-interactive);
+		color: var(--text-secondary);
+	}
+}
+
+@layer utilities {
+	.text-theme-primary {
+		color: var(--text-primary);
+	}
+
+	.text-theme-secondary {
+		color: var(--text-secondary);
+	}
+
+	.text-theme-muted {
+		color: var(--text-muted);
+	}
+
+	.text-theme-dim {
+		color: var(--text-dim);
+	}
+
+	.border-theme-subtle {
+		border-color: var(--border-subtle);
+	}
+
+	.border-theme-default {
+		border-color: var(--border-default);
+	}
+
+	.border-theme-strong {
+		border-color: var(--border-strong);
+	}
+
+	.bg-theme-canvas {
+		background: var(--bg-canvas);
+	}
+
+	.bg-theme-subtle {
+		background: var(--bg-subtle);
+	}
+
+	.bg-theme-panel {
+		background: var(--bg-panel);
+	}
+
+	.bg-theme-panel-elevated {
+		background: var(--bg-panel-elevated);
+	}
+
+	.bg-theme-card {
+		background: var(--bg-card);
+	}
+
+	.bg-theme-card-strong {
+		background: var(--bg-card-strong);
+	}
+
+	.bg-theme-control {
+		background: var(--bg-control);
+	}
+
+	.bg-theme-control-subtle {
+		background: var(--bg-control-subtle);
+	}
+
+	.bg-theme-interactive {
+		background: var(--bg-interactive);
+	}
+
+	.hover-bg-theme-interactive:hover {
+		background: var(--bg-interactive);
+	}
+
+	.hover-bg-theme-subtle:hover {
+		background: var(--bg-subtle);
+	}
+
+	.backdrop-theme-strong::backdrop {
+		background: var(--backdrop-strong);
+	}
+}
+
+/* Compatibility layer for existing zinc utility usage so light/dark palettes both work. */
+.text-zinc-100 {
+	color: var(--text-primary);
+}
+
+.text-zinc-200,
+.text-zinc-300,
+.text-zinc-400 {
+	color: var(--text-secondary);
+}
+
+.text-zinc-500,
+.text-zinc-600 {
+	color: var(--text-muted);
+}
+
+.border-zinc-600,
+.border-zinc-700,
+.border-zinc-800,
+.border-zinc-800\/70,
+.border-zinc-900 {
+	border-color: var(--border-default);
+}
+
+.bg-zinc-800,
+.bg-zinc-800\/70,
+.bg-zinc-800\/80,
+.bg-zinc-900 {
+	background: var(--bg-interactive);
+}
+
+.hover\:bg-zinc-800:hover,
+.hover\:bg-zinc-900:hover {
+	background: var(--bg-subtle);
+}
+
+.hover\:text-zinc-200:hover {
+	color: var(--text-secondary);
 }

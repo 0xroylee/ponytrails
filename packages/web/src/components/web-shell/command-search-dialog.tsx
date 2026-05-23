@@ -114,7 +114,7 @@ export function CommandSearchDialog({
 	return (
 		<dialog
 			aria-labelledby="command-search-title"
-			className="w-[min(44rem,calc(100vw-1.5rem))] rounded-lg border border-zinc-800 bg-[#15161a] p-0 text-zinc-100 shadow-2xl backdrop:bg-black/65"
+			className="backdrop-theme-strong w-[min(44rem,calc(100vw-1.5rem))] rounded-lg border border-theme-default bg-theme-panel p-0 text-theme-primary shadow-2xl"
 			onCancel={onClose}
 			onMouseDown={(event) => {
 				if (event.target === event.currentTarget) {
@@ -123,11 +123,11 @@ export function CommandSearchDialog({
 			}}
 			ref={dialogRef}
 		>
-			<header className="flex items-center gap-3 border-b border-zinc-900 px-4 py-3">
-				<Search className="text-zinc-500" size={18} />
+			<header className="flex items-center gap-3 border-b border-theme-subtle px-4 py-3">
+				<Search className="text-theme-muted" size={18} />
 				<input
 					aria-label="Search commands and issues"
-					className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+					className="min-w-0 flex-1 bg-transparent text-sm text-theme-primary outline-none placeholder:text-theme-dim"
 					onChange={(event) => updateQuery(event.target.value)}
 					onKeyDown={handleKeyDown}
 					placeholder="Search issues and commands"
@@ -156,7 +156,7 @@ export function CommandSearchDialog({
 				) : null}
 				{groups.map((group) => (
 					<section className="py-2" key={group.id}>
-						<p className="mb-1 px-2 text-xs font-semibold text-zinc-500">
+						<p className="mb-1 px-2 text-xs font-semibold text-theme-muted">
 							{group.label}
 						</p>
 						<div className="grid gap-1">
@@ -199,20 +199,22 @@ function ResultButton({
 		<button
 			className={cn(
 				"flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm",
-				isSelected ? "bg-zinc-800 text-zinc-100" : "text-zinc-300",
+				isSelected
+					? "bg-theme-interactive text-theme-primary"
+					: "text-theme-secondary",
 			)}
 			onClick={onSelect}
 			type="button"
 		>
-			<Icon className="shrink-0 text-zinc-500" size={17} />
+			<Icon className="shrink-0 text-theme-muted" size={17} />
 			<span className="min-w-0 flex-1">
 				<span className="block truncate font-medium">{result.label}</span>
-				<span className="block truncate text-xs text-zinc-500">
+				<span className="block truncate text-xs text-theme-muted">
 					{isCopied ? "Copied" : result.detail}
 				</span>
 			</span>
 			{result.kind === "navigation" && result.navKey === activeKey ? (
-				<span className="text-xs text-zinc-500">Current</span>
+				<span className="text-xs text-theme-muted">Current</span>
 			) : null}
 		</button>
 	);
@@ -220,7 +222,7 @@ function ResultButton({
 
 function DialogState({ label }: { label: string }): ReactElement {
 	return (
-		<p className="px-3 py-10 text-center text-sm text-zinc-500">{label}</p>
+		<p className="px-3 py-10 text-center text-sm text-theme-muted">{label}</p>
 	);
 }
 

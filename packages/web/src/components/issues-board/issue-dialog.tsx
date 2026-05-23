@@ -91,18 +91,19 @@ export function IssueDialog({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+			className="fixed inset-0 z-50 grid place-items-center p-4"
+			style={{ background: "var(--backdrop-strong)" }}
 			role="presentation"
 		>
 			<dialog
 				aria-labelledby="issue-dialog-title"
 				aria-modal="true"
-				className="grid max-h-[100dvh] w-full max-w-2xl gap-4 overflow-auto rounded-lg border border-zinc-800 bg-[#18191d] p-5 text-zinc-100 shadow-2xl"
+				className="grid max-h-[100dvh] w-full max-w-2xl gap-4 overflow-auto rounded-lg border border-theme-default bg-theme-card p-5 text-theme-primary shadow-2xl"
 				open
 			>
 				<header className="flex items-center justify-between gap-4">
 					<div>
-						<p className="mb-1 text-xs font-medium uppercase text-zinc-500">
+						<p className="mb-1 text-xs font-medium uppercase text-theme-muted">
 							{mode === "create" ? getStatusLabel(defaultStatus) : "Details"}
 						</p>
 						<h2 className="m-0 text-lg font-semibold" id="issue-dialog-title">
@@ -111,7 +112,7 @@ export function IssueDialog({
 					</div>
 					<button
 						aria-label="Close dialog"
-						className="grid h-9 w-9 place-items-center rounded-md border border-zinc-700 text-zinc-400 hover:bg-zinc-800"
+						className="grid h-9 w-9 place-items-center rounded-md border border-theme-default text-theme-secondary hover-bg-theme-interactive"
 						onClick={onClose}
 						type="button"
 					>
@@ -240,7 +241,7 @@ function Field({
 	children: ReactElement;
 }): ReactElement {
 	return (
-		<div className="grid gap-1.5 text-sm text-zinc-400">
+		<div className="grid gap-1.5 text-sm text-theme-secondary">
 			<span>{label}</span>
 			{children}
 		</div>

@@ -18,9 +18,13 @@ export function AgentsPanel(): ReactElement {
 
 	if (agentsQuery.isPending) {
 		return (
-			<section className="grid gap-3 rounded-lg border border-zinc-800 bg-[#18191d] p-4">
-				<h2 className="m-0 text-base font-semibold text-zinc-200">Agents</h2>
-				<p className="m-0 text-sm text-zinc-500">Loading available agents...</p>
+			<section className="grid gap-3 rounded-lg border border-theme-default bg-theme-card p-4">
+				<h2 className="m-0 text-base font-semibold text-theme-secondary">
+					Agents
+				</h2>
+				<p className="m-0 text-sm text-theme-muted">
+					Loading available agents...
+				</p>
 			</section>
 		);
 	}
@@ -38,18 +42,22 @@ export function AgentsPanel(): ReactElement {
 
 	if (!agentsQuery.data || agentsQuery.data.length === 0) {
 		return (
-			<section className="grid gap-3 rounded-lg border border-zinc-800 bg-[#18191d] p-4">
-				<h2 className="m-0 text-base font-semibold text-zinc-200">Agents</h2>
-				<p className="m-0 text-sm text-zinc-500">No agents are available.</p>
+			<section className="grid gap-3 rounded-lg border border-theme-default bg-theme-card p-4">
+				<h2 className="m-0 text-base font-semibold text-theme-secondary">
+					Agents
+				</h2>
+				<p className="m-0 text-sm text-theme-muted">No agents are available.</p>
 			</section>
 		);
 	}
 
 	return (
-		<section className="grid gap-3 rounded-lg border border-zinc-800 bg-[#18191d] p-4">
+		<section className="grid gap-3 rounded-lg border border-theme-default bg-theme-card p-4">
 			<header className="grid gap-1">
-				<h2 className="m-0 text-base font-semibold text-zinc-200">Agents</h2>
-				<p className="m-0 text-sm text-zinc-500">
+				<h2 className="m-0 text-base font-semibold text-theme-secondary">
+					Agents
+				</h2>
+				<p className="m-0 text-sm text-theme-muted">
 					Select an agent to view and update runtime details.
 				</p>
 			</header>
@@ -82,25 +90,25 @@ function AgentRow({
 	return (
 		<li>
 			<button
-				className="grid w-full gap-2 rounded-md border border-zinc-800 bg-[#141519] p-3 text-left transition hover:border-zinc-700 hover:bg-zinc-900"
+				className="grid w-full gap-2 rounded-md border border-theme-default bg-theme-control p-3 text-left transition hover:border-theme-strong hover-bg-theme-subtle"
 				onClick={onOpen}
 				type="button"
 			>
 				<div className="flex items-center justify-between gap-2">
-					<span className="inline-flex items-center gap-2 text-sm font-medium text-zinc-100">
+					<span className="inline-flex items-center gap-2 text-sm font-medium text-theme-primary">
 						<Bot size={15} />
 						{agent.name}
 					</span>
-					<span className="text-xs text-zinc-500">{agent.id}</span>
+					<span className="text-xs text-theme-muted">{agent.id}</span>
 				</div>
-				<div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-400">
+				<div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-theme-secondary">
 					<span>{agent.runtime}</span>
 					<span>{agent.model}</span>
 					<span>Concurrency {agent.concurrency}</span>
 					<span>Owner {agent.owner}</span>
 				</div>
 				{agent.description ? (
-					<p className="m-0 text-xs text-zinc-500">{agent.description}</p>
+					<p className="m-0 text-xs text-theme-muted">{agent.description}</p>
 				) : null}
 			</button>
 		</li>

@@ -13,15 +13,30 @@ export const STATUS_ORDER = [
 ] as const;
 
 export const STATUS_PRESENTATION: Record<string, StatusPresentation> = {
-	planning: { label: "Backlog", tone: "border-slate-700/70 bg-[#17181c]" },
-	todo: { label: "To Do", tone: "border-slate-700/70 bg-[#17181c]" },
+	planning: {
+		label: "Backlog",
+		tone: "border-[color:var(--status-neutral-border)] bg-[color:var(--status-neutral-bg)]",
+	},
+	todo: {
+		label: "To Do",
+		tone: "border-[color:var(--status-neutral-border)] bg-[color:var(--status-neutral-bg)]",
+	},
 	implementing: {
 		label: "In Progress",
-		tone: "border-yellow-900/50 bg-[#19160f]",
+		tone: "border-[color:var(--status-implementing-border)] bg-[color:var(--status-implementing-bg)]",
 	},
-	reviewing: { label: "In Review", tone: "border-emerald-900/50 bg-[#101714]" },
-	testing: { label: "Testing", tone: "border-cyan-900/50 bg-[#10181a]" },
-	done: { label: "Done", tone: "border-indigo-900/50 bg-[#101421]" },
+	reviewing: {
+		label: "In Review",
+		tone: "border-[color:var(--status-reviewing-border)] bg-[color:var(--status-reviewing-bg)]",
+	},
+	testing: {
+		label: "Testing",
+		tone: "border-[color:var(--status-testing-border)] bg-[color:var(--status-testing-bg)]",
+	},
+	done: {
+		label: "Done",
+		tone: "border-[color:var(--status-done-border)] bg-[color:var(--status-done-bg)]",
+	},
 };
 
 export const PRIORITY_OPTIONS: readonly PriorityOption[] = [

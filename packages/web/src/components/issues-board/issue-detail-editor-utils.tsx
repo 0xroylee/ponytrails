@@ -14,11 +14,11 @@ export function DetailField({
 	label: string;
 }): ReactElement {
 	return (
-		<div className="grid gap-1 rounded-md border border-zinc-800/70 bg-[#141519] px-3 py-2">
-			<span className="text-xs font-medium uppercase text-zinc-500">
+		<div className="grid gap-1 rounded-md border border-theme-default bg-theme-control px-3 py-2">
+			<span className="text-xs font-medium uppercase text-theme-muted">
 				{label}
 			</span>
-			<span className="min-w-0 break-words text-sm text-zinc-200">
+			<span className="min-w-0 break-words text-sm text-theme-secondary">
 				{children}
 			</span>
 		</div>

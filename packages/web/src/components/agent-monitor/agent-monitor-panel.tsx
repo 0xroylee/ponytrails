@@ -40,7 +40,9 @@ export function AgentMonitorPanel({
 	return (
 		<section style={{ maxWidth: "44rem", width: "100%" }}>
 			<h1 style={{ margin: "0 0 0.75rem" }}>ADHD.ai Agent Monitor</h1>
-			<p style={{ margin: "0 0 1rem", color: "#a1a1aa" }}>{health.summary}</p>
+			<p style={{ margin: "0 0 1rem", color: "var(--text-muted)" }}>
+				{health.summary}
+			</p>
 			<div style={tabListStyle}>
 				{renderRuntimeTabs(
 					runtimes,
@@ -53,7 +55,7 @@ export function AgentMonitorPanel({
 					{showDetails ? "Hide details" : "Show details"}
 				</button>
 			</div>
-			<div style={{ color: "#e4e4e7" }}>
+			<div style={{ color: "var(--text-secondary)" }}>
 				<p style={{ margin: "0 0 0.5rem" }}>Server status: {health.status}</p>
 				<p style={{ margin: "0 0 0.5rem" }}>Runtime tabs: {runtimes.summary}</p>
 				{showDetails ? (
@@ -124,10 +126,10 @@ const tabListStyle = {
 } as const;
 
 const buttonStyle = {
-	border: "1px solid #3f3f46",
+	border: "1px solid var(--border-strong)",
 	borderRadius: "6px",
-	background: "#27272a",
-	color: "#f4f4f5",
+	background: "var(--bg-interactive)",
+	color: "var(--text-primary)",
 	cursor: "pointer",
 	padding: "0.5rem 0.75rem",
 } as const;
@@ -143,19 +145,19 @@ const runtimeTabStyle = {
 const activeTabStyle = {
 	...runtimeTabStyle,
 	borderColor: "#60a5fa",
-	background: "#1f2937",
+	background: "var(--bg-control-subtle)",
 } as const;
 
 const disabledTabStyle = {
 	...runtimeTabStyle,
-	color: "#a1a1aa",
+	color: "var(--text-muted)",
 	cursor: "default",
 } as const;
 
 const tabNameStyle = {
 	fontSize: "0.78rem",
 	lineHeight: 1.2,
-	color: "#a1a1aa",
+	color: "var(--text-muted)",
 	overflowWrap: "anywhere",
 } as const;
 

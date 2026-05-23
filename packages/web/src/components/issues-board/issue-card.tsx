@@ -95,8 +95,8 @@ export function IssueCard({
 	return (
 		<div
 			className={cn(
-				"rounded-lg border border-zinc-800 bg-[#1b1c21] p-2.5 text-left shadow-sm transition hover:border-zinc-700",
-				isDragged && "opacity-50 ring-2 ring-zinc-600",
+				"rounded-lg border border-theme-default bg-theme-card-strong p-2.5 text-left shadow-sm transition hover:border-theme-strong",
+				isDragged && "opacity-50 ring-2 ring-[color:var(--border-strong)]",
 			)}
 			draggable
 			onContextMenu={handleContextMenu}
@@ -110,21 +110,21 @@ export function IssueCard({
 				onClick={handleClick}
 				type="button"
 			>
-				<div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-zinc-500">
+				<div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-theme-muted">
 					<span className="truncate">{task.taskKey}</span>
 					<GripVertical aria-hidden="true" size={14} />
 				</div>
-				<h3 className="m-0 line-clamp-2 text-sm font-semibold text-zinc-100">
+				<h3 className="m-0 line-clamp-2 text-sm font-semibold text-theme-primary">
 					{task.title}
 				</h3>
-				<p className="mb-2 mt-1.5 line-clamp-2 text-xs leading-5 text-zinc-500">
+				<p className="mb-2 mt-1.5 line-clamp-2 text-xs leading-5 text-theme-muted">
 					{task.content}
 				</p>
-				<div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-					<span className="rounded-md bg-zinc-800 px-2 py-1">
+				<div className="flex flex-wrap items-center gap-2 text-xs text-theme-secondary">
+					<span className="rounded-md bg-theme-interactive px-2 py-1">
 						{getPriorityLabel(task.priority)}
 					</span>
-					<span className="rounded-md bg-zinc-800 px-2 py-1">
+					<span className="rounded-md bg-theme-interactive px-2 py-1">
 						{task.assigneeId ?? task.creatorId}
 					</span>
 					{isAgentTask(task) ? <Bot size={14} /> : <CheckCircle2 size={14} />}

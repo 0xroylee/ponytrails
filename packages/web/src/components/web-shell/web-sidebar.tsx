@@ -7,19 +7,24 @@ import {
 	CircleHelp,
 	CircleUserRound,
 	Computer,
+	Contrast,
 	Inbox,
 	ListChecks,
+	Monitor,
+	Moon,
 	PanelLeft,
 	PencilLine,
 	Search,
 	Settings,
 	Sparkles,
 	SquareKanban,
+	Sun,
 	UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType, ReactElement } from "react";
 
+import { useTheme } from "@/components/providers/theme-provider";
 import type {
 	SidebarDisplayMode,
 	SidebarNavItem,
@@ -72,10 +77,37 @@ export function WebSidebar({
 }: WebSidebarProps): ReactElement {
 	const isExpanded = mode === "expanded";
 	const isHidden = mode === "hidden";
+	const { setThemePreference, themePreference } = useTheme();
+
+	function cycleTheme(): void {
+		if (themePreference === "dark") {
+			setThemePreference("light");
+			return;
+		}
+		if (themePreference === "light") {
+			setThemePreference("system");
+			return;
+		}
+		setThemePreference("dark");
+	}
+
+	const ThemeIcon =
+		themePreference === "dark"
+			? Moon
+			: themePreference === "light"
+				? Sun
+				: Monitor;
+	const themeLabel =
+		themePreference === "dark"
+			? "Theme: dark"
+			: themePreference === "light"
+				? "Theme: light"
+				: "Theme: system";
+
 	return (
 		<aside
 			aria-label="Primary navigation"
-			className="grid h-[100dvh] max-h-[100dvh] border-r border-zinc-900 bg-[#15161a] text-zinc-400"
+			className="grid h-[100dvh] max-h-[100dvh] border-r border-theme-subtle bg-theme-panel text-theme-muted"
 			style={{
 				width: isHidden ? "0" : isExpanded ? "14rem" : "6.5rem",
 				opacity: isHidden ? 0 : 1,
@@ -86,17 +118,26 @@ export function WebSidebar({
 			}}
 		>
 			<header className="flex items-center gap-3 p-4">
-				<span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-zinc-700 bg-zinc-800 text-sm font-semibold text-zinc-200">
+				<span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-theme-default bg-theme-interactive text-sm font-semibold text-theme-secondary">
 					R
 				</span>
 				{isExpanded ? (
-					<strong className="truncate text-xs font-medium text-zinc-100">
+					<strong className="truncate text-xs font-medium text-theme-primary">
 						Roy Lee&apos;s Workspace
 					</strong>
 				) : null}
 				<button
+					aria-label={`${themeLabel}. Switch theme`}
+					className="grid h-8 w-8 place-items-center rounded-md border border-theme-default text-theme-muted hover-bg-theme-interactive hover:text-theme-secondary"
+					onClick={cycleTheme}
+					title={`${themeLabel}. Switch theme`}
+					type="button"
+				>
+					{isExpanded ? <ThemeIcon size={16} /> : <Contrast size={16} />}
+				</button>
+				<button
 					aria-label={nextSidebarLabel(mode)}
-					className="ml-auto grid h-8 w-8 place-items-center rounded-md hover:bg-zinc-800"
+					className="grid h-8 w-8 place-items-center rounded-md hover-bg-theme-interactive"
 					onClick={onToggleMode}
 					title={nextSidebarLabel(mode)}
 					type="button"
@@ -135,7 +176,7 @@ export function WebSidebar({
 			</nav>
 			<footer className="flex items-center justify-between p-4">
 				{isExpanded ? (
-					<span className="text-xs text-zinc-500">devos.ing</span>
+					<span className="text-xs text-theme-muted">devos.ing</span>
 				) : null}
 				<CircleHelp size={16} />
 			</footer>
@@ -157,7 +198,7 @@ function NavGroup({
 	return (
 		<div className="grid gap-1">
 			{isExpanded ? (
-				<p className="mb-1 px-2 text-[0.6875rem] font-medium text-zinc-500">
+				<p className="mb-1 px-2 text-[0.6875rem] font-medium text-theme-muted">
 					{title}
 				</p>
 			) : null}
@@ -170,8 +211,8 @@ function NavGroup({
 						className={cn(
 							"flex h-10 items-center gap-3 rounded-md px-2 text-xs font-normal",
 							isActive
-								? "bg-zinc-800 text-zinc-100"
-								: "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200",
+								? "bg-theme-interactive text-theme-primary"
+								: "text-theme-muted hover-bg-theme-subtle hover:text-theme-secondary",
 							!isExpanded && "justify-center",
 						)}
 						href={item.href}
@@ -201,7 +242,7 @@ function SidebarAction({
 	return (
 		<button
 			className={cn(
-				"flex h-9 items-center gap-3 rounded-md px-2 text-xs font-normal text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200",
+				"flex h-9 items-center gap-3 rounded-md px-2 text-xs font-normal text-theme-muted hover-bg-theme-subtle hover:text-theme-secondary",
 				!isExpanded && "justify-center",
 			)}
 			onClick={onClick}

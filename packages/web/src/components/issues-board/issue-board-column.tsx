@@ -46,7 +46,9 @@ export function IssueColumn({
 	onTaskDrop,
 	onTaskPointerDrop,
 }: IssueColumnProps): ReactElement {
-	const tone = STATUS_PRESENTATION[column.status]?.tone ?? "bg-[#17181c]";
+	const tone =
+		STATUS_PRESENTATION[column.status]?.tone ??
+		"bg-[color:var(--status-neutral-bg)]";
 	const canDrop = Boolean(dragState && dragState.status !== column.status);
 	const isDropTarget = canDrop && dragOverStatus === column.status;
 
