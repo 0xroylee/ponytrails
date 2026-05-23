@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { access, mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { initializeServerDatabase } from "devos-db";
@@ -43,8 +43,27 @@ const draft: SetupDraft = {
 		sandbox: "workspace-write",
 	},
 };
+let previousHome: string | undefined;
+let testHomeDir: string | undefined;
 
 describe("setup database initialization", () => {
+	beforeEach(async () => {
+		previousHome = process.env.HOME;
+		testHomeDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-setup-db-home-"),
+		);
+		process.env.HOME = testHomeDir;
+	});
+
+	afterEach(async () => {
+		process.env.HOME = previousHome;
+		if (testHomeDir) {
+			await rm(testHomeDir, { recursive: true, force: true });
+		}
+		previousHome = undefined;
+		testHomeDir = undefined;
+	});
+
 	it("creates and migrates the server database during fresh onboarding", async () => {
 		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-db-"));
 		const databasePath = path.join(tempDir, ".devos", "config", "server-db");

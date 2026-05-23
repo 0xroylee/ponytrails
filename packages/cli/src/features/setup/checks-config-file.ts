@@ -43,15 +43,14 @@ function buildConfigFileCheck(
 		| { ok: false; message: string },
 	instanceResult: InstanceConfigLoadResult,
 ): SetupCheck {
-	if (!configExists) {
-		return fail(`${DEFAULT_CONFIG_FILE} missing or inaccessible`);
-	}
 	if (!configResult.ok) return fail(configResult.message);
 	if (!instanceResult.ok) return fail(instanceResult.message);
 	return {
-		name: "Config file",
+		name: "Instance config",
 		status: "pass",
-		message: `${DEFAULT_CONFIG_FILE} and instance config loaded successfully`,
+		message: configExists
+			? `instance config and ${DEFAULT_CONFIG_FILE} loaded successfully`
+			: `instance config loaded successfully; ${DEFAULT_CONFIG_FILE} not present`,
 	};
 }
 
@@ -84,5 +83,5 @@ async function loadConfigForCheck(
 }
 
 function fail(message: string): SetupCheck {
-	return { name: "Config file", status: "fail", message };
+	return { name: "Instance config", status: "fail", message };
 }

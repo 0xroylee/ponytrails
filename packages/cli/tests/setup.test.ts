@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
 	access,
 	mkdir,
@@ -15,7 +15,12 @@ import {
 	projectBoardsTable,
 } from "devos-db";
 import type { LoadedConfig } from "../src/features/config";
-import { loadSqliteEnv } from "../src/features/config";
+import {
+	devosHomeInstanceRoot,
+	instanceConfigPath,
+	loadSqliteEnv,
+	sqliteEnvDbPath,
+} from "../src/features/config";
 import { PromptCancelledError } from "../src/features/prompts";
 import type {
 	PromptAdapter,
@@ -88,8 +93,25 @@ const checkProjectName = "Demo Project";
 const checkRepoOwner = "octo";
 const checkRepoName = "demo";
 const checkBaseBranch = "main";
+let previousHome: string | undefined;
+let testHomeDir: string | undefined;
 
 describe("setup helpers", () => {
+	beforeEach(async () => {
+		previousHome = process.env.HOME;
+		testHomeDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-home-"));
+		process.env.HOME = testHomeDir;
+	});
+
+	afterEach(async () => {
+		process.env.HOME = previousHome;
+		if (testHomeDir) {
+			await rm(testHomeDir, { recursive: true, force: true });
+		}
+		previousHome = undefined;
+		testHomeDir = undefined;
+	});
+
 	it("normalizes project ids for non-technical names", () => {
 		expect(normalizeProjectId("My First Project!")).toBe("my-first-project");
 		expect(normalizeProjectId("   ")).toBe("default");
@@ -111,7 +133,8 @@ describe("setup helpers", () => {
 		expect(DEFAULT_REASONING_EFFORTS.implement).toBe("low");
 	});
 
-	it("renders onboarding instance config from the local workspace", () => {
+	it("renders onboarding instance config from the devos home directory", () => {
+		const instanceRoot = devosHomeInstanceRoot();
 		const config = JSON.parse(
 			renderInstanceConfig("/tmp/demo", "2026-05-12T16:13:11.419Z"),
 		);
@@ -124,18 +147,18 @@ describe("setup helpers", () => {
 			},
 			database: {
 				mode: "embedded-postgres",
-				embeddedPostgresDataDir: "/tmp/demo/.devos/instances/default/db",
+				embeddedPostgresDataDir: path.join(instanceRoot, "db"),
 				embeddedPostgresPort: 54329,
 				backup: {
 					enabled: true,
 					intervalMinutes: 60,
 					retentionDays: 30,
-					dir: "/tmp/demo/.devos/instances/default/data/backups",
+					dir: path.join(instanceRoot, "data", "backups"),
 				},
 			},
 			logging: {
 				mode: "file",
-				logDir: "/tmp/demo/.devos/instances/default/logs",
+				logDir: path.join(instanceRoot, "logs"),
 			},
 			server: {
 				deploymentMode: "local_trusted",
@@ -156,7 +179,7 @@ describe("setup helpers", () => {
 			storage: {
 				provider: "local_disk",
 				localDisk: {
-					baseDir: "/tmp/demo/.devos/instances/default/data/storage",
+					baseDir: path.join(instanceRoot, "data", "storage"),
 				},
 				s3: {
 					bucket: "devos",
@@ -169,7 +192,7 @@ describe("setup helpers", () => {
 				provider: "local_encrypted",
 				strictMode: false,
 				localEncrypted: {
-					keyFilePath: "/tmp/demo/.devos/instances/default/secrets/master.key",
+					keyFilePath: path.join(instanceRoot, "secrets", "master.key"),
 				},
 			},
 		});
@@ -266,7 +289,9 @@ describe("setup helpers", () => {
 		const collectChecks = mock(async (cwd: string) => {
 			const sqliteEnv = await loadSqliteEnv(cwd);
 			expect(sqliteEnv?.JWT_SECRET).toBeTruthy();
-			return [{ name: "Config file", status: "pass" as const, message: "ok" }];
+			return [
+				{ name: "Instance config", status: "pass" as const, message: "ok" },
+			];
 		});
 		try {
 			const output = await captureStdout(() =>
@@ -280,12 +305,8 @@ describe("setup helpers", () => {
 			const jwtSecret = sqliteEnv?.JWT_SECRET ?? "missing JWT_SECRET";
 			expect(collectChecks).toHaveBeenCalledTimes(1);
 			expect(output).toContain("Onboarding files written:");
-			expect(output).toContain(
-				`Instance config: ${path.join(
-					tempDir,
-					".devos/config/instance.config.json",
-				)}`,
-			);
+			expect(output).toContain(`Instance config: ${instanceConfigPath()}`);
+			expect(output).toContain(`Secrets saved to ${sqliteEnvDbPath(tempDir)}`);
 			expect(output).toContain(renderDevosBanner());
 			expect(
 				output
@@ -294,7 +315,7 @@ describe("setup helpers", () => {
 			).toBe(true);
 			expect(output).toContain("Summary");
 			expect(output).toContain("1 passed");
-			expect(output).toContain("Config file");
+			expect(output).toContain("Instance config");
 			expect(output).toContain("ok");
 			expect(output).toContain("All checks passed!");
 			expect(output).not.toContain(jwtSecret);
@@ -302,7 +323,7 @@ describe("setup helpers", () => {
 			const successIndex = output.indexOf("Onboarding files written:");
 			const bannerIndex = output.indexOf(renderDevosBanner());
 			const doctorIndex = output.indexOf("Running doctor checks...");
-			const resultsIndex = output.indexOf("Config file");
+			const resultsIndex = output.indexOf("Instance config", doctorIndex);
 			expect(successIndex).toBeLessThan(bannerIndex);
 			expect(bannerIndex).toBeLessThan(doctorIndex);
 			expect(doctorIndex).toBeLessThan(resultsIndex);
@@ -379,18 +400,14 @@ describe("setup helpers", () => {
 				access(path.join(tempDir, "devos.local.config.ts")),
 			).rejects.toThrow();
 
-			const instanceConfigPath = path.join(
-				tempDir,
-				".devos/config/instance.config.json",
-			);
 			const instanceConfig = JSON.parse(
-				await readFile(instanceConfigPath, "utf8"),
+				await readFile(instanceConfigPath(), "utf8"),
 			);
 			expect(instanceConfig.$meta.source).toBe("onboard");
 			expect(instanceConfig.database.mode).toBe("embedded-postgres");
 			expect(instanceConfig.server.port).toBe(3100);
 			expect(instanceConfig.storage.localDisk.baseDir).toBe(
-				path.join(tempDir, ".devos", "instances", "default", "data", "storage"),
+				path.join(devosHomeInstanceRoot(), "data", "storage"),
 			);
 			await access(instanceConfig.storage.localDisk.baseDir);
 			await access(instanceConfig.database.embeddedPostgresDataDir);
@@ -468,7 +485,35 @@ describe("setup helpers", () => {
 		expect(checks.map((check) => check.name)).not.toContain("Linear API key");
 	});
 
+	it("does not require a devos config override for setup checks", async () => {
+		const checks = await collectSetupChecks(
+			"/tmp/demo",
+			setupCheckDeps({
+				loadConfig: async () => ({
+					...loadedConfig({ linearApiKey: "lin_secret_123" }),
+					projects: [],
+				}),
+				access: async (targetPath) => {
+					if (targetPath.endsWith("devos.config.ts")) {
+						throw new Error("missing");
+					}
+				},
+				readFile: async () => "",
+				runCommand: async () => okCommand(),
+			}),
+		);
+
+		expect(checks).toContainEqual({
+			name: "Instance config",
+			status: "pass",
+			message:
+				"instance config loaded successfully; devos.config.ts not present",
+		});
+		expect(checks.every((check) => check.status === "pass")).toBe(true);
+	});
+
 	it("reports targeted instance doctor failures when instance config is missing or malformed", async () => {
+		const missingInstanceMessage = `${instanceConfigPath()} missing or inaccessible`;
 		const missingChecks = await collectSetupChecks(
 			"/tmp/demo",
 			setupCheckDeps({
@@ -476,7 +521,7 @@ describe("setup helpers", () => {
 					loadedConfig({ linearApiKey: "lin_secret_123" }),
 				loadInstanceConfig: async () => ({
 					ok: false,
-					message: ".devos/config/instance.config.json missing or inaccessible",
+					message: missingInstanceMessage,
 				}),
 				access: async () => {},
 				readFile: async () => "",
@@ -485,24 +530,20 @@ describe("setup helpers", () => {
 		);
 
 		expect(missingChecks).toContainEqual({
-			name: "Config file",
+			name: "Instance config",
 			status: "fail",
-			message: ".devos/config/instance.config.json missing or inaccessible",
+			message: missingInstanceMessage,
 		});
 		expect(missingChecks).toContainEqual({
 			name: "Storage",
 			status: "fail",
-			message:
-				"instance config unavailable: .devos/config/instance.config.json missing or inaccessible",
+			message: `instance config unavailable: ${missingInstanceMessage}`,
 		});
 
 		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-test-"));
 		try {
-			await mkdir(path.join(tempDir, ".devos/config"), { recursive: true });
-			await writeFile(
-				path.join(tempDir, ".devos/config/instance.config.json"),
-				"{nope",
-			);
+			await mkdir(path.dirname(instanceConfigPath()), { recursive: true });
+			await writeFile(instanceConfigPath(), "{nope");
 			const malformed = await loadInstanceConfig(tempDir);
 			expect(malformed.ok).toBe(false);
 			if (!malformed.ok) {
@@ -541,8 +582,11 @@ describe("setup helpers", () => {
 		expect(checks).toContainEqual({
 			name: "Storage",
 			status: "fail",
-			message:
-				"storage.localDisk.baseDir /tmp/demo/.devos/instances/default/data/storage is not accessible: permission denied",
+			message: `storage.localDisk.baseDir ${path.join(
+				devosHomeInstanceRoot(),
+				"data",
+				"storage",
+			)} is not accessible: permission denied`,
 		});
 		expect(checks).toContainEqual({
 			name: "Database",
@@ -552,8 +596,10 @@ describe("setup helpers", () => {
 		expect(checks).toContainEqual({
 			name: "Log directory",
 			status: "fail",
-			message:
-				"logging.logDir /tmp/demo/.devos/instances/default/logs is not accessible: permission denied",
+			message: `logging.logDir ${path.join(
+				devosHomeInstanceRoot(),
+				"logs",
+			)} is not accessible: permission denied`,
 		});
 		expect(checks).toContainEqual({
 			name: "Server port",

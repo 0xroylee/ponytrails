@@ -1,6 +1,6 @@
 import path from "node:path";
 import { initializeServerDatabase, projectBoardsTable } from "devos-db";
-import { SERVER_DB_DIR, SQLITE_ENV_DIR } from "../config/constants";
+import { SERVER_DB_DIR } from "../config/constants";
 import { LOCAL_BOARD_ID, LOCAL_WORKSPACE_ID } from "./constants";
 import type { SetupDraft } from "./setup.types";
 
@@ -40,6 +40,6 @@ export async function saveSetupWorkspaceMetadata(
 function resolveSetupDatabasePath(cwd: string): string {
 	return path.resolve(
 		process.env.PIV_SERVER_DATABASE_PATH ||
-			path.join(cwd, SQLITE_ENV_DIR, SERVER_DB_DIR),
+			path.join(cwd, ".devos", "config", SERVER_DB_DIR),
 	);
 }

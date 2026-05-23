@@ -4,11 +4,7 @@ import type {
 	ProjectRuntimeConfig,
 	ResolvedNotificationConfig,
 } from "../../features/types";
-import {
-	AUTO_SELECT_SKILLS_DB_FILE,
-	SERVER_DB_DIR,
-	SQLITE_ENV_DIR,
-} from "./constants";
+import { AUTO_SELECT_SKILLS_DB_FILE, SERVER_DB_DIR } from "./constants";
 import {
 	normalizeAgentBackend,
 	normalizeBooleanEnvValue,
@@ -83,7 +79,7 @@ export function buildEnvBase(
 			database: {
 				databasePath:
 					normalizeOptionalValue(env.PIV_SERVER_DATABASE_PATH) ??
-					path.join(cwd, SQLITE_ENV_DIR, SERVER_DB_DIR),
+					path.join(cwd, ".devos", "config", SERVER_DB_DIR),
 			},
 		},
 		codex: {
@@ -172,7 +168,8 @@ export function buildEnvBase(
 				sources: { folder: true, database: false },
 				databasePath: path.join(
 					cwd,
-					SQLITE_ENV_DIR,
+					".devos",
+					"config",
 					AUTO_SELECT_SKILLS_DB_FILE,
 				),
 				maxSelected: 3,

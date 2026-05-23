@@ -92,6 +92,12 @@ function resolvePolling(
 }
 
 export { loadSqliteEnv, saveSqliteEnv, sqliteEnvDbPath };
+export {
+	devosHomeConfigDir,
+	devosHomeDir,
+	devosHomeInstanceRoot,
+	instanceConfigPath,
+} from "./home-paths";
 export { loadResolvedEnv };
 export type { LoadedConfig } from "./config.types";
 export type { ResolvedEnv } from "./env";

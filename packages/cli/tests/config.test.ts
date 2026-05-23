@@ -75,9 +75,14 @@ const envKeys = [
 ] as const;
 
 const previousEnv: Record<string, string | undefined> = {};
+let previousHome: string | undefined;
+let testHomeDir: string | undefined;
 
 describe("loadConfig", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
+		previousHome = process.env.HOME;
+		testHomeDir = await mkdtemp(path.join(process.cwd(), ".tmp-config-home-"));
+		process.env.HOME = testHomeDir;
 		for (const key of envKeys) {
 			previousEnv[key] = process.env[key];
 			process.env[key] =
@@ -135,6 +140,13 @@ describe("loadConfig", () => {
 	afterEach(() => {
 		for (const key of envKeys) {
 			process.env[key] = previousEnv[key];
+		}
+		process.env.HOME = previousHome;
+		const homeDir = testHomeDir;
+		previousHome = undefined;
+		testHomeDir = undefined;
+		if (homeDir) {
+			return rm(homeDir, { recursive: true, force: true });
 		}
 	});
 

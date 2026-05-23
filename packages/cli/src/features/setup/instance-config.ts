@@ -1,5 +1,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+	devosHomeInstanceRoot,
+	instanceConfigPath,
+} from "../config/home-paths";
 import { INSTANCE_CONFIG_FILE } from "./constants";
 import type {
 	InstanceConfigLoadResult,
@@ -24,20 +28,20 @@ export function renderInstanceConfigDocument(
 }
 
 export async function loadInstanceConfig(
-	cwd: string,
+	_cwd: string,
 	readText: (
 		targetPath: string,
 		encoding: BufferEncoding,
 	) => Promise<string> = readFile,
 ): Promise<InstanceConfigLoadResult> {
-	const configPath = path.join(cwd, INSTANCE_CONFIG_FILE);
+	const configPath = instanceConfigPath();
 	let content: string;
 	try {
 		content = await readText(configPath, "utf8");
 	} catch {
 		return {
 			ok: false,
-			message: `${INSTANCE_CONFIG_FILE} missing or inaccessible`,
+			message: `${configPath} missing or inaccessible`,
 		};
 	}
 
@@ -51,7 +55,7 @@ export async function loadInstanceConfig(
 	} catch (error) {
 		return {
 			ok: false,
-			message: `${INSTANCE_CONFIG_FILE} is malformed: ${
+			message: `${configPath} is malformed: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		};
@@ -59,15 +63,10 @@ export async function loadInstanceConfig(
 }
 
 export function createInstanceConfig(
-	cwd: string,
+	_cwd: string,
 	updatedAt: string,
 ): OnboardInstanceConfig {
-	const instanceRoot = path.resolve(
-		cwd,
-		".devos",
-		"instances",
-		DEFAULT_INSTANCE_ID,
-	);
+	const instanceRoot = devosHomeInstanceRoot(DEFAULT_INSTANCE_ID);
 	return {
 		$meta: {
 			version: 1,

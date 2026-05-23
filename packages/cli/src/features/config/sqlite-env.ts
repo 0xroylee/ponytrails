@@ -1,20 +1,17 @@
 import { Database } from "bun:sqlite";
 import { access, mkdir } from "node:fs/promises";
 import path from "node:path";
-import {
-	SQLITE_ENV_DB_FILE,
-	SQLITE_ENV_DIR,
-	SQLITE_ENV_TABLE,
-} from "./constants";
+import { SQLITE_ENV_TABLE } from "./constants";
+import { sqliteEnvDbPath as resolveSqliteEnvDbPath } from "./home-paths";
 
-export function sqliteEnvDbPath(cwd: string): string {
-	return path.join(cwd, SQLITE_ENV_DIR, SQLITE_ENV_DB_FILE);
+export function sqliteEnvDbPath(_cwd: string): string {
+	return resolveSqliteEnvDbPath();
 }
 
 export async function loadSqliteEnv(
-	cwd: string,
+	_cwd: string,
 ): Promise<Record<string, string> | undefined> {
-	const dbPath = sqliteEnvDbPath(cwd);
+	const dbPath = resolveSqliteEnvDbPath();
 	try {
 		await access(dbPath);
 	} catch {
@@ -37,10 +34,10 @@ export async function loadSqliteEnv(
 }
 
 export async function saveSqliteEnv(
-	cwd: string,
+	_cwd: string,
 	updates: Record<string, string | undefined>,
 ): Promise<void> {
-	const dbPath = sqliteEnvDbPath(cwd);
+	const dbPath = resolveSqliteEnvDbPath();
 	await mkdir(path.dirname(dbPath), { recursive: true });
 	const db = new Database(dbPath, { create: true });
 	try {

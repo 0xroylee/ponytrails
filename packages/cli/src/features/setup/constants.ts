@@ -1,9 +1,9 @@
 import type { CodexReasoningEffort } from "../../features/types";
 import type { SetupDraft } from "./setup.types";
 export { DEFAULT_CONFIG_FILE } from "../config/constants";
+export { INSTANCE_CONFIG_FILE } from "../config/home-paths";
 
 export const ENV_FILE = ".env";
-export const INSTANCE_CONFIG_FILE = ".devos/config/instance.config.json";
 export const DEFAULT_WORKSPACE_NAME = "Default Workspace";
 export const DEFAULT_PROJECT_NAME = "Default Project";
 export const LOCAL_WORKSPACE_ID = "owner-1";

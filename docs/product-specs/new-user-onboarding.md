@@ -13,7 +13,7 @@ Get a new operator from zero onboarding to running a scoped project workflow.
 ## Onboard
 
 1. Run `npx devos onboard` and answer the guided prompts.
-2. Confirm the wizard writes `.env` for secrets and `.devos/config/instance.config.json` for the local trusted instance.
+2. Confirm the wizard writes `.env` for compatibility, `~/.devos/config/env.sqlite` for secrets, and `~/.devos/config/instance.config.json` for the local trusted instance.
 3. Run `npx devos onboard --check` to verify config, GitHub auth, RTK availability, Codex availability, and secret placement.
 
 ## First Run
