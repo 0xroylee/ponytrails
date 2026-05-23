@@ -485,7 +485,7 @@ describe("setup helpers", () => {
 		expect(checks.map((check) => check.name)).not.toContain("Linear API key");
 	});
 
-	it("does not require a devos config override for setup checks", async () => {
+	it("passes instance setup checks without a workspace config file", async () => {
 		const checks = await collectSetupChecks(
 			"/tmp/demo",
 			setupCheckDeps({
@@ -493,11 +493,7 @@ describe("setup helpers", () => {
 					...loadedConfig({ linearApiKey: "lin_secret_123" }),
 					projects: [],
 				}),
-				access: async (targetPath) => {
-					if (targetPath.endsWith("devos.config.ts")) {
-						throw new Error("missing");
-					}
-				},
+				access: async () => {},
 				readFile: async () => "",
 				runCommand: async () => okCommand(),
 			}),
@@ -506,8 +502,7 @@ describe("setup helpers", () => {
 		expect(checks).toContainEqual({
 			name: "Instance config",
 			status: "pass",
-			message:
-				"instance config loaded successfully; devos.config.ts not present",
+			message: "instance config loaded successfully",
 		});
 		expect(checks.every((check) => check.status === "pass")).toBe(true);
 	});
@@ -790,49 +785,6 @@ describe("setup helpers", () => {
 			name: "Skill auto-select database (demo-project)",
 			status: "fail",
 			message: "/tmp/demo/skills.db does not exist or is not accessible",
-		});
-	});
-
-	it("reports secrets in tracked config", async () => {
-		const checks = await collectSetupChecks(
-			"/tmp/demo",
-			setupCheckDeps({
-				loadConfig: async () =>
-					loadedConfig({ linearApiKey: "lin_secret_123" }),
-				access: async () => {},
-				readFile: async (filePath) =>
-					filePath.endsWith("devos.config.ts") ? "lin_secret_123" : "",
-				runCommand: async () => okCommand(),
-			}),
-		);
-
-		expect(checks).toContainEqual({
-			name: "Tracked config secrets",
-			status: "fail",
-			message: "devos.config.ts contains a configured secret",
-		});
-	});
-
-	it("reports cursor api keys in tracked config", async () => {
-		const checks = await collectSetupChecks(
-			"/tmp/demo",
-			setupCheckDeps({
-				loadConfig: async () =>
-					loadedConfig({
-						linearApiKey: "lin_secret_123",
-						cursorApiKey: "cursor_secret_123",
-					}),
-				access: async () => {},
-				readFile: async (filePath) =>
-					filePath.endsWith("devos.config.ts") ? "cursor_secret_123" : "",
-				runCommand: async () => okCommand(),
-			}),
-		);
-
-		expect(checks).toContainEqual({
-			name: "Tracked config secrets",
-			status: "fail",
-			message: "devos.config.ts contains a configured secret",
 		});
 	});
 

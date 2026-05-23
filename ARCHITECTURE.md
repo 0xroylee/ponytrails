@@ -6,7 +6,7 @@ devos.ing is a multi-project orchestration hub that pulls eligible Linear issues
 
 ## Ownership Boundaries
 
-1. `packages/cli/src/core/config.ts` is the only runtime config resolver for env vars and config files.
+1. `packages/cli/src/features/config/` owns runtime config resolution from env vars, home-scoped onboarding state, and server-owned project metadata.
 2. `packages/cli/src/features/workflow/` owns stage transitions, retries, and orchestration order.
 3. Integration modules stay isolated under `packages/cli/src/integrations/`, while agent runtime adapters live in `packages/agent-adapters/`:
    - `packages/cli/src/integrations/linear/linear.ts`
@@ -31,7 +31,7 @@ The workflow advances through planning -> implementing -> review/testing and syn
 ```mermaid
 flowchart TD
     operator[Operator] --> linearIssue[Linear Issue Intake]
-    linearIssue --> config[packages/cli/src/core/config.ts<br/>project + runtime resolution]
+    linearIssue --> config[packages/cli/src/features/config<br/>project + runtime resolution]
     config --> workflow[packages/cli/src/features/workflow<br/>stage orchestration]
 
     workflow --> planning[Planning Agent]

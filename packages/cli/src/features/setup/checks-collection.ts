@@ -1,10 +1,9 @@
-import { access, readFile } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { runCommand } from "../../utils/shell";
 import { loadConfig, loadResolvedEnv } from "../config";
 import type { LoadedConfig } from "../config";
 import { addBinaryChecks } from "./checks-binaries";
 import { collectConfigFileCheck } from "./checks-config-file";
-import { checkTrackedConfigSecrets } from "./checks-helpers";
 import { collectInstanceSetupChecks } from "./checks-instance";
 import { loadInstanceConfig } from "./instance-config";
 import type { SetupCheck, SetupCheckDeps } from "./setup.types";
@@ -18,14 +17,12 @@ export async function collectSetupChecks(
 	const instanceLoader = deps.loadInstanceConfig ?? loadInstanceConfig;
 	const commandRunner = deps.runCommand ?? runCommand;
 	const accessPath = deps.access ?? access;
-	const readText = deps.readFile ?? readFile;
 	const checks: SetupCheck[] = [];
 
 	const { check, config, instanceResult } = await collectConfigFileCheck({
 		cwd,
 		configLoader,
 		instanceLoader,
-		accessPath,
 	});
 	checks.push(check);
 	const env = await loadEnvForChecks(envLoader, cwd);
@@ -43,7 +40,6 @@ export async function collectSetupChecks(
 	await addSkillChecks(checks, config, accessPath);
 	await addAutoSelectChecks(checks, config, accessPath);
 	await addBinaryChecks(checks, config, commandRunner, cwd);
-	checks.push(await checkTrackedConfigSecrets(cwd, config, readText));
 	return checks;
 }
 

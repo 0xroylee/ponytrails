@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import {
 	boardProjectsTable,
@@ -218,87 +218,20 @@ describe("loadConfig", () => {
 		}
 	});
 
-	it("supports server database path from env and root/project overrides", async () => {
+	it("supports server database path from env", async () => {
 		const tempDir = await mkdtemp(
 			path.join(process.cwd(), ".tmp-config-test-"),
 		);
 		process.env.PIV_SERVER_DATABASE_PATH = "./from-env/server-db";
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			[
-				"export default {",
-				"  server: {",
-				"    database: {",
-				"      databasePath: './root/server-db'",
-				"    }",
-				"  },",
-				"  projects: [",
-				"    {",
-				"      id: 'default',",
-				"      server: {",
-				"        database: {",
-				"          databasePath: './project/server-db'",
-				"        }",
-				"      }",
-				"    }",
-				"  ]",
-				"};",
-				"",
-			].join("\n"),
-		);
 
 		try {
 			const config = await loadConfig(tempDir);
 			expect(config.projects[0]?.server.database.databasePath).toBe(
-				path.resolve(tempDir, "./project/server-db"),
+				path.resolve(tempDir, "./from-env/server-db"),
 			);
 			expect(config.server.database.databasePath).toBe(
-				path.resolve(tempDir, "./root/server-db"),
+				path.resolve(tempDir, "./from-env/server-db"),
 			);
-		} finally {
-			await rm(tempDir, { recursive: true, force: true });
-		}
-	});
-
-	it("preserves explicit empty project lists", async () => {
-		const tempDir = await mkdtemp(
-			path.join(process.cwd(), ".tmp-config-test-"),
-		);
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			["export default {", "  projects: []", "};", ""].join("\n"),
-		);
-
-		try {
-			const config = await loadConfig(tempDir);
-			expect(config.projects).toEqual([]);
-			expect(config.server.database.databasePath).toBe(
-				path.join(tempDir, ".devos", "config", "server-db"),
-			);
-		} finally {
-			await rm(tempDir, { recursive: true, force: true });
-		}
-	});
-
-	it("keeps the default project fallback for legacy configs without projects", async () => {
-		const tempDir = await mkdtemp(
-			path.join(process.cwd(), ".tmp-config-test-"),
-		);
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			[
-				"export default {",
-				"  repo: { owner: 'octo', name: 'legacy-repo' }",
-				"};",
-				"",
-			].join("\n"),
-		);
-
-		try {
-			const config = await loadConfig(tempDir);
-			expect(config.projects[0]?.id).toBe("default");
-			expect(config.projects[0]?.repo.owner).toBe("octo");
-			expect(config.projects[0]?.repo.name).toBe("legacy-repo");
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
@@ -406,10 +339,6 @@ describe("loadConfig", () => {
 	it("loads web-created projects from the server database when config projects are empty", async () => {
 		const tempDir = await mkdtemp(
 			path.join(process.cwd(), ".tmp-config-test-"),
-		);
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			["export default {", "  projects: []", "};", ""].join("\n"),
 		);
 		const database = await initializeServerDatabase(
 			path.join(tempDir, ".devos", "config", "server-db"),
@@ -620,89 +549,6 @@ describe("loadConfig", () => {
 			const config = await loadConfig(tempDir);
 			expect(config.projects[0]?.claude?.permissionMode).toBe("plan");
 		});
-	});
-
-	it("allows config file to override agent settings", async () => {
-		const tempDir = await mkdtemp(
-			path.join(process.cwd(), ".tmp-config-test-"),
-		);
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			[
-				"export default {",
-				"  agent: {",
-				"    backend: 'claude-code',",
-				"  },",
-				"  claude: {",
-				"    model: 'claude-opus-4-20250514',",
-				"    maxTurns: 100,",
-				"    allowedTools: ['Read', 'Write'],",
-				"    permissionMode: 'plan',",
-				"  },",
-				"  projects: [",
-				"    { id: 'default' }",
-				"  ]",
-				"};",
-				"",
-			].join("\n"),
-		);
-
-		try {
-			const config = await loadConfig(tempDir);
-			expect(config.projects[0]?.agent?.backend).toBe("claude-code");
-			expect(config.projects[0]?.claude?.model).toBe("claude-opus-4-20250514");
-			expect(config.projects[0]?.claude?.maxTurns).toBe(100);
-			expect(config.projects[0]?.claude?.allowedTools).toEqual([
-				"Read",
-				"Write",
-			]);
-			expect(config.projects[0]?.claude?.permissionMode).toBe("plan");
-		} finally {
-			await rm(tempDir, { recursive: true, force: true });
-		}
-	});
-
-	it("merges root and project claude settings with project precedence", async () => {
-		const tempDir = await mkdtemp(
-			path.join(process.cwd(), ".tmp-config-test-"),
-		);
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			[
-				"export default {",
-				"  agent: { backend: 'claude-code' },",
-				"  claude: {",
-				"    model: 'claude-sonnet-4-20250514',",
-				"    maxTurns: 8,",
-				"    allowedTools: ['Read'],",
-				"  },",
-				"  projects: [",
-				"    {",
-				"      id: 'default',",
-				"      claude: {",
-				"        maxTurns: 12,",
-				"        allowedTools: ['Read', 'Edit'],",
-				"        permissionMode: 'plan',",
-				"      },",
-				"    }",
-				"  ]",
-				"};",
-				"",
-			].join("\n"),
-		);
-
-		try {
-			const config = await loadConfig(tempDir);
-			expect(config.projects[0]?.agent?.backend).toBe("claude-code");
-			expect(config.projects[0]?.claude).toEqual({
-				model: "claude-sonnet-4-20250514",
-				maxTurns: 12,
-				allowedTools: ["Read", "Edit"],
-				permissionMode: "plan",
-			});
-		} finally {
-			await rm(tempDir, { recursive: true, force: true });
-		}
 	});
 });
 

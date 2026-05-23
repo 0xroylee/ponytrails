@@ -4,8 +4,8 @@
 
 1. Treat API keys and tokens as environment-provided secrets.
 2. Do not hardcode credentials in repository files.
-3. Keep environment resolution centralized in `packages/cli/src/core/config.ts`.
-4. Local secret storage uses `~/.devos/config/env.sqlite`; keep secrets out of tracked config files and never commit this database.
+3. Keep environment resolution centralized in `packages/cli/src/features/config/`.
+4. Local secret storage uses `~/.devos/config/env.sqlite`; never commit this database.
 
 ## Command Safety
 
@@ -16,7 +16,7 @@
 
 1. Linear access is scoped by configured API key and optional project routing.
 2. GitHub actions should run through authenticated `gh` usage.
-3. Codex execution settings should remain explicit in config and per-project overrides.
+3. Codex execution settings should remain explicit in environment or onboarding-owned state.
 
 ## Docker Isolation Caveats
 

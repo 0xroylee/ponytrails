@@ -15,5 +15,5 @@
 			"devos-server/*": ["../server/src/*"]
 		}
 	},
-	"include": ["src", "tests", "../../devos.config.ts"]
+	"include": ["src", "tests"]
 }

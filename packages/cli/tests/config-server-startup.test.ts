@@ -4,8 +4,15 @@ import path from "node:path";
 import { loadServerStartupConfig } from "../src/features/config";
 
 let tempDir: string | undefined;
+let previousDatabasePath: string | undefined;
 
 afterEach(async () => {
+	if (previousDatabasePath === undefined) {
+		process.env.PIV_SERVER_DATABASE_PATH = undefined;
+	} else {
+		process.env.PIV_SERVER_DATABASE_PATH = previousDatabasePath;
+	}
+	previousDatabasePath = undefined;
 	if (tempDir) {
 		await rm(tempDir, { recursive: true, force: true });
 		tempDir = undefined;
@@ -18,17 +25,8 @@ describe("loadServerStartupConfig", () => {
 			path.join(process.cwd(), ".tmp-server-startup-config-"),
 		);
 		const databasePath = path.join(tempDir, "server-db-file");
-		await writeFile(
-			path.join(tempDir, "devos.config.ts"),
-			[
-				"export default {",
-				"  projects: [",
-				"    { id: 'default', server: { database: { databasePath: './server-db-file' } } },",
-				"  ],",
-				"};",
-				"",
-			].join("\n"),
-		);
+		previousDatabasePath = process.env.PIV_SERVER_DATABASE_PATH;
+		process.env.PIV_SERVER_DATABASE_PATH = databasePath;
 		await writeFile(databasePath, "not a pglite directory");
 
 		const config = await loadServerStartupConfig(tempDir);

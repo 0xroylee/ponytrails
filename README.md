@@ -117,12 +117,12 @@ docker compose down
 
 ## Configuration Notes
 
-- Primary config: `devos.config.ts`.
-- Root config: `devos.config.ts`.
 - Guided setup stores local secrets in `~/.devos/config/env.sqlite` (and writes `.env` for compatibility).
+- Guided setup writes the local instance config to `~/.devos/config/instance.config.json`.
+- Local instance data lives under `~/.devos/instances/default`.
 - Docker-isolated Codex execution status and caveats (ROY-95): [docs/RELIABILITY.md#docker-isolated-codex-execution](docs/RELIABILITY.md#docker-isolated-codex-execution)
 
-For full config shape, polling, automations/cron compatibility, env vars, and routing behavior, use:
+For runtime config resolution, polling, env vars, and routing behavior, use:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [docs/workspace-cli-commands.md](docs/workspace-cli-commands.md)

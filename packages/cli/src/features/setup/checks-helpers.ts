@@ -1,6 +1,4 @@
-import path from "node:path";
 import type { CommandResult } from "../../utils/shell";
-import type { LoadedConfig } from "../config";
 import { RTK_INSTALL_URL } from "./constants";
 import type { SetupCheck, SetupCheckDeps } from "./setup.types";
 
@@ -43,59 +41,4 @@ export function formatMissingDockerMessage(
 
 export function formatMissingCursorAgentMessage(cursorBinary: string): string {
 	return `${cursorBinary} binary not found. Install Cursor Agent CLI and run: cursor-agent login`;
-}
-
-export async function checkTrackedConfigSecrets(
-	cwd: string,
-	config: LoadedConfig,
-	readText: NonNullable<SetupCheckDeps["readFile"]>,
-): Promise<SetupCheck> {
-	const secretValues = new Set<string>();
-	for (const project of config.projects) {
-		if (project.linear.apiKey) {
-			secretValues.add(project.linear.apiKey);
-		}
-		if (project.cursor?.apiKey) {
-			secretValues.add(project.cursor.apiKey);
-		}
-	}
-	if (config.notifications.email.resendApiKey) {
-		secretValues.add(config.notifications.email.resendApiKey);
-	}
-
-	const trackedConfigPaths = ["devos.config.ts"].map((fileName) =>
-		path.join(cwd, fileName),
-	);
-	for (const configPath of trackedConfigPaths) {
-		const content = await readOptionalText(configPath, readText);
-		if (!content) {
-			continue;
-		}
-		for (const secret of secretValues) {
-			if (secret.length >= 8 && content.includes(secret)) {
-				return {
-					name: "Tracked config secrets",
-					status: "fail",
-					message: `${path.basename(configPath)} contains a configured secret`,
-				};
-			}
-		}
-	}
-
-	return {
-		name: "Tracked config secrets",
-		status: "pass",
-		message: "no configured secrets found in tracked config files",
-	};
-}
-
-async function readOptionalText(
-	filePath: string,
-	readText: NonNullable<SetupCheckDeps["readFile"]>,
-): Promise<string | undefined> {
-	try {
-		return await readText(filePath, "utf8");
-	} catch {
-		return undefined;
-	}
 }

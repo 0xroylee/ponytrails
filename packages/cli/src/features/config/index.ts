@@ -1,4 +1,5 @@
 import type {
+	DevosRootConfig,
 	PollingConfig,
 	ResolvedProjectConfig,
 } from "../../features/types";
@@ -10,12 +11,6 @@ import {
 	loadResolvedEnv,
 } from "./env";
 import { resolveNotifications } from "./notification-resolution";
-import {
-	assertNoProjectNotifications,
-	assertNoProjectPolling,
-	loadConfigOverride,
-	normalizeOverrideToRoot,
-} from "./overrides";
 import { applyDatabaseProjectMetadata } from "./project-metadata";
 import { resolveProjects } from "./project-resolution";
 import { resolveRootServerConfig } from "./server-resolution";
@@ -50,19 +45,21 @@ async function loadConfigWithOptions(
 	const envBase = buildEnvBase(cwd, env);
 	const envPolling = buildEnvPolling(env);
 	const envNotifications = buildEnvNotifications(env);
-	const loadedOverride = await loadConfigOverride(cwd);
-	const root = normalizeOverrideToRoot(loadedOverride);
-	assertNoProjectPolling(root.projects);
-	assertNoProjectNotifications(root.projects);
+	const root = createRuntimeRootConfig();
+	const defaultProjectRoot = createDefaultProjectRootConfig();
 
 	const resolvedProjects = resolveProjects(cwd, envBase, root);
-	const projects = options.applyDatabaseProjectMetadata
+	const metadataProjects = options.applyDatabaseProjectMetadata
 		? await applyDatabaseProjectMetadata(resolvedProjects, {
 				configCwd: cwd,
 				base: envBase,
 				root,
 			})
 		: resolvedProjects;
+	const projects =
+		metadataProjects.length > 0
+			? metadataProjects
+			: resolveProjects(cwd, envBase, defaultProjectRoot);
 	const polling = resolvePolling(envPolling, root.polling);
 	const notifications = resolveNotifications(
 		envNotifications,
@@ -75,6 +72,14 @@ async function loadConfigWithOptions(
 	validateNotifications(notifications);
 
 	return { projects, server, polling, notifications };
+}
+
+function createRuntimeRootConfig(): DevosRootConfig {
+	return { projects: [] };
+}
+
+function createDefaultProjectRootConfig(): DevosRootConfig {
+	return { projects: [{ id: "default" }] };
 }
 
 export function getProjectById(
