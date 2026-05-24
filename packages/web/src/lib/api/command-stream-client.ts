@@ -66,8 +66,8 @@ function streamCommandOverWebSocket(
 				onEvent(toCommandStreamEvent(frame));
 			}
 			if (frame.type === "complete") {
-				socket.close();
 				settle(resolve);
+				socket.close();
 			}
 		});
 		socket.addEventListener("error", () => {
