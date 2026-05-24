@@ -103,3 +103,81 @@ body {
 		color: var(--text-secondary);
 	}
 }
+
+@layer utilities {
+	.text-theme-primary {
+		color: var(--text-primary);
+	}
+
+	.text-theme-secondary {
+		color: var(--text-secondary);
+	}
+
+	.text-theme-muted {
+		color: var(--text-muted);
+	}
+
+	.text-theme-dim {
+		color: var(--text-muted);
+	}
+
+	.border-theme-subtle {
+		border-color: var(--border-subtle);
+	}
+
+	.border-theme-default {
+		border-color: var(--border-default);
+	}
+
+	.border-theme-strong {
+		border-color: var(--focus-ring);
+	}
+
+	.bg-theme-canvas {
+		background: var(--bg-app);
+	}
+
+	.bg-theme-subtle {
+		background: var(--bg-surface-muted);
+	}
+
+	.bg-theme-panel {
+		background: var(--bg-sidebar);
+	}
+
+	.bg-theme-panel-elevated {
+		background: var(--bg-surface);
+	}
+
+	.bg-theme-card {
+		background: var(--bg-surface);
+	}
+
+	.bg-theme-card-strong {
+		background: var(--bg-surface);
+	}
+
+	.bg-theme-control {
+		background: var(--bg-surface);
+	}
+
+	.bg-theme-control-subtle {
+		background: var(--bg-surface-muted);
+	}
+
+	.bg-theme-interactive {
+		background: var(--bg-active);
+	}
+
+	.hover-bg-theme-interactive:hover {
+		background: var(--bg-active);
+	}
+
+	.hover-bg-theme-subtle:hover {
+		background: var(--bg-hover);
+	}
+
+	.backdrop-theme-strong::backdrop {
+		background: color-mix(in srgb, var(--bg-app) 70%, black 30%);
+	}
+}

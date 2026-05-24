@@ -1,9 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { EventEmitter } from "node:events";
-import { type Server, createServer } from "node:http";
+import type { Server } from "node:http";
 import { Writable } from "node:stream";
-import express, { type Express } from "express";
-import request from "supertest";
+import type {
+	Express,
+	Request as ExpressRequest,
+	Response as ExpressResponse,
+} from "express";
 import {
 	createExpressRequestLogger,
 	listenExpressApp,
@@ -83,15 +86,12 @@ describe("listenExpressApp", () => {
 
 	it("logs successful chat-create requests before query strings", async () => {
 		const captured = createCapturedLogger();
-		const server = await createLoggedTestServer(captured, 201);
-
-		try {
-			await request(server)
-				.post("/api/tasks/chat-create?token=secret")
-				.expect(201);
-		} finally {
-			await closeTestServer(server);
-		}
+		await emitLoggedRequest(captured.logger, {
+			method: "POST",
+			pathname: "/api/tasks/chat-create",
+			rawUrl: "/api/tasks/chat-create?token=secret",
+			statusCode: 201,
+		});
 		const output = captured.output();
 		expect(output).toContain("INFO");
 		expect(output).toContain("HTTP request completed");
@@ -104,13 +104,12 @@ describe("listenExpressApp", () => {
 
 	it("logs pre-route validation failures at info level", async () => {
 		const captured = createCapturedLogger();
-		const server = await createLoggedTestServer(captured, 400);
-
-		try {
-			await request(server).post("/api/tasks/chat-create").expect(400);
-		} finally {
-			await closeTestServer(server);
-		}
+		await emitLoggedRequest(captured.logger, {
+			method: "POST",
+			pathname: "/api/tasks/chat-create",
+			rawUrl: "/api/tasks/chat-create",
+			statusCode: 400,
+		});
 		const output = captured.output();
 		expect(output).toContain("INFO");
 		expect(output).toContain("HTTP request completed");
@@ -119,13 +118,12 @@ describe("listenExpressApp", () => {
 
 	it("logs server error responses at error level", async () => {
 		const captured = createCapturedLogger();
-		const server = await createLoggedTestServer(captured, 503);
-
-		try {
-			await request(server).post("/api/tasks/chat-create").expect(503);
-		} finally {
-			await closeTestServer(server);
-		}
+		await emitLoggedRequest(captured.logger, {
+			method: "POST",
+			pathname: "/api/tasks/chat-create",
+			rawUrl: "/api/tasks/chat-create",
+			statusCode: 503,
+		});
 		const output = captured.output();
 		expect(output).toContain("ERROR");
 		expect(output).toContain("HTTP request failed");
@@ -145,43 +143,31 @@ function createFakeExpress(
 	} as unknown as Express;
 }
 
-async function createLoggedTestServer(
-	captured: CapturedLogger,
-	statusCode: number,
-): Promise<Server> {
-	const server = createServer(createLoggedExpressApp(captured, statusCode));
-	await new Promise<void>((resolve, reject) => {
-		server.once("error", reject);
-		server.listen(0, () => {
-			server.off("error", reject);
-			resolve();
-		});
+async function emitLoggedRequest(
+	logger: ReturnType<typeof createServerLogger>,
+	input: {
+		method: string;
+		pathname: string;
+		rawUrl: string;
+		statusCode: number;
+	},
+): Promise<void> {
+	const middleware = createExpressRequestLogger(logger);
+	const request = {
+		method: input.method,
+		originalUrl: input.rawUrl,
+		path: input.pathname,
+		url: input.rawUrl,
+		headers: {},
+	} as ExpressRequest;
+	const response = Object.assign(new EventEmitter(), {
+		statusCode: 200,
+	}) as ExpressResponse;
+	middleware(request, response, () => {
+		response.statusCode = input.statusCode;
+		response.emit("finish");
 	});
-	return server;
-}
-
-function createLoggedExpressApp(
-	captured: CapturedLogger,
-	statusCode: number,
-): Express {
-	const app = express();
-	app.use(createExpressRequestLogger(captured.logger));
-	app.post("/api/tasks/chat-create", (_request, response) => {
-		response.status(statusCode).json({ ok: statusCode < 400 });
-	});
-	return app;
-}
-
-function closeTestServer(server: Server): Promise<void> {
-	return new Promise((resolve, reject) => {
-		server.close((error) => {
-			if (error) {
-				reject(error);
-				return;
-			}
-			resolve();
-		});
-	});
+	await Promise.resolve();
 }
 
 interface CapturedLogger {
