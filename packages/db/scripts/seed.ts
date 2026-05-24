@@ -10,17 +10,19 @@ import type { ServerDb } from "../src";
 import {
 	parseDatabaseScriptArgs,
 	printCliError,
-	resolveDatabasePath,
+	resolveDatabaseConfig,
 } from "./cli";
 
 const SEED_NOW = "2026-05-20T00:00:00.000Z";
 
 export interface SeedDatabaseOptions {
 	dbPath?: string;
+	port?: number;
 }
 
 export interface SeedDatabaseResult {
 	dbPath: string;
+	port: number;
 }
 
 if (import.meta.main) {
@@ -48,11 +50,13 @@ export async function runSeedDatabaseCli(
 export async function seedDatabase(
 	options: SeedDatabaseOptions = {},
 ): Promise<SeedDatabaseResult> {
-	const dbPath = await resolveDatabasePath(options.dbPath);
-	const database = await initializeServerDatabase(dbPath);
+	const { dbPath, port } = await resolveDatabaseConfig(options.dbPath, {
+		port: options.port,
+	});
+	const database = await initializeServerDatabase(dbPath, { port });
 	try {
 		await insertSeedRows(database.db);
-		return { dbPath };
+		return { dbPath, port };
 	} finally {
 		await database.close();
 	}
@@ -146,6 +150,6 @@ Usage:
   bun run --filter devos-db seed -- [--db PATH]
 
 Options:
-  --db <path>  PGlite database path
+  --db <path>  Embedded PostgreSQL data directory
   --help, -h   Show this help`);
 }

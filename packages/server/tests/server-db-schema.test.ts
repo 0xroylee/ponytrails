@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { PGlite } from "devos-db";
 import { eq } from "devos-db";
 import {
 	type NewAgentRow,
@@ -440,9 +439,18 @@ describe("server drizzle schema", () => {
 	});
 
 	it("initializes the same database path twice without startup errors", async () => {
-		testDatabase = await createDrizzleServerTestDatabase();
-		const reopened = await initializeServerDatabase(testDatabase.path);
-		await reopened.close();
+		const tempDir = await mkdtemp(
+			path.join(os.tmpdir(), "adhd-server-reopen-"),
+		);
+		const databasePath = path.join(tempDir, "db");
+		try {
+			const first = await initializeServerDatabase(databasePath);
+			await first.close();
+			const reopened = await initializeServerDatabase(databasePath);
+			await reopened.close();
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
 	});
 
 	it("migrates existing token_usage tables created with the old schema", async () => {
@@ -452,8 +460,10 @@ describe("server drizzle schema", () => {
 		const databasePath = path.join(tempDir, "db");
 
 		try {
-			const oldClient = new PGlite(databasePath);
-			await oldClient.exec(`
+			const oldDatabase = await initializeServerDatabase(databasePath, {
+				runMigrations: false,
+			});
+			await oldDatabase.client.query(`
 				CREATE TABLE token_usage (
 					id text PRIMARY KEY,
 					run_id text NOT NULL,
@@ -464,14 +474,14 @@ describe("server drizzle schema", () => {
 					recorded_at timestamp NOT NULL
 				);
 			`);
-			await oldClient.exec(`
+			await oldDatabase.client.query(`
 				INSERT INTO token_usage (
 					id, run_id, stage, input_tokens, output_tokens, total_tokens, recorded_at
 				) VALUES (
 					'tu-old-1', 'run-old-1', 'planning', 11, 22, 33, '2026-05-12 03:00:00'
 				);
 			`);
-			await oldClient.close();
+			await oldDatabase.close();
 
 			const migrated = await initializeServerDatabase(databasePath);
 			const [existingRow] = await migrated.db
@@ -514,8 +524,10 @@ describe("server drizzle schema", () => {
 		const databasePath = path.join(tempDir, "db");
 
 		try {
-			const oldClient = new PGlite(databasePath);
-			await oldClient.exec(`
+			const oldDatabase = await initializeServerDatabase(databasePath, {
+				runMigrations: false,
+			});
+			await oldDatabase.client.query(`
 				CREATE TABLE project_boards (
 					id text PRIMARY KEY,
 					name text NOT NULL,
@@ -549,7 +561,7 @@ describe("server drizzle schema", () => {
 					'2026-05-20 00:01:00', '2026-05-20 00:01:00'
 				);
 			`);
-			await oldClient.close();
+			await oldDatabase.close();
 
 			const migrated = await initializeServerDatabase(databasePath);
 			await migrated.db

@@ -39,6 +39,7 @@ const baseConfig: ResolvedProjectConfig = {
 	server: {
 		database: {
 			databasePath: "/tmp/work/.devos/config/server-db",
+			port: 54329,
 		},
 	},
 	codex: {

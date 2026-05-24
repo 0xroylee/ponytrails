@@ -40,6 +40,7 @@ function createConfig(
 		server: {
 			database: {
 				databasePath: "/tmp/work/.devos/config/server-db",
+				port: 54329,
 			},
 		},
 		codex: { binary: process.execPath, streamLogs: false },

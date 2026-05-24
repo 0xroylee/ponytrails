@@ -9,15 +9,17 @@ describe("server logger", () => {
 		const error = new ServerDatabaseInitializationError({
 			cause,
 			databasePath: "/tmp/server-db",
-			phase: "wait_ready",
+			phase: "start_cluster",
+			port: 54329,
 		});
 
 		expect(normalizeError(error)).toMatchObject({
 			name: "ServerDatabaseInitializationError",
 			message:
-				"Failed to initialize server database at /tmp/server-db during wait_ready: Aborted",
+				"Failed to initialize server database at /tmp/server-db on port 54329 during start_cluster: Aborted",
+			databasePort: 54329,
 			databasePath: "/tmp/server-db",
-			phase: "wait_ready",
+			phase: "start_cluster",
 			cause: {
 				name: "Error",
 				message: "Aborted",

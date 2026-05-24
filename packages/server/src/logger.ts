@@ -67,6 +67,7 @@ export function normalizeError(input: unknown): Record<string, unknown> {
 		if (databaseError) {
 			normalized.databasePath = databaseError.databasePath;
 			normalized.phase = databaseError.phase;
+			normalized.databasePort = databaseError.port;
 		}
 		if (input.cause) {
 			normalized.cause = normalizeError(input.cause);
@@ -78,18 +79,21 @@ export function normalizeError(input: unknown): Record<string, unknown> {
 
 function normalizeServerDatabaseInitializationFields(
 	error: Error,
-): { databasePath: string; phase: string } | undefined {
+): { databasePath: string; phase: string; port: number } | undefined {
 	const maybeDatabaseError = error as Error & {
 		databasePath?: unknown;
 		phase?: unknown;
+		port?: unknown;
 	};
 	if (
 		typeof maybeDatabaseError.databasePath === "string" &&
-		typeof maybeDatabaseError.phase === "string"
+		typeof maybeDatabaseError.phase === "string" &&
+		typeof maybeDatabaseError.port === "number"
 	) {
 		return {
 			databasePath: maybeDatabaseError.databasePath,
 			phase: maybeDatabaseError.phase,
+			port: maybeDatabaseError.port,
 		};
 	}
 	return undefined;

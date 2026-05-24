@@ -3,7 +3,7 @@ import {
 	type WorkflowDataAction,
 	type WorkflowDataRequestFrame,
 	type WorkflowDataResponseFrame,
-} from "devos-server/workflow-data";
+} from "./workflow-data-protocol";
 
 const DEFAULT_SERVER_BASE_URL = "http://127.0.0.1:3001";
 const REQUEST_TIMEOUT_MS = 5000;

@@ -8,12 +8,6 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import path from "node:path";
-import {
-	boardProjectsTable,
-	eq,
-	initializeServerDatabase,
-	projectBoardsTable,
-} from "devos-db";
 import type { LoadedConfig } from "../src/features/config";
 import {
 	devosHomeInstanceRoot,
@@ -31,8 +25,6 @@ import {
 	DEFAULT_REASONING_EFFORTS,
 	DEFAULT_STATUS_MAP,
 	LINEAR_API_KEY_SETTINGS_URL,
-	LOCAL_BOARD_ID,
-	LOCAL_WORKSPACE_ID,
 	type SetupCheckDeps,
 	type SetupDraft,
 	collectSetupChecks,
@@ -352,7 +344,7 @@ describe("setup helpers", () => {
 		expect(merged).toContain("JWT_SECRET=jwt");
 	});
 
-	it("writes integration values to sqlite and workspace board metadata to server DB", async () => {
+	it("writes integration values to sqlite without touching the server DB", async () => {
 		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-test-"));
 		try {
 			await writeSetupFiles(tempDir, draft);
@@ -365,24 +357,9 @@ describe("setup helpers", () => {
 			expect(sqliteEnv?.JWT_SECRET).toMatch(/^[A-Za-z0-9_-]+$/);
 			expect(sqliteEnv?.JWT_SECRET?.length).toBeGreaterThan(40);
 
-			const database = await initializeServerDatabase(
-				path.join(tempDir, ".devos", "config", "server-db"),
-			);
-			try {
-				const [board] = await database.db
-					.select()
-					.from(projectBoardsTable)
-					.where(eq(projectBoardsTable.id, LOCAL_BOARD_ID));
-				expect(board).toMatchObject({
-					id: LOCAL_BOARD_ID,
-					name: draft.workspaceName,
-					ownerId: LOCAL_WORKSPACE_ID,
-				});
-				const projects = await database.db.select().from(boardProjectsTable);
-				expect(projects).toHaveLength(0);
-			} finally {
-				await database.close();
-			}
+			await expect(
+				access(path.join(tempDir, ".devos", "config", "server-db")),
+			).rejects.toThrow();
 
 			const envPath = path.join(tempDir, ".env");
 			const envContent = await readFile(envPath, "utf8");
@@ -940,6 +917,7 @@ function loadedConfig({
 				server: {
 					database: {
 						databasePath: "/tmp/demo/.devos/config/server-db",
+						port: 54329,
 					},
 				},
 				workflow: {
@@ -959,6 +937,7 @@ function loadedConfig({
 		server: {
 			database: {
 				databasePath: "/tmp/demo/.devos/config/server-db",
+				port: 54329,
 			},
 		},
 		polling: {

@@ -4,6 +4,7 @@ import { createHandleRequest } from "./app";
 import { createBoardRepository } from "./board";
 import { createExpressApp, listenExpressApp } from "./express-server";
 import type { ServerInstance } from "./express-server.types";
+import { ensureLocalProjectBoard } from "./local-workspace";
 import {
 	logger,
 	normalizeError,
@@ -24,6 +25,7 @@ import {
 import type { ServerRuntime } from "./server-runtime.types";
 import {
 	resolveServerDatabasePath,
+	resolveServerDatabasePort,
 	resolveServerWorkspacePath,
 } from "./startup-paths";
 import { WORKFLOW_DATA_WS_PATH } from "./workflow-data";
@@ -51,11 +53,16 @@ export async function startServerRuntime(
 		workspacePath,
 		config,
 	);
-	const pgliteDebug = resolvePgliteDebug(process.env);
-	logger.info({ port, databasePath, cwd, workspacePath }, "Starting server");
+	const databasePort = resolveServerDatabasePort(config);
+	logger.info(
+		{ port, databasePath, databasePort, cwd, workspacePath },
+		"Starting server",
+	);
 	const serverDatabase = await initializeServerDatabase(databasePath, {
-		pgliteDebug,
+		logDatabaseProcess: process.env.PIV_POSTGRES_DEBUG === "1",
+		port: databasePort,
 	});
+	await ensureLocalProjectBoard(serverDatabase.db);
 	const commandBroker = createWorkflowCommandBroker();
 	const realtimeEvents = createRealtimeEventBus();
 	const app = createExpressApp(
@@ -98,7 +105,13 @@ export async function startServerRuntime(
 	const address = server.address();
 	const listeningPort = typeof address === "object" ? address?.port : port;
 	logger.info(
-		{ port: listeningPort ?? port, databasePath, cwd, workspacePath },
+		{
+			port: listeningPort ?? port,
+			databasePath,
+			databasePort,
+			cwd,
+			workspacePath,
+		},
 		"Server started",
 	);
 	return runtime;
@@ -126,11 +139,4 @@ function resolveServerPort(env: NodeJS.ProcessEnv): number {
 		throw new Error("Server port must be a positive integer");
 	}
 	return port;
-}
-
-function resolvePgliteDebug(env: NodeJS.ProcessEnv): 1 | undefined {
-	if (env.PIV_PGLITE_DEBUG === "1") {
-		return 1;
-	}
-	return undefined;
 }

@@ -46,11 +46,12 @@ describe("loadServerStartupConfig", () => {
 		);
 		const databasePath = path.join(tempDir, "server-db-file");
 		process.env.PIV_SERVER_DATABASE_PATH = databasePath;
-		await writeFile(databasePath, "not a pglite directory");
+		await writeFile(databasePath, "not an embedded postgres directory");
 
 		const config = await loadServerStartupConfig(tempDir);
 
 		expect(config.projects[0]?.server.database.databasePath).toBe(databasePath);
+		expect(config.server.database.port).toBe(54329);
 	});
 
 	it("uses the instance embedded postgres data dir when env path is unset", async () => {
@@ -68,7 +69,9 @@ describe("loadServerStartupConfig", () => {
 		const config = await loadServerStartupConfig(tempDir);
 
 		expect(config.projects[0]?.server.database.databasePath).toBe(databasePath);
+		expect(config.projects[0]?.server.database.port).toBe(54330);
 		expect(config.server.database.databasePath).toBe(databasePath);
+		expect(config.server.database.port).toBe(54330);
 	});
 
 	it("keeps PIV_SERVER_DATABASE_PATH ahead of instance config", async () => {
@@ -90,7 +93,9 @@ describe("loadServerStartupConfig", () => {
 		expect(config.projects[0]?.server.database.databasePath).toBe(
 			envDatabasePath,
 		);
+		expect(config.projects[0]?.server.database.port).toBe(54329);
 		expect(config.server.database.databasePath).toBe(envDatabasePath);
+		expect(config.server.database.port).toBe(54329);
 	});
 
 	it("falls back to workspace-local db when instance config is missing", async () => {
@@ -107,7 +112,9 @@ describe("loadServerStartupConfig", () => {
 		const fallbackPath = path.join(tempDir, ".devos", "config", "server-db");
 
 		expect(config.projects[0]?.server.database.databasePath).toBe(fallbackPath);
+		expect(config.projects[0]?.server.database.port).toBe(54329);
 		expect(config.server.database.databasePath).toBe(fallbackPath);
+		expect(config.server.database.port).toBe(54329);
 	});
 });
 
@@ -115,6 +122,11 @@ async function writeInstanceConfig(databasePath: string): Promise<void> {
 	await mkdir(path.dirname(instanceConfigPath()), { recursive: true });
 	await writeFile(
 		instanceConfigPath(),
-		JSON.stringify({ database: { embeddedPostgresDataDir: databasePath } }),
+		JSON.stringify({
+			database: {
+				embeddedPostgresDataDir: databasePath,
+				embeddedPostgresPort: 54330,
+			},
+		}),
 	);
 }

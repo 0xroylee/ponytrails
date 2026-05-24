@@ -11,9 +11,12 @@ import {
 	loadResolvedEnv,
 } from "./env";
 import { normalizeOptionalValue } from "./env-normalizers";
-import { loadInstanceServerDatabasePath } from "./instance-database-path";
+import {
+	loadInstanceServerDatabaseConfig,
+	loadInstanceServerDatabasePath,
+} from "./instance-database-path";
 import { resolveNotifications } from "./notification-resolution";
-import { applyDatabaseProjectMetadata } from "./project-metadata";
+import { applyServerProjectMetadata } from "./project-metadata";
 import { resolveProjects } from "./project-resolution";
 import { resolveRootServerConfig } from "./server-resolution";
 import { loadSqliteEnv, saveSqliteEnv, sqliteEnvDbPath } from "./sqlite-env";
@@ -24,18 +27,18 @@ import {
 } from "./validation";
 
 interface LoadConfigOptions {
-	applyDatabaseProjectMetadata: boolean;
+	applyServerProjectMetadata: boolean;
 }
 
 export async function loadConfig(cwd: string): Promise<LoadedConfig> {
-	return loadConfigWithOptions(cwd, { applyDatabaseProjectMetadata: true });
+	return loadConfigWithOptions(cwd, { applyServerProjectMetadata: true });
 }
 
 export async function loadServerStartupConfig(
 	cwd: string,
 ): Promise<LoadedConfig> {
 	return loadConfigWithOptions(cwd, {
-		applyDatabaseProjectMetadata: false,
+		applyServerProjectMetadata: false,
 	});
 }
 
@@ -44,20 +47,20 @@ async function loadConfigWithOptions(
 	options: LoadConfigOptions,
 ): Promise<LoadedConfig> {
 	const env = await loadResolvedEnv(cwd);
-	const instanceServerDatabasePath = normalizeOptionalValue(
+	const instanceServerDatabase = normalizeOptionalValue(
 		env.PIV_SERVER_DATABASE_PATH,
 	)
 		? undefined
-		: await loadInstanceServerDatabasePath();
-	const envBase = buildEnvBase(cwd, env, instanceServerDatabasePath);
+		: await loadInstanceServerDatabaseConfig();
+	const envBase = buildEnvBase(cwd, env, instanceServerDatabase);
 	const envPolling = buildEnvPolling(env);
 	const envNotifications = buildEnvNotifications(env);
 	const root = createRuntimeRootConfig();
 	const defaultProjectRoot = createDefaultProjectRootConfig();
 
 	const resolvedProjects = resolveProjects(cwd, envBase, root);
-	const metadataProjects = options.applyDatabaseProjectMetadata
-		? await applyDatabaseProjectMetadata(resolvedProjects, {
+	const metadataProjects = options.applyServerProjectMetadata
+		? await applyServerProjectMetadata(resolvedProjects, {
 				configCwd: cwd,
 				base: envBase,
 				root,
@@ -110,7 +113,7 @@ export {
 	devosHomeInstanceRoot,
 	instanceConfigPath,
 } from "./home-paths";
-export { loadInstanceServerDatabasePath };
+export { loadInstanceServerDatabaseConfig, loadInstanceServerDatabasePath };
 export { loadResolvedEnv };
 export type { LoadedConfig } from "./config.types";
 export type { ResolvedEnv } from "./env";

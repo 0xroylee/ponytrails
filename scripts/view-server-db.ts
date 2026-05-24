@@ -1,14 +1,9 @@
 import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { resolveDatabasePath } from "../packages/db/scripts/cli";
+import { resolveDatabaseConfig } from "../packages/db/scripts/cli";
+import { initializeServerDatabase } from "../packages/db/src";
 import { readOptionValue } from "./script-args";
 
-const REPO_ROOT = path.resolve(import.meta.dir, "..");
 const DEFAULT_LIMIT = 20;
-const requireFromDb = createRequire(
-	path.join(REPO_ROOT, "packages", "db", "package.json"),
-);
 
 try {
 	await main();
@@ -25,27 +20,30 @@ async function main() {
 		return;
 	}
 
-	const dbPath = await resolveDatabasePath(args.db);
+	const { dbPath, port } = await resolveDatabaseConfig(args.db);
 
 	if (!existsSync(dbPath)) {
 		console.error(`Server database path does not exist: ${dbPath}`);
 		process.exit(1);
 	}
 
-	const client = await createClient(dbPath);
+	const database = await initializeServerDatabase(dbPath, {
+		port,
+		runMigrations: false,
+	});
 
 	try {
 		if (args.sql) {
-			await runSql(client, args.sql);
+			await runSql(database.client, args.sql);
 		} else if (args.schema) {
-			await printSchema(client);
+			await printSchema(database.client);
 		} else if (args.table) {
-			await printTable(client, args.table, args.limit);
+			await printTable(database.client, args.table, args.limit);
 		} else {
-			await printTables(client);
+			await printTables(database.client);
 		}
 	} finally {
-		await client.close();
+		await database.close();
 	}
 }
 
@@ -114,13 +112,7 @@ function parseLimit(value: string) {
 	return limit;
 }
 
-async function createClient(dbPath: string) {
-	const pglitePath = requireFromDb.resolve("@electric-sql/pglite");
-	const { PGlite } = await import(pglitePath);
-	return new PGlite(dbPath);
-}
-
-async function printTables(client: Awaited<ReturnType<typeof createClient>>) {
+async function printTables(client: QueryClient) {
 	const tables = await client.query<{ table_name: string }>(`
 		SELECT table_name
 		FROM information_schema.tables
@@ -143,7 +135,7 @@ async function printTables(client: Awaited<ReturnType<typeof createClient>>) {
 	console.table(rows);
 }
 
-async function printSchema(client: Awaited<ReturnType<typeof createClient>>) {
+async function printSchema(client: QueryClient) {
 	const result = await client.query<{
 		column_name: string;
 		data_type: string;
@@ -167,7 +159,7 @@ async function printSchema(client: Awaited<ReturnType<typeof createClient>>) {
 }
 
 async function printTable(
-	client: Awaited<ReturnType<typeof createClient>>,
+	client: QueryClient,
 	tableName: string,
 	limit: number,
 ) {
@@ -177,10 +169,7 @@ async function printTable(
 	console.table(result.rows);
 }
 
-async function runSql(
-	client: Awaited<ReturnType<typeof createClient>>,
-	sql: string,
-) {
+async function runSql(client: QueryClient, sql: string) {
 	if (!isReadOnlySql(sql)) {
 		throw new Error("--sql only accepts read-only SELECT or WITH queries");
 	}
@@ -214,14 +203,21 @@ function quoteIdentifier(identifier: string) {
 	return `"${identifier.replaceAll('"', '""')}"`;
 }
 
+interface QueryClient {
+	query<T extends Record<string, unknown> = Record<string, unknown>>(
+		sql: string,
+		values?: unknown[],
+	): Promise<{ rows: T[] }>;
+}
+
 function printHelp() {
-	console.log(`View the embedded PGlite server database.
+	console.log(`View the embedded PostgreSQL server database.
 
 Usage:
   bun run db:view [--tables|--schema|--table <name>|--sql <query>]
 
 Options:
-  --db <path>      PGlite database path
+  --db <path>      Embedded PostgreSQL data directory
   --limit <count>  Row limit for --table (${DEFAULT_LIMIT})
   --help, -h       Show this help
 Default DB path: configured instance DB, then repo-local .devos/config/server-db fallback`);

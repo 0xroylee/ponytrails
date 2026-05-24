@@ -90,6 +90,7 @@ export function project(
 		server: {
 			database: {
 				databasePath: ".devos/config/server-db",
+				port: 54329,
 			},
 		},
 		codex: { binary: "codex", streamLogs: false },

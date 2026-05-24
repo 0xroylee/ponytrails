@@ -8,15 +8,8 @@ describe("createCliProgram run", () => {
 			{
 				name: "run",
 				payload: {
-					issueArg: undefined,
-					projectId: undefined,
-					allProjects: true,
 					poll: true,
 					pollForever: true,
-					concurrency: undefined,
-					exitWhenIdle: undefined,
-					pollIntervalMs: undefined,
-					maxPollCycles: undefined,
 				},
 			},
 		]);
@@ -29,14 +22,8 @@ describe("createCliProgram run", () => {
 				name: "run",
 				payload: {
 					issueArg: "ABC-1",
-					projectId: undefined,
-					allProjects: true,
 					poll: true,
 					pollForever: true,
-					concurrency: undefined,
-					exitWhenIdle: undefined,
-					pollIntervalMs: undefined,
-					maxPollCycles: undefined,
 				},
 			},
 		]);
@@ -49,13 +36,8 @@ describe("createCliProgram run", () => {
 				name: "run",
 				payload: {
 					projectId: "api",
-					allProjects: false,
 					poll: true,
 					pollForever: true,
-					concurrency: undefined,
-					exitWhenIdle: undefined,
-					pollIntervalMs: undefined,
-					maxPollCycles: undefined,
 				},
 			},
 		]);
@@ -80,13 +62,8 @@ describe("createCliProgram run", () => {
 			{
 				name: "run",
 				payload: {
-					issueArg: undefined,
-					projectId: undefined,
-					allProjects: true,
 					poll: true,
-					pollForever: undefined,
 					concurrency: 2,
-					exitWhenIdle: undefined,
 					pollIntervalMs: 15000,
 					maxPollCycles: 20,
 				},
@@ -110,15 +87,9 @@ describe("createCliProgram run", () => {
 			{
 				name: "run",
 				payload: {
-					issueArg: undefined,
-					projectId: undefined,
-					allProjects: true,
 					poll: true,
 					pollForever: true,
-					concurrency: undefined,
 					exitWhenIdle: false,
-					pollIntervalMs: undefined,
-					maxPollCycles: undefined,
 				},
 			},
 		]);
@@ -136,15 +107,8 @@ describe("createCliProgram run", () => {
 			{
 				name: "run",
 				payload: {
-					issueArg: undefined,
-					projectId: undefined,
-					allProjects: true,
 					poll: true,
 					pollForever: true,
-					concurrency: undefined,
-					exitWhenIdle: undefined,
-					pollIntervalMs: undefined,
-					maxPollCycles: undefined,
 					isolatedWorktrees: true,
 				},
 			},
@@ -160,15 +124,8 @@ describe("createCliProgram run", () => {
 			{
 				name: "run",
 				payload: {
-					issueArg: undefined,
-					projectId: undefined,
-					allProjects: true,
 					poll: true,
 					pollForever: true,
-					concurrency: undefined,
-					exitWhenIdle: undefined,
-					pollIntervalMs: undefined,
-					maxPollCycles: undefined,
 				},
 			},
 		]);

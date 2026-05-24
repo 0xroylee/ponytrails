@@ -31,7 +31,7 @@ function createConfig(): ResolvedProjectConfig {
 			autoCreateLabels: true,
 		},
 		github: { useGhCli: true, defaultBugLabel: "bug" },
-		server: { database: { databasePath: "/tmp/devos.sqlite" } },
+		server: { database: { databasePath: "/tmp/devos.sqlite", port: 54329 } },
 		codex: { binary: "codex", streamLogs: false },
 		agent: {},
 		workflow: { issueConcurrency: 1 },

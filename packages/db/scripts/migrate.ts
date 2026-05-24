@@ -1,19 +1,18 @@
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { runMigrations } from "../src/migrations";
+import { initializeServerDatabase } from "../src";
 import {
 	parseDatabaseScriptArgs,
 	printCliError,
-	resolveDatabasePath,
+	resolveDatabaseConfig,
 } from "./cli";
 
 export interface MigrateDatabaseOptions {
 	dbPath?: string;
+	port?: number;
 }
 
 export interface MigrateDatabaseResult {
 	dbPath: string;
+	port: number;
 }
 
 if (import.meta.main) {
@@ -41,15 +40,14 @@ export async function runMigrateDatabaseCli(
 export async function migrateDatabase(
 	options: MigrateDatabaseOptions = {},
 ): Promise<MigrateDatabaseResult> {
-	const dbPath = await resolveDatabasePath(options.dbPath);
-	await mkdir(path.dirname(dbPath), { recursive: true });
-	const client = new PGlite(dbPath);
+	const { dbPath, port } = await resolveDatabaseConfig(options.dbPath, {
+		port: options.port,
+	});
+	const database = await initializeServerDatabase(dbPath, { port });
 	try {
-		await client.waitReady;
-		await runMigrations(client);
-		return { dbPath };
+		return { dbPath, port };
 	} finally {
-		await client.close();
+		await database.close();
 	}
 }
 
@@ -60,6 +58,6 @@ Usage:
   bun run --filter devos-db migrate -- [--db PATH]
 
 Options:
-  --db <path>  PGlite database path
+  --db <path>  Embedded PostgreSQL data directory
   --help, -h   Show this help`);
 }

@@ -42,13 +42,7 @@ export type AttachedPollerSpawn = (
 export function buildWorkflowPollerInvocation() {
 	return {
 		command: "bun",
-		args: [
-			"run",
-			"packages/cli/src/index.ts",
-			"run",
-			"--all-projects",
-			"--poll-forever",
-		],
+		args: ["run", "packages/cli/src/index.ts", "run", "--poll-forever"],
 	};
 }
 

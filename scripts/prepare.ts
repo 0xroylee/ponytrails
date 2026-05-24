@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { hydrateEmbeddedPostgresNativeSymlinks } from "../packages/db/src/embedded-postgres-symlinks";
 
 const gitPath = ".git";
 const permissionFailurePatterns = [
@@ -9,6 +10,8 @@ const permissionFailurePatterns = [
 ];
 
 const isHuskyDisabled = process.env.HUSKY === "0";
+
+await hydrateEmbeddedPostgresNativeSymlinks();
 
 if (isHuskyDisabled) {
 	console.log("HUSKY=0 skip install");

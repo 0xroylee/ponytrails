@@ -11,8 +11,7 @@
 		"types": ["bun", "node"],
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"],
-			"devos-server/*": ["../server/src/*"]
+			"@/*": ["./src/*"]
 		}
 	},
 	"include": ["src", "tests"]

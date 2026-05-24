@@ -36,13 +36,7 @@ describe("buildDaemonCommands", () => {
 			{
 				name: "workflow-poller",
 				command: "bun",
-				args: [
-					"run",
-					"packages/cli/src/index.ts",
-					"run",
-					"--all-projects",
-					"--poll-forever",
-				],
+				args: ["run", "packages/cli/src/index.ts", "run", "--poll-forever"],
 				env: {
 					DEVOS_SERVER_BASE_URL: "http://127.0.0.1:3001",
 					DEVOS_WORKFLOW_WS_URL: "ws://127.0.0.1:3001/api/workflow",
@@ -106,13 +100,7 @@ describe("runProductionDaemon", () => {
 			},
 			{
 				command: "bun",
-				args: [
-					"run",
-					"packages/cli/src/index.ts",
-					"run",
-					"--all-projects",
-					"--poll-forever",
-				],
+				args: ["run", "packages/cli/src/index.ts", "run", "--poll-forever"],
 				cwd: "/repo",
 			},
 		]);

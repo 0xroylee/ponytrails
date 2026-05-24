@@ -1,8 +1,11 @@
 export {
+	DEFAULT_EMBEDDED_POSTGRES_DATABASE,
+	DEFAULT_EMBEDDED_POSTGRES_PASSWORD,
+	DEFAULT_EMBEDDED_POSTGRES_PORT,
+	DEFAULT_EMBEDDED_POSTGRES_USER,
 	ServerDatabaseInitializationError,
 	initializeServerDatabase,
 } from "./database";
-export { PGlite } from "@electric-sql/pglite";
 export { and, asc, desc, eq, inArray } from "drizzle-orm";
 export { runMigrations } from "./migrations";
 export { generateBoardTaskKey } from "./task-keys";

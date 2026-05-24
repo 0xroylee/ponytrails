@@ -1,48 +1,69 @@
 import { describe, expect, it } from "bun:test";
-import { stat } from "node:fs/promises";
-import path from "node:path";
 import {
-	PGLITE_RUNTIME_ASSETS,
-	resolvePglitePackageEntry,
-	resolvePgliteRuntimeAssets,
-} from "../scripts/build";
+	mkdir,
+	mkdtemp,
+	readFile,
+	readdir,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
 describe("CLI build script", () => {
-	it("resolves PGlite from the database package boundary", async () => {
-		const calls: Array<{ specifier: string; parent: string }> = [];
-		const dbEntry = "/workspace/packages/db/src/index.ts";
-		const pgliteEntry = "/workspace/node_modules/pglite/dist/index.js";
+	it("cleans stale assets and leaves database runtimes out of the bundle", async () => {
+		const outdir = await mkdtemp(path.join(os.tmpdir(), "devos-build-"));
 
-		const entry = await resolvePglitePackageEntry(async (specifier, parent) => {
-			calls.push({ specifier, parent });
-			if (specifier === "devos-db") {
-				return dbEntry;
-			}
-			if (specifier === "@electric-sql/pglite") {
-				return pgliteEntry;
-			}
-			throw new Error(`Unexpected specifier: ${specifier}`);
-		});
+		try {
+			await writeFile(path.join(outdir, "pglite.wasm"), "stale");
+			await writeFile(path.join(outdir, "pglite.data"), "stale");
+			await mkdir(path.join(outdir, "migrations"), { recursive: true });
+			await writeFile(path.join(outdir, "migrations", "stale.sql"), "stale");
 
-		expect(entry).toBe(pgliteEntry);
-		expect(calls).toEqual([
-			{
-				specifier: "devos-db",
-				parent: path.resolve(import.meta.dir, ".."),
-			},
-			{ specifier: "@electric-sql/pglite", parent: dbEntry },
-		]);
-	});
+			await runBuild(outdir);
 
-	it("resolves PGlite runtime assets required by bundled devos", async () => {
-		const assets = await resolvePgliteRuntimeAssets();
+			const outputFiles = await readdir(outdir);
+			expect(outputFiles).toContain("index.js");
+			expect(outputFiles).not.toContain("pglite.wasm");
+			expect(outputFiles).not.toContain("pglite.data");
+			expect(outputFiles).not.toContain("migrations");
 
-		expect(assets.map((asset) => asset.fileName).sort()).toEqual(
-			[...PGLITE_RUNTIME_ASSETS].sort(),
-		);
-		for (const asset of assets) {
-			expect(path.basename(asset.path)).toBe(asset.fileName);
-			expect((await stat(asset.path)).isFile()).toBe(true);
+			const bundle = await readFile(path.join(outdir, "index.js"), "utf8");
+			expect(bundle).not.toMatch(
+				/from\s+["'](?:pg|devos-db|devos-server(?:\/[^"']*)?|embedded-postgres|@embedded-postgres\/[^"']+)["']/,
+			);
+			expect(bundle).not.toMatch(
+				/import\s*\(\s*["'](?:pg|devos-db|devos-server(?:\/[^"']*)?|embedded-postgres|@embedded-postgres\/[^"']+)["']\s*\)/,
+			);
+			expect(bundle).not.toMatch(
+				/require\(\s*["'](?:pg|devos-db|devos-server(?:\/[^"']*)?|embedded-postgres|@embedded-postgres\/[^"']+)["']\s*\)/,
+			);
+		} finally {
+			await rm(outdir, { recursive: true, force: true });
 		}
 	});
 });
+
+async function runBuild(outdir: string): Promise<void> {
+	const packageRoot = path.resolve(import.meta.dir, "..");
+	const workspaceRoot = path.resolve(packageRoot, "../..");
+	const subprocess = Bun.spawn({
+		cmd: [
+			process.execPath,
+			path.join(packageRoot, "scripts/build.ts"),
+			"--outdir",
+			outdir,
+		],
+		cwd: workspaceRoot,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [exitCode, stdout, stderr] = await Promise.all([
+		subprocess.exited,
+		new Response(subprocess.stdout).text(),
+		new Response(subprocess.stderr).text(),
+	]);
+	if (exitCode !== 0) {
+		throw new Error(`Build failed:\n${stdout}\n${stderr}`);
+	}
+}

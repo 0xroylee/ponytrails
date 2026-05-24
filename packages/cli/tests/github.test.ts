@@ -930,6 +930,7 @@ function createProjectConfig(): ResolvedProjectConfig {
 		server: {
 			database: {
 				databasePath: "/tmp/workspace/.devos/config/server-db",
+				port: 54329,
 			},
 		},
 		codex: {

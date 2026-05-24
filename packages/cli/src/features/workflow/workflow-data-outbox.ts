@@ -1,11 +1,11 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { WorkflowDataAction } from "devos-server/workflow-data";
 import type {
 	WorkflowDataOutboxContext,
 	WorkflowDataOutboxDrainResult,
 	WorkflowDataOutboxEntry,
 } from "./workflow-data-outbox.types";
+import type { WorkflowDataAction } from "./workflow-data-protocol";
 
 const STATE_ROOT_DIR = path.join(".devos", "projects");
 const OUTBOX_FILE = "server-outbox.ndjson";

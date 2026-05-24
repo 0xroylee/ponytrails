@@ -1,4 +1,4 @@
-import { cp, stat } from "node:fs/promises";
+import { cp, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { printCliError, readOptionValue, resolveDatabasePath } from "./cli";
 
@@ -50,6 +50,7 @@ export async function backupDatabase(
 ): Promise<BackupDatabaseResult> {
 	const sourcePath = await resolveDatabasePath(options.dbPath);
 	await ensureDirectory(sourcePath, "Database path");
+	await ensureClusterIsStopped(sourcePath);
 	const backupPath = options.outPath
 		? path.resolve(options.outPath)
 		: await createBackupPath(sourcePath, options.now);
@@ -61,6 +62,43 @@ export async function backupDatabase(
 	}
 	await cp(sourcePath, backupPath, { recursive: true });
 	return { backupPath, sourcePath };
+}
+
+async function ensureClusterIsStopped(sourcePath: string): Promise<void> {
+	const pidPath = path.join(sourcePath, "postmaster.pid");
+	let pid: number | undefined;
+	try {
+		const content = await readFile(pidPath, "utf8");
+		pid = Number(content.split(/\r?\n/, 1)[0]);
+	} catch {
+		return;
+	}
+	if (!pid || !Number.isInteger(pid)) {
+		return;
+	}
+	if (isProcessAlive(pid)) {
+		throw new Error(
+			`Refusing to back up live embedded PostgreSQL cluster at ${sourcePath}; stop the server first`,
+		);
+	}
+}
+
+function isProcessAlive(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return !isMissingProcessError(error);
+	}
+}
+
+function isMissingProcessError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as NodeJS.ErrnoException).code === "ESRCH"
+	);
 }
 
 function parseBackupArgs(rawArgs: string[]): ParsedBackupArgs {
@@ -126,13 +164,13 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 function printHelp(): void {
-	console.log(`Copy a devos-db PGlite database to a timestamped backup.
+	console.log(`Copy a stopped devos-db embedded PostgreSQL cluster to a timestamped backup.
 
 Usage:
   bun run --filter devos-db backup -- [--db PATH] [--out PATH]
 
 Options:
-  --db <path>   PGlite database path
+  --db <path>   Embedded PostgreSQL data directory
   --out <path>  Backup destination path
   --help, -h    Show this help`);
 }

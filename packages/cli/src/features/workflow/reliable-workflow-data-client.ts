@@ -1,4 +1,3 @@
-import type { WorkflowDataAction } from "devos-server/workflow-data";
 import { logger, normalizeError } from "../../utils/logger";
 import {
 	type WorkflowDataClientOptions,
@@ -9,6 +8,7 @@ import {
 	enqueueWorkflowDataOutboxEntry,
 } from "./workflow-data-outbox";
 import type { WorkflowDataOutboxContext } from "./workflow-data-outbox.types";
+import type { WorkflowDataAction } from "./workflow-data-protocol";
 
 const BUFFERABLE_ACTIONS = new Set<WorkflowDataAction>([
 	"tasks.update",
@@ -105,7 +105,9 @@ function logBufferedMutation(
 			action,
 			err: normalizeError(error),
 		},
-		"Buffered workflow server mutation for retry",
+		action === "polling.record"
+			? "Workflow data reporting unavailable; buffered polling status for retry"
+			: "Buffered workflow server mutation for retry",
 	);
 }
 

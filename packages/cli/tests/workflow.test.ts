@@ -3,6 +3,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { AgentAdapter } from "adapters";
+import { handleRunCommand } from "../src/features/commands/issues/run-command";
 import type { LoadedConfig } from "../src/features/config";
 import type {
 	IssueRef,
@@ -158,6 +159,72 @@ describe("runWorkflow no-project polling", () => {
 		).rejects.toThrow(stopped);
 
 		expect(sleepCalls).toEqual([1]);
+	});
+});
+
+describe("workflow run visibility", () => {
+	it("logs run startup before workflow polling begins", async () => {
+		const output = await captureStderr(() =>
+			handleRunCommand(createLoadedConfigWithProjects([]), {
+				poll: true,
+				maxPollCycles: 1,
+				pollIntervalMs: 123,
+			}),
+		);
+
+		expect(output).toContain("INFO  Starting workflow run");
+		expect(output).toContain("scope=server-projects");
+		expect(output).toContain("projectSource=server");
+		expect(output).not.toContain("projectCount=");
+		expect(output).toContain("pollingEnabled=true");
+		expect(output).toContain("maxPollCycles=1");
+		expect(output).toContain("pollIntervalMs=123");
+		expect(output).toContain(
+			"workflowDataUrl=ws://127.0.0.1:3001/api/workflow",
+		);
+	});
+
+	it("logs cycle start and no-work progress around an empty poll", async () => {
+		const linear = { fetchWork: mock(async () => []) };
+		const runtime = {
+			createLinearClient: mock(() => linear),
+		} as unknown as WorkflowRuntime;
+
+		const output = await captureStderr(() =>
+			runWorkflow(createLoadedConfig(createProject("default")), {}, runtime),
+		);
+
+		expect(output).toContain("INFO  Starting workflow polling cycle");
+		expect(output).toContain("projectId=default");
+		expect(output).toContain("cycle=1");
+		expect(output).toContain("pollingEnabled=false");
+		expect(output).toContain("INFO  Fetched eligible board tasks");
+		expect(output).toContain("issueCount=0");
+		expect(output).toContain("INFO  No eligible board tasks found.");
+	});
+
+	it("warns when workflow data reporting cannot connect", async () => {
+		const socket = installFailingWorkflowPollingSocket();
+		const linear = { fetchWork: mock(async () => []) };
+		const runtime = {
+			createLinearClient: mock(() => linear),
+		} as unknown as WorkflowRuntime;
+
+		try {
+			const output = await captureStderr(() =>
+				runWorkflow(
+					createLoadedConfig(createProject("default")),
+					{ poll: true, maxPollCycles: 1 },
+					runtime,
+				),
+			);
+
+			expect(output).toContain("WARN  Workflow data reporting unavailable");
+			expect(output).toContain("action=polling.record");
+			expect(output).toContain("Start devos server/daemon");
+		} finally {
+			socket.restore();
+		}
 	});
 });
 
@@ -720,7 +787,7 @@ describe("processIssueQueueBounded", () => {
 });
 
 describe("runWorkflow parallel issue regression", () => {
-	it("requests unprojected tasks during all-project polling", async () => {
+	it("requests unprojected tasks during default server-project polling", async () => {
 		const { restore } = installWorkflowPollingSocket();
 		const fetchCalls: Array<{
 			projectId: string;
@@ -748,7 +815,7 @@ describe("runWorkflow parallel issue regression", () => {
 					...createLoadedConfig(projects[0] as ResolvedProjectConfig),
 					projects,
 				},
-				{ allProjects: true, poll: true },
+				{ poll: true },
 				runtime,
 			);
 
@@ -2860,6 +2927,7 @@ function createProject(
 		server: {
 			database: {
 				databasePath: "/tmp/workspace/.devos/config/server-db",
+				port: 54329,
 			},
 		},
 		codex: {
@@ -2930,6 +2998,21 @@ function createWorkflowIssue(
 	};
 }
 
+async function captureStderr(run: () => Promise<void>): Promise<string> {
+	const originalWrite = process.stderr.write;
+	let output = "";
+	process.stderr.write = ((chunk: string | Uint8Array) => {
+		output += chunk.toString();
+		return true;
+	}) as typeof process.stderr.write;
+	try {
+		await run();
+		return output;
+	} finally {
+		process.stderr.write = originalWrite;
+	}
+}
+
 function installWorkflowPollingSocket(): {
 	calls: Array<Record<string, unknown>>;
 	restore(): void;
@@ -2970,6 +3053,25 @@ function installWorkflowPollingSocket(): {
 	} as unknown as typeof WebSocket;
 	return {
 		calls,
+		restore() {
+			globalThis.WebSocket = previousWebSocket;
+		},
+	};
+}
+
+function installFailingWorkflowPollingSocket(): { restore(): void } {
+	const previousWebSocket = globalThis.WebSocket;
+	globalThis.WebSocket = class FailingWorkflowSocket extends EventTarget {
+		constructor(_url: string) {
+			super();
+			queueMicrotask(() => this.dispatchEvent(new Event("error")));
+		}
+
+		send(_message: string): void {}
+
+		close(): void {}
+	} as unknown as typeof WebSocket;
+	return {
 		restore() {
 			globalThis.WebSocket = previousWebSocket;
 		},

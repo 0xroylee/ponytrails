@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { PGlite } from "devos-db";
 import { initializeServerDatabase } from "devos-db";
 import { createHandleRequest } from "../src/app";
 import type { AppDeps } from "../src/app.types";
@@ -13,8 +12,10 @@ describe("agent migration routes", () => {
 		const databasePath = path.join(tempDir, "db");
 
 		try {
-			const oldClient = new PGlite(databasePath);
-			await oldClient.exec(`
+			const oldDatabase = await initializeServerDatabase(databasePath, {
+				runMigrations: false,
+			});
+			await oldDatabase.client.query(`
 				CREATE TABLE agents (
 					id text PRIMARY KEY,
 					name text NOT NULL,
@@ -23,11 +24,11 @@ describe("agent migration routes", () => {
 					created_at timestamp NOT NULL
 				);
 			`);
-			await oldClient.exec(`
+			await oldDatabase.client.query(`
 				INSERT INTO agents (id, name, backend, model, created_at)
 				VALUES ('agent-legacy', 'legacy-codex', 'codex', 'gpt-5', '2026-05-12 04:00:00');
 			`);
-			await oldClient.close();
+			await oldDatabase.close();
 
 			const database = await initializeServerDatabase(databasePath);
 			const app = createHandleRequest({

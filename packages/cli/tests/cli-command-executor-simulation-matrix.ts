@@ -38,10 +38,9 @@ export const CLI_COMMAND_SIMULATION_MATRIX: SimulationCase[] = [
 		name: "run action with poll forever",
 		request: {
 			action: "run",
-			allProjects: true,
 			pollForever: true,
 		},
-		expectedArgs: ["devos", "run", "--all-projects", "--poll-forever"],
+		expectedArgs: ["devos", "run", "--poll-forever"],
 		commandResult: { code: 0, stdout: "run forever ok", stderr: "" },
 		expectedStatus: "succeeded",
 	},

@@ -31,6 +31,7 @@ function createConfig(): ResolvedProjectConfig {
 		server: {
 			database: {
 				databasePath: "/tmp/work/.devos/config/server-db",
+				port: 54329,
 			},
 		},
 		codex: { binary: "codex", streamLogs: false },

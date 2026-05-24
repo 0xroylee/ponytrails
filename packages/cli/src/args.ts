@@ -9,6 +9,7 @@ import type {
 } from "./args.types";
 import type { LoadedConfig } from "./features/config";
 import { registerTaskCommand } from "./features/task-intake/args";
+import type { RunOptions } from "./features/types";
 import { registerPluginsCommand } from "./plugins/args";
 import { registerSkillsCommand } from "./skills/args";
 
@@ -71,22 +72,36 @@ function registerRunCommand(program: Command, runtime: CliRuntime): void {
 					"run command cannot use --poll-forever with --max-poll-cycles",
 				);
 			}
-			const isolatedWorktrees = options.isolatedWorktrees ? true : undefined;
-			const pollForever =
-				options.maxPollCycles === undefined ? true : undefined;
+			const runOptions: RunOptions = { poll: true };
+			if (options.issue !== undefined) {
+				runOptions.issueArg = options.issue;
+			}
+			if (options.project !== undefined) {
+				runOptions.projectId = options.project;
+			}
+			if (options.allProjects === true) {
+				runOptions.allProjects = true;
+			}
+			if (options.maxPollCycles === undefined) {
+				runOptions.pollForever = true;
+			}
+			if (options.concurrency !== undefined) {
+				runOptions.concurrency = options.concurrency;
+			}
+			if (options.exitWhenIdle === false) {
+				runOptions.exitWhenIdle = false;
+			}
+			if (options.pollIntervalMs !== undefined) {
+				runOptions.pollIntervalMs = options.pollIntervalMs;
+			}
+			if (options.maxPollCycles !== undefined) {
+				runOptions.maxPollCycles = options.maxPollCycles;
+			}
+			if (options.isolatedWorktrees === true) {
+				runOptions.isolatedWorktrees = true;
+			}
 			await withConfig(runtime, (config) =>
-				runtime.handleRunCommand(config, {
-					issueArg: options.issue,
-					projectId: options.project,
-					allProjects: !options.project,
-					poll: true,
-					pollForever,
-					concurrency: options.concurrency,
-					exitWhenIdle: options.exitWhenIdle === false ? false : undefined,
-					pollIntervalMs: options.pollIntervalMs,
-					maxPollCycles: options.maxPollCycles,
-					...(isolatedWorktrees ? { isolatedWorktrees } : {}),
-				}),
+				runtime.handleRunCommand(config, runOptions),
 			);
 		});
 }

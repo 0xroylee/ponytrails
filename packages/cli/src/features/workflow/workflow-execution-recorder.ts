@@ -1,4 +1,3 @@
-import type { WorkflowDataAction } from "devos-server/workflow-data";
 import type { ResolvedProjectConfig, RunState } from "../../features/types";
 import { logger, normalizeError } from "../../utils/logger";
 import {
@@ -6,6 +5,7 @@ import {
 	addWorkflowProgressListener,
 } from "../server";
 import { createReliableWorkflowDataClient } from "./reliable-workflow-data-client";
+import type { WorkflowDataAction } from "./workflow-data-protocol";
 
 type ExecutionFinishStatus = "succeeded" | "failed" | "blocked";
 

@@ -8,7 +8,13 @@ import {
 	agentsTable,
 	initializeServerDatabase,
 	jobsTable,
+	projectBoardsTable,
 } from "devos-db";
+import {
+	LOCAL_BOARD_ID,
+	LOCAL_WORKSPACE_ID,
+	ensureLocalProjectBoard,
+} from "../src/local-workspace";
 
 describe("server database initialization", () => {
 	it("initializes a fresh database from migrations only", async () => {
@@ -93,8 +99,36 @@ describe("server database initialization", () => {
 			expect((error as ServerDatabaseInitializationError).databasePath).toBe(
 				path.resolve(databasePath),
 			);
+			expect((error as ServerDatabaseInitializationError).port).toBeGreaterThan(
+				0,
+			);
 			expect((error as Error).cause).toBeDefined();
 		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("ensures the local project board from server-owned database setup", async () => {
+		const tempDir = await mkdtemp(path.join(os.tmpdir(), "devos-db-init-"));
+		const database = await initializeServerDatabase(path.join(tempDir, "db"));
+
+		try {
+			await ensureLocalProjectBoard(database.db, "2026-05-20T00:00:00.000Z");
+			await ensureLocalProjectBoard(database.db, "2026-05-21T00:00:00.000Z");
+
+			const boards = await database.db
+				.select()
+				.from(projectBoardsTable)
+				.where(eq(projectBoardsTable.id, LOCAL_BOARD_ID));
+			expect(boards).toHaveLength(1);
+			expect(boards[0]).toMatchObject({
+				id: LOCAL_BOARD_ID,
+				name: "Local Workspace",
+				ownerId: LOCAL_WORKSPACE_ID,
+				createdAt: "2026-05-20 00:00:00",
+			});
+		} finally {
+			await database.close();
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});

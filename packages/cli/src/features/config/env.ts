@@ -16,7 +16,10 @@ import {
 	parseOptionalPositiveInt,
 	parseRecipientsFromEnv,
 } from "./env-normalizers";
+import type { InstanceServerDatabaseConfig } from "./instance-database-path";
 import { loadSqliteEnv } from "./sqlite-env";
+
+const DEFAULT_EMBEDDED_POSTGRES_PORT = 54329;
 
 export type ResolvedEnv = Record<string, string | undefined>;
 
@@ -34,14 +37,14 @@ export async function loadResolvedEnv(cwd: string): Promise<ResolvedEnv> {
 export function buildEnvBase(
 	cwd: string,
 	env: ResolvedEnv,
-	instanceServerDatabasePath?: string,
+	instanceServerDatabase?: InstanceServerDatabaseConfig,
 ): ProjectRuntimeConfig {
 	const workspacePath = env.PIV_WORKSPACE_PATH ?? cwd;
 	const sandbox = normalizeSandboxValue(env.CODEX_SANDBOX);
 	const codexHome = normalizeOptionalValue(env.CODEX_HOME);
 	const serverDatabasePath =
 		normalizeOptionalValue(env.PIV_SERVER_DATABASE_PATH) ??
-		instanceServerDatabasePath ??
+		instanceServerDatabase?.databasePath ??
 		path.join(cwd, ".devos", "config", SERVER_DB_DIR);
 	return {
 		workspacePath,
@@ -83,6 +86,7 @@ export function buildEnvBase(
 		server: {
 			database: {
 				databasePath: serverDatabasePath,
+				port: instanceServerDatabase?.port ?? DEFAULT_EMBEDDED_POSTGRES_PORT,
 			},
 		},
 		codex: {

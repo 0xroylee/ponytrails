@@ -1,6 +1,6 @@
-import type { WorkflowBoardTaskRecord } from "devos-server/workflow-data";
 import type { ResolvedProjectConfig } from "../types";
 import { createWorkflowDataClient } from "../workflow/workflow-data-client";
+import type { WorkflowBoardTaskRecord } from "../workflow/workflow-data-protocol";
 import type {
 	TaskIntakeCreatedTask,
 	TaskIntakeTask,

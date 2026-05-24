@@ -1,7 +1,3 @@
-import type {
-	WorkflowBoardTaskRecord,
-	WorkflowPullRequestRecord,
-} from "devos-server/workflow-data";
 import type { ResolvedProjectConfig } from "../../features/types";
 import type {
 	BoardTaskCreateInput,
@@ -11,6 +7,10 @@ import type {
 	BoardTaskWorkflowStore,
 } from "./board-task-workflow-store.types";
 import { createReliableWorkflowDataClient } from "./reliable-workflow-data-client";
+import type {
+	WorkflowBoardTaskRecord,
+	WorkflowPullRequestRecord,
+} from "./workflow-data-protocol";
 
 export function createBoardTaskWorkflowStore(
 	config: ResolvedProjectConfig,

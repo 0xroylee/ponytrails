@@ -1,0 +1,135 @@
+export const WORKFLOW_DATA_WS_PATH = "/api/workflow";
+
+export type WorkflowDataAction =
+	| "tasks.list"
+	| "tasks.getByKey"
+	| "tasks.createWorkflowTask"
+	| "tasks.createIntakeTask"
+	| "tasks.update"
+	| "tasks.addComment"
+	| "tasks.linkPullRequest"
+	| "taskExecutions.start"
+	| "taskExecutions.appendStream"
+	| "taskExecutions.recordProgress"
+	| "taskExecutions.finish"
+	| "polling.record";
+
+export interface WorkflowPullRequestRecord {
+	number?: number;
+	url?: string;
+	branch: string;
+	title: string;
+}
+
+export interface WorkflowBoardTaskRecord {
+	id: string;
+	taskKey: string;
+	projectId: string | null;
+	title: string;
+	content: string;
+	priority: number;
+	status: string;
+	dueDate: string | null;
+	creatorId: string;
+	assigneeId?: string | null;
+	linkedPr: string | null;
+	linearIssueId: string | null;
+	linearIdentifier: string | null;
+	linearUrl: string | null;
+	createdAt: string;
+	updatedAt: string;
+	pullRequest?: WorkflowPullRequestRecord;
+}
+
+export interface WorkflowPollingRecordInput {
+	pollerId: string;
+	sourceType: string;
+	sourceId: string;
+	projectId?: string | null;
+	state: "idle" | "running" | "success" | "error" | "stopped" | "skipped";
+	intervalMs: number;
+	counts?: {
+		issueCount?: number;
+		staleRetryCount?: number;
+		readyTaskCount?: number;
+		dispatchCount?: number;
+	};
+	consecutiveFailures?: number;
+	lastError?: string | null;
+	startedAt?: string | null;
+	finishedAt?: string | null;
+	successAt?: string | null;
+	errorAt?: string | null;
+	level: "info" | "warn" | "error";
+	eventType: string;
+	message: string;
+	metadata?: Record<string, unknown>;
+}
+
+export type WorkflowExecutionStatus =
+	| "running"
+	| "succeeded"
+	| "failed"
+	| "blocked";
+
+export interface WorkflowTaskExecutionStartInput {
+	executionLogId: string;
+	taskId?: string;
+	projectId?: string;
+	issueKey?: string;
+	status?: WorkflowExecutionStatus;
+	startedAt?: string;
+	log?: string;
+}
+
+export interface WorkflowTaskExecutionStreamInput {
+	executionLogId: string;
+	eventId: string;
+	stream: "stdout" | "stderr" | "daemon";
+	text: string;
+	emittedAt?: string;
+}
+
+export interface WorkflowTaskExecutionProgressInput {
+	executionLogId: string;
+	eventId: string;
+	stepNumber: number;
+	event: WorkflowProgressEventRecord;
+}
+
+export interface WorkflowTaskExecutionFinishInput {
+	executionLogId: string;
+	status: Exclude<WorkflowExecutionStatus, "running">;
+	finishedAt?: string;
+}
+
+export interface WorkflowProgressEventRecord {
+	schema: "devos.workflow.stream.v1";
+	emittedAt: string;
+	kind: string;
+	[key: string]: unknown;
+}
+
+export interface WorkflowDataRequestFrame {
+	type: "workflow.request";
+	requestId: string;
+	action: WorkflowDataAction;
+	payload?: unknown;
+}
+
+export type WorkflowDataResponseFrame =
+	| {
+			type: "workflow.response";
+			requestId: string;
+			action: WorkflowDataAction;
+			status: "ok";
+			payload?: unknown;
+	  }
+	| {
+			type: "workflow.response";
+			requestId: string;
+			action?: WorkflowDataAction;
+			status: "error";
+			code: string;
+			error: string;
+	  };

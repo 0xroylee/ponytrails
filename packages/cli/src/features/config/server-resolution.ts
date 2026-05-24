@@ -13,6 +13,7 @@ export function resolveRootServerConfig(
 	return {
 		database: {
 			databasePath: resolveServerDatabasePathForRoot(configCwd, base, root),
+			port: root.server?.database?.port ?? base.server.database.port,
 		},
 	};
 }

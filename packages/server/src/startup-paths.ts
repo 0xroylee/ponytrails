@@ -36,3 +36,9 @@ export function resolveServerDatabasePath(
 	}
 	return rootDatabasePath;
 }
+
+export function resolveServerDatabasePort(config: ServerStartupConfig): number {
+	return (
+		config.projects[0]?.server.database.port ?? config.server.database.port
+	);
+}

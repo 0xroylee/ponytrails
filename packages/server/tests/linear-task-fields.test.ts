@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { PGlite } from "devos-db";
 import { eq } from "devos-db";
 import {
 	type ServerDatabase,
@@ -105,8 +104,10 @@ describe("linear task reference fields", () => {
 		const databasePath = path.join(tempDir, "db");
 
 		try {
-			const oldClient = new PGlite(databasePath);
-			await oldClient.exec(`
+			const oldDatabase = await initializeServerDatabase(databasePath, {
+				runMigrations: false,
+			});
+			await oldDatabase.client.query(`
 				CREATE TABLE board_tasks (
 					id text PRIMARY KEY,
 					project_id text NOT NULL,
@@ -121,7 +122,7 @@ describe("linear task reference fields", () => {
 					updated_at timestamp NOT NULL
 				);
 			`);
-			await oldClient.close();
+			await oldDatabase.close();
 
 			const migrated = await initializeServerDatabase(databasePath);
 			await migrated.db.insert(boardTasksTable).values({

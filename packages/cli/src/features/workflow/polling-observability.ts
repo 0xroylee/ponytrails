@@ -1,7 +1,7 @@
-import type { WorkflowPollingRecordInput } from "devos-server/workflow-data";
 import type { ResolvedProjectConfig } from "../../features/types";
 import { logger, normalizeError } from "../../utils/logger";
 import { createReliableWorkflowDataClient } from "./reliable-workflow-data-client";
+import type { WorkflowPollingRecordInput } from "./workflow-data-protocol";
 import type { PollingSettings } from "./workflow.types";
 
 const failureCounts = new Map<string, number>();
@@ -52,9 +52,9 @@ export async function recordCliPollingEvent(
 			context: { workspacePath: config.workspacePath, projectId: config.id },
 		}).request("polling.record", payload);
 	} catch (error) {
-		logger.error(
+		logger.warn(
 			{ projectId: config.id, err: normalizeError(error) },
-			"Failed to record CLI polling status",
+			"Workflow data reporting unavailable; continuing without server polling status",
 		);
 	}
 }

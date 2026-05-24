@@ -1,19 +1,23 @@
-import { stat } from "node:fs/promises";
-import {
-	boardProjectsTable,
-	inArray,
-	initializeServerDatabase,
-} from "devos-db";
-import type { BoardProjectRow } from "devos-db";
 import type {
 	DevosRootConfig,
 	ProjectRuntimeConfig,
 	ResolvedProjectConfig,
 } from "../../features/types";
 import { resolveProjects } from "./project-resolution";
-import { resolveServerDatabasePathForRoot } from "./server-resolution";
 
-export async function applyDatabaseProjectMetadata(
+const DEFAULT_SERVER_BASE_URL = "http://127.0.0.1:3001";
+const PROJECT_METADATA_TIMEOUT_MS = 1000;
+
+interface BoardProjectRow {
+	id: string;
+	name: string;
+	repoOwner: string | null;
+	repoName: string | null;
+	baseBranch: string | null;
+	localFolder: string | null;
+}
+
+export async function applyServerProjectMetadata(
 	projects: ResolvedProjectConfig[],
 	options?: {
 		configCwd: string;
@@ -21,75 +25,82 @@ export async function applyDatabaseProjectMetadata(
 		root: DevosRootConfig;
 	},
 ): Promise<ResolvedProjectConfig[]> {
+	const rows = await fetchServerProjects();
 	if (projects.length === 0) {
-		return options ? loadDatabaseProjects(options) : projects;
+		return options && rows.length > 0
+			? loadServerProjects(options, rows)
+			: projects;
 	}
-	const byDatabasePath = groupProjectsByDatabasePath(projects);
-	const rowsByProjectId = new Map<string, BoardProjectRow>();
-
-	for (const [databasePath, databaseProjects] of byDatabasePath) {
-		if (!(await pathExists(databasePath))) {
-			continue;
-		}
-		const database = await initializeServerDatabase(databasePath);
-		try {
-			const rows = await database.db
-				.select()
-				.from(boardProjectsTable)
-				.where(
-					inArray(
-						boardProjectsTable.id,
-						databaseProjects.map((project) => project.id),
-					),
-				);
-			for (const row of rows) {
-				rowsByProjectId.set(row.id, row);
-			}
-		} finally {
-			await database.close();
-		}
-	}
-
-	return projects.map((project) => {
-		const metadata = rowsByProjectId.get(project.id);
-		return metadata ? applyProjectRow(project, metadata) : project;
-	});
+	return applyProjectRows(projects, rows);
 }
 
-async function loadDatabaseProjects(options: {
-	configCwd: string;
-	base: ProjectRuntimeConfig;
-	root: DevosRootConfig;
-}): Promise<ResolvedProjectConfig[]> {
-	const databasePath = resolveServerDatabasePathForRoot(
-		options.configCwd,
-		options.base,
-		options.root,
+async function loadServerProjects(
+	options: {
+		configCwd: string;
+		base: ProjectRuntimeConfig;
+		root: DevosRootConfig;
+	},
+	rows: BoardProjectRow[],
+): Promise<ResolvedProjectConfig[]> {
+	const rootWithServerProjects = {
+		...options.root,
+		projects: rows.map((row) => ({ id: row.id })),
+	};
+	return applyProjectRows(
+		resolveProjects(options.configCwd, options.base, rootWithServerProjects),
+		rows,
 	);
-	if (!(await pathExists(databasePath))) {
-		return [];
-	}
-	const database = await initializeServerDatabase(databasePath);
+}
+
+async function fetchServerProjects(): Promise<BoardProjectRow[]> {
+	const controller = new AbortController();
+	const timeout = setTimeout(
+		() => controller.abort(),
+		PROJECT_METADATA_TIMEOUT_MS,
+	);
 	try {
-		const rows = await database.db.select().from(boardProjectsTable);
-		if (rows.length === 0) {
+		const response = await fetch(resolveProjectsUrl(process.env), {
+			signal: controller.signal,
+		});
+		if (!response.ok) {
 			return [];
 		}
-		const rootWithDatabaseProjects = {
-			...options.root,
-			projects: rows.map((row) => ({ id: row.id })),
-		};
-		return applyProjectRows(
-			resolveProjects(
-				options.configCwd,
-				options.base,
-				rootWithDatabaseProjects,
-			),
-			rows,
-		);
+		return parseBoardProjectRows(await response.json());
+	} catch {
+		return [];
 	} finally {
-		await database.close();
+		clearTimeout(timeout);
 	}
+}
+
+function resolveProjectsUrl(env: NodeJS.ProcessEnv): string {
+	const baseUrl = env.DEVOS_SERVER_BASE_URL ?? DEFAULT_SERVER_BASE_URL;
+	return new URL("/api/projects", baseUrl).toString();
+}
+
+function parseBoardProjectRows(value: unknown): BoardProjectRow[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	return value.filter(isBoardProjectRow);
+}
+
+function isBoardProjectRow(value: unknown): value is BoardProjectRow {
+	if (!isRecord(value)) {
+		return false;
+	}
+	return (
+		typeof value.id === "string" &&
+		typeof value.name === "string" &&
+		isNullableString(value.repoOwner) &&
+		isNullableString(value.repoName) &&
+		isNullableString(value.baseBranch) &&
+		isNullableString(value.localFolder)
+	);
+}
+
+function isNullableString(value: unknown): value is string | null {
+	return value === null || typeof value === "string";
 }
 
 function applyProjectRows(
@@ -103,13 +114,8 @@ function applyProjectRows(
 	});
 }
 
-function groupProjectsByDatabasePath(projects: ResolvedProjectConfig[]) {
-	const byPath = new Map<string, ResolvedProjectConfig[]>();
-	for (const project of projects) {
-		const databasePath = project.server.database.databasePath;
-		byPath.set(databasePath, [...(byPath.get(databasePath) ?? []), project]);
-	}
-	return byPath;
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }
 
 function applyProjectRow(
@@ -128,13 +134,4 @@ function applyProjectRow(
 			baseBranch: row.baseBranch ?? project.repo.baseBranch,
 		},
 	};
-}
-
-async function pathExists(targetPath: string): Promise<boolean> {
-	try {
-		await stat(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
 }

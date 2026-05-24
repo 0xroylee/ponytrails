@@ -1,4 +1,4 @@
-import type { WorkflowDataAction } from "devos-server/workflow-data";
+import type { WorkflowDataAction } from "./workflow-data-protocol";
 
 export interface WorkflowDataOutboxContext {
 	workspacePath: string;

@@ -31,8 +31,6 @@
 		"@linear/sdk": "^83.0.0",
 		"adapters": "workspace:*",
 		"commander": "^14.0.3",
-		"devos-db": "workspace:*",
-		"devos-server": "workspace:*",
 		"picocolors": "^1.1.1"
 	}
 }

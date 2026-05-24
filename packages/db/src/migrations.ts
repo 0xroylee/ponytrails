@@ -1,10 +1,17 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { PGlite } from "@electric-sql/pglite";
+import type { QueryResultRow } from "pg";
 
 interface Migration {
 	id: string;
 	fileName: string;
+}
+
+export interface MigrationQueryClient {
+	query<T extends QueryResultRow = QueryResultRow>(
+		sql: string,
+		values?: unknown[],
+	): Promise<{ rows: T[] }>;
 }
 
 const MIGRATIONS: Migration[] = [
@@ -36,8 +43,10 @@ const MIGRATIONS: Migration[] = [
 	},
 ];
 
-async function ensureMigrationsTable(client: PGlite): Promise<void> {
-	await client.exec(`
+async function ensureMigrationsTable(
+	client: MigrationQueryClient,
+): Promise<void> {
+	await client.query(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			id text PRIMARY KEY,
 			applied_at timestamp NOT NULL
@@ -45,7 +54,9 @@ async function ensureMigrationsTable(client: PGlite): Promise<void> {
 	`);
 }
 
-export async function runMigrations(client: PGlite): Promise<void> {
+export async function runMigrations(
+	client: MigrationQueryClient,
+): Promise<void> {
 	await ensureMigrationsTable(client);
 
 	const migrationsDir = path.join(import.meta.dir, "migrations");
@@ -62,16 +73,16 @@ export async function runMigrations(client: PGlite): Promise<void> {
 			path.join(migrationsDir, migration.fileName),
 			"utf8",
 		);
-		await client.exec("BEGIN;");
+		await client.query("BEGIN");
 		try {
-			await client.exec(sql);
+			await client.query(sql);
 			await client.query(
 				"INSERT INTO schema_migrations (id, applied_at) VALUES ($1, CURRENT_TIMESTAMP)",
 				[migration.id],
 			);
-			await client.exec("COMMIT;");
+			await client.query("COMMIT");
 		} catch (error) {
-			await client.exec("ROLLBACK;");
+			await client.query("ROLLBACK");
 			throw error;
 		}
 	}

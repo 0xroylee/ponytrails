@@ -3,6 +3,7 @@ import path from "node:path";
 import {
 	resolveDefaultServerWorkspacePath,
 	resolveServerDatabasePath,
+	resolveServerDatabasePort,
 	resolveServerWorkspacePath,
 } from "../src/startup-paths";
 import type { ServerStartupConfig } from "../src/startup-paths.types";
@@ -84,14 +85,27 @@ describe("server startup paths", () => {
 			),
 		).toBe(path.join(workspacePath, "override", "server-db"));
 	});
+
+	it("uses the default project database port before the root port", () => {
+		expect(
+			resolveServerDatabasePort(
+				createConfig("/tmp/db", [
+					{ server: { database: { databasePath: "/tmp/db", port: 54330 } } },
+				]),
+			),
+		).toBe(54330);
+		expect(resolveServerDatabasePort(createConfig("/tmp/db", []))).toBe(54329);
+	});
 });
 
 function createConfig(
 	databasePath: string,
-	projects: unknown[] = [{ server: { database: { databasePath } } }],
+	projects: unknown[] = [
+		{ server: { database: { databasePath, port: 54329 } } },
+	],
 ): ServerStartupConfig {
 	return {
 		projects,
-		server: { database: { databasePath } },
+		server: { database: { databasePath, port: 54329 } },
 	} as ServerStartupConfig;
 }

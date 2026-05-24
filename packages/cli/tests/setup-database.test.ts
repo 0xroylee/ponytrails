@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { initializeServerDatabase } from "devos-db";
+import { instanceConfigPath } from "../src/features/config";
 import {
 	DEFAULT_LABEL_MAP,
 	DEFAULT_REASONING_EFFORTS,
 	DEFAULT_STATUS_MAP,
-	LOCAL_BOARD_ID,
 	type SetupDraft,
 	writeSetupFiles,
 } from "../src/features/setup";
@@ -46,7 +45,7 @@ const draft: SetupDraft = {
 let previousHome: string | undefined;
 let testHomeDir: string | undefined;
 
-describe("setup database initialization", () => {
+describe("setup database boundary", () => {
 	beforeEach(async () => {
 		previousHome = process.env.HOME;
 		testHomeDir = await mkdtemp(
@@ -64,43 +63,44 @@ describe("setup database initialization", () => {
 		testHomeDir = undefined;
 	});
 
-	it("creates and migrates the server database during fresh onboarding", async () => {
+	it("does not create or migrate the server database during fresh onboarding", async () => {
 		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-db-"));
-		const databasePath = path.join(tempDir, ".devos", "config", "server-db");
+		const repoFallbackDatabasePath = path.join(
+			tempDir,
+			".devos",
+			"config",
+			"server-db",
+		);
 
 		try {
-			await expect(access(databasePath)).rejects.toThrow();
+			await expect(access(repoFallbackDatabasePath)).rejects.toThrow();
 			await writeSetupFiles(tempDir, draft);
-			await access(databasePath);
+			await expect(access(repoFallbackDatabasePath)).rejects.toThrow();
 
-			const database = await initializeServerDatabase(databasePath);
-			try {
-				const migrations = await database.client.query<{ id: string }>(
-					"SELECT id FROM schema_migrations ORDER BY id",
-				);
-				const boards = await database.client.query<{
-					id: string;
-					name: string;
-				}>("SELECT id, name FROM project_boards WHERE id = $1", [
-					LOCAL_BOARD_ID,
-				]);
-
-				expect(migrations.rows.map((row) => row.id)).toContain(
-					"0011_project_metadata",
-				);
-				expect(boards.rows).toEqual([
-					{ id: LOCAL_BOARD_ID, name: draft.workspaceName },
-				]);
-			} finally {
-				await database.close();
-			}
+			const instanceConfig = JSON.parse(
+				await readFile(instanceConfigPath(), "utf8"),
+			) as {
+				database: { embeddedPostgresDataDir: string; mode: string };
+			};
+			expect(instanceConfig.database.mode).toBe("embedded-postgres");
+			await access(instanceConfig.database.embeddedPostgresDataDir);
+			expect(
+				await readdir(instanceConfig.database.embeddedPostgresDataDir),
+			).toEqual([]);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});
 
-	it("reruns onboarding database initialization without duplicates", async () => {
+	it("reruns onboarding without creating server database records", async () => {
 		const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-setup-db-"));
+		const repoFallbackDatabasePath = path.join(
+			tempDir,
+			".devos",
+			"config",
+			"server-db",
+		);
+
 		try {
 			await writeSetupFiles(tempDir, draft);
 			await writeSetupFiles(tempDir, {
@@ -108,33 +108,17 @@ describe("setup database initialization", () => {
 				workspaceName: "Renamed Workspace",
 			});
 
-			const database = await initializeServerDatabase(
-				path.join(tempDir, ".devos", "config", "server-db"),
-			);
-			try {
-				const boardCounts = await database.client.query<{ count: number }>(
-					"SELECT COUNT(*)::int AS count FROM project_boards WHERE id = $1",
-					[LOCAL_BOARD_ID],
-				);
-				const migrationCounts = await database.client.query<{
-					count: number;
-					distinct_count: number;
-				}>(
-					"SELECT COUNT(*)::int AS count, COUNT(DISTINCT id)::int AS distinct_count FROM schema_migrations",
-				);
-				const boards = await database.client.query<{ name: string }>(
-					"SELECT name FROM project_boards WHERE id = $1",
-					[LOCAL_BOARD_ID],
-				);
-
-				expect(Number(boardCounts.rows[0]?.count)).toBe(1);
-				expect(Number(migrationCounts.rows[0]?.count)).toBe(
-					Number(migrationCounts.rows[0]?.distinct_count),
-				);
-				expect(boards.rows[0]?.name).toBe("Renamed Workspace");
-			} finally {
-				await database.close();
-			}
+			await expect(access(repoFallbackDatabasePath)).rejects.toThrow();
+			const instanceConfig = JSON.parse(
+				await readFile(instanceConfigPath(), "utf8"),
+			) as {
+				$meta: { source: string };
+				database: { embeddedPostgresDataDir: string };
+			};
+			expect(instanceConfig.$meta.source).toBe("onboard");
+			expect(
+				await readdir(instanceConfig.database.embeddedPostgresDataDir),
+			).toEqual([]);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}

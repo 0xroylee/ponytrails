@@ -1,12 +1,7 @@
 import { Database } from "bun:sqlite";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
-import {
-	boardProjectsTable,
-	initializeServerDatabase,
-	projectBoardsTable,
-} from "devos-db";
 import {
 	loadConfig,
 	saveSqliteEnv,
@@ -74,6 +69,7 @@ const envKeys = [
 	"CURSOR_AGENT_FORCE",
 	"CURSOR_API_KEY",
 	"PIV_SERVER_DATABASE_PATH",
+	"DEVOS_SERVER_BASE_URL",
 ] as const;
 
 const previousEnv: Record<string, string | undefined> = {};
@@ -288,113 +284,130 @@ describe("loadConfig", () => {
 		}
 	});
 
-	it("overlays project metadata from the server database when available", async () => {
+	it("overlays project metadata from the server when available", async () => {
 		const tempDir = await mkdtemp(
 			path.join(process.cwd(), ".tmp-config-test-"),
 		);
-		const database = await initializeServerDatabase(
-			path.join(tempDir, ".devos", "config", "server-db"),
-		);
 		try {
-			await database.db.insert(projectBoardsTable).values({
-				id: "local-board",
-				name: "Local Board",
-				description: null,
-				ownerId: "local",
-				createdAt: "2026-05-20T00:00:00.000Z",
-				updatedAt: "2026-05-20T00:00:00.000Z",
-			});
-			await database.db.insert(boardProjectsTable).values({
-				id: "default",
-				boardId: "local-board",
-				externalProjectId: "default",
-				name: "Database Project",
-				description: "From DB",
-				repoOwner: "octo",
-				repoName: "database-repo",
-				baseBranch: "trunk",
-				localFolder: path.join(tempDir, "repo"),
-				lead: "Roy",
-				category: "platform",
-				priority: 3,
-				ownerId: "local",
-				createdAt: "2026-05-20T00:00:00.000Z",
-				updatedAt: "2026-05-20T00:00:00.000Z",
-			});
-			await database.close();
-
-			const config = await loadConfig(tempDir);
-			expect(config.projects[0]?.name).toBe("Database Project");
-			expect(config.projects[0]?.workspacePath).toBe(
-				path.join(tempDir, "repo"),
+			await withMockServerProjects(
+				[
+					serverProjectRow({
+						id: "default",
+						name: "Server Project",
+						repoOwner: "octo",
+						repoName: "server-repo",
+						baseBranch: "trunk",
+						localFolder: path.join(tempDir, "repo"),
+					}),
+				],
+				async () => {
+					const config = await loadConfig(tempDir);
+					expect(config.projects[0]?.name).toBe("Server Project");
+					expect(config.projects[0]?.workspacePath).toBe(
+						path.join(tempDir, "repo"),
+					);
+					expect(config.projects[0]?.executionPath).toBe(
+						path.join(tempDir, "repo"),
+					);
+					expect(config.projects[0]?.repo).toEqual({
+						owner: "octo",
+						name: "server-repo",
+						baseBranch: "trunk",
+					});
+				},
 			);
-			expect(config.projects[0]?.executionPath).toBe(
-				path.join(tempDir, "repo"),
-			);
-			expect(config.projects[0]?.repo).toEqual({
-				owner: "octo",
-				name: "database-repo",
-				baseBranch: "trunk",
-			});
 		} finally {
-			if (!database.client.closed) {
-				await database.close();
-			}
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});
 
-	it("loads web-created projects from the server database when config projects are empty", async () => {
+	it("loads web-created projects from the server when config projects are empty", async () => {
 		const tempDir = await mkdtemp(
 			path.join(process.cwd(), ".tmp-config-test-"),
 		);
-		const database = await initializeServerDatabase(
-			path.join(tempDir, ".devos", "config", "server-db"),
+		try {
+			await withMockServerProjects(
+				[
+					serverProjectRow({
+						id: "project-1",
+						name: "Web Project",
+						repoOwner: "octo",
+						repoName: "web-repo",
+						baseBranch: "trunk",
+						localFolder: path.join(tempDir, "web-repo"),
+					}),
+				],
+				async () => {
+					const config = await loadConfig(tempDir);
+					expect(config.projects).toHaveLength(1);
+					expect(config.projects[0]?.id).toBe("project-1");
+					expect(config.projects[0]?.name).toBe("Web Project");
+					expect(config.projects[0]?.workspacePath).toBe(
+						path.join(tempDir, "web-repo"),
+					);
+					expect(config.projects[0]?.repo).toEqual({
+						owner: "octo",
+						name: "web-repo",
+						baseBranch: "trunk",
+					});
+				},
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("ignores malformed project metadata from the server", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
 		);
 		try {
-			await database.db.insert(projectBoardsTable).values({
-				id: "board-1",
-				name: "Demo Workspace",
-				description: null,
-				ownerId: "owner-1",
-				createdAt: "2026-05-20T00:00:00.000Z",
-				updatedAt: "2026-05-20T00:00:00.000Z",
-			});
-			await database.db.insert(boardProjectsTable).values({
-				id: "project-1",
-				boardId: "board-1",
-				externalProjectId: "external-1",
-				name: "Web Project",
-				description: "Created from UI",
-				repoOwner: "octo",
-				repoName: "web-repo",
-				baseBranch: "trunk",
-				localFolder: path.join(tempDir, "web-repo"),
-				lead: "Roy",
-				category: "platform",
-				priority: 2,
-				ownerId: "owner-1",
-				createdAt: "2026-05-20T00:00:00.000Z",
-				updatedAt: "2026-05-20T00:00:00.000Z",
-			});
-			await database.close();
-
-			const config = await loadConfig(tempDir);
-			expect(config.projects).toHaveLength(1);
-			expect(config.projects[0]?.id).toBe("project-1");
-			expect(config.projects[0]?.name).toBe("Web Project");
-			expect(config.projects[0]?.workspacePath).toBe(
-				path.join(tempDir, "web-repo"),
+			await withMockServerProjects(
+				[
+					{
+						id: "default",
+						name: "Broken Project",
+						repoOwner: 123,
+						repoName: "server-repo",
+						baseBranch: "trunk",
+						localFolder: path.join(tempDir, "repo"),
+					},
+				],
+				async () => {
+					const config = await loadConfig(tempDir);
+					expect(config.projects[0]?.name).toBe("default");
+					expect(config.projects[0]?.repo).toEqual({
+						owner: "github_repo_owner",
+						name: "github_repo_name",
+						baseBranch: "github_base_branch",
+					});
+				},
 			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("continues with configured projects when the server is unavailable", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		const previousFetch = globalThis.fetch;
+		process.env.DEVOS_SERVER_BASE_URL = "http://127.0.0.1:3001";
+		globalThis.fetch = mock(async () => {
+			throw new Error("server unavailable");
+		}) as unknown as typeof fetch;
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.id).toBe("default");
 			expect(config.projects[0]?.repo).toEqual({
-				owner: "octo",
-				name: "web-repo",
-				baseBranch: "trunk",
+				owner: "github_repo_owner",
+				name: "github_repo_name",
+				baseBranch: "github_base_branch",
 			});
 		} finally {
-			if (!database.client.closed) {
-				await database.close();
-			}
+			globalThis.fetch = previousFetch;
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});
@@ -569,4 +582,46 @@ async function withTempConfig(
 	} finally {
 		await rm(tempDir, { recursive: true, force: true });
 	}
+}
+
+async function withMockServerProjects(
+	rows: unknown[],
+	run: () => Promise<void>,
+): Promise<void> {
+	const previousFetch = globalThis.fetch;
+	const previousBaseUrl = process.env.DEVOS_SERVER_BASE_URL;
+	process.env.DEVOS_SERVER_BASE_URL = "http://127.0.0.1:3001";
+	globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+		expect(String(input)).toBe("http://127.0.0.1:3001/api/projects");
+		return Response.json(rows);
+	}) as unknown as typeof fetch;
+	try {
+		await run();
+	} finally {
+		globalThis.fetch = previousFetch;
+		process.env.DEVOS_SERVER_BASE_URL = previousBaseUrl;
+	}
+}
+
+function serverProjectRow(
+	overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+	return {
+		id: "default",
+		boardId: "board-1",
+		externalProjectId: "default",
+		name: "Server Project",
+		description: "From server",
+		repoOwner: "octo",
+		repoName: "server-repo",
+		baseBranch: "main",
+		localFolder: "/tmp/server-repo",
+		lead: "Roy",
+		category: "platform",
+		priority: 3,
+		ownerId: "owner-1",
+		createdAt: "2026-05-20T00:00:00.000Z",
+		updatedAt: "2026-05-20T00:00:00.000Z",
+		...overrides,
+	};
 }

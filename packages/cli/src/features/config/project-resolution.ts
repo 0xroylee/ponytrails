@@ -114,6 +114,10 @@ function mergeRuntime(
 			database: {
 				databasePath:
 					mergedServerDatabasePath ?? base.server.database.databasePath,
+				port:
+					project.server?.database?.port ??
+					rootDefaults.server?.database?.port ??
+					base.server.database.port,
 			},
 		},
 		codex: {

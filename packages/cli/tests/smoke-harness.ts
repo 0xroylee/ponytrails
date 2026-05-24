@@ -42,6 +42,7 @@ export async function createSmokeHarness(): Promise<SmokeHarness> {
 		server: {
 			database: {
 				databasePath: path.join(workspacePath, ".devos", "config", "server-db"),
+				port: 54329,
 			},
 		},
 		polling: {

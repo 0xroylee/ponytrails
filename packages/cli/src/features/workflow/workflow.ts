@@ -122,7 +122,7 @@ export async function runWorkflow(
 	runtime: WorkflowRuntime = createWorkflowRuntime(),
 ): Promise<void> {
 	const globalPolling = resolvePollingSettings(config.polling, options);
-	const projects = pickProjects(config, options);
+	const projects = pickProjects(config, options, globalPolling);
 	if (projects.length === 0) {
 		await handleNoProjectSelection(globalPolling, options, runtime);
 		return;
@@ -133,7 +133,12 @@ export async function runWorkflow(
 		linear: runtime.createLinearClient(project),
 	}));
 
-	if (options.issueArg && options.allProjects && !options.projectId) {
+	if (
+		options.issueArg &&
+		!options.projectId &&
+		usesAllProjectScope(options, globalPolling) &&
+		projectContexts.length > 1
+	) {
 		projectContexts = await routeProjectContextsForTargetIssue(
 			projectContexts,
 			options.issueArg,
@@ -255,6 +260,7 @@ export async function runWorkflow(
 function pickProjects(
 	config: LoadedConfig,
 	options: RunOptions,
+	polling: PollingSettings,
 ): ResolvedProjectConfig[] {
 	if (options.projectId) {
 		const project = getProjectById(config, options.projectId);
@@ -263,10 +269,20 @@ function pickProjects(
 		}
 		return [project];
 	}
-	if (options.allProjects) {
+	if (usesAllProjectScope(options, polling)) {
 		return config.projects;
 	}
 	return config.projects.slice(0, 1);
+}
+
+function usesAllProjectScope(
+	options: RunOptions,
+	polling: PollingSettings,
+): boolean {
+	return (
+		options.allProjects === true ||
+		(!options.projectId && (polling.enabled || options.issueArg !== undefined))
+	);
 }
 
 async function handleNoProjectSelection(
@@ -371,6 +387,16 @@ async function runProjectCycle(
 ): Promise<number> {
 	const projectLogger = logger.child({ projectId: config.id });
 	const startedAt = new Date().toISOString();
+	projectLogger.info(
+		{
+			cycle,
+			pollingEnabled: polling.enabled,
+			pollForever: options.pollForever === true,
+			issueArg: options.issueArg,
+			pollIntervalMs: polling.intervalMs,
+		},
+		"Starting workflow polling cycle",
+	);
 	await recordCliPollingEvent(config, polling, {
 		eventType: "cycle_started",
 		level: "info",
@@ -472,7 +498,8 @@ async function buildIssueQueueForProjectCycle(
 	}
 
 	const assignedIssues = await linear.fetchWork(options.issueArg, {
-		includeUnprojected: options.allProjects === true && !options.issueArg,
+		includeUnprojected:
+			usesAllProjectScope(options, polling) && !options.issueArg,
 	});
 	if (options.issueArg !== undefined) {
 		return {

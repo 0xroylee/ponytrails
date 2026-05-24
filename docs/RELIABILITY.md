@@ -57,20 +57,21 @@ devos.ing combines queue behavior, per-issue leases, and execution-path locking 
 3. Stale in-progress runs are eligible for requeue only after lease expiry and timeout.
 4. `--all-projects --issue` must resolve to one unique project mapping.
 
-## Server DB Readiness Recovery
+## Embedded PostgreSQL Readiness Recovery
 
-PGlite startup failures during `wait_ready` usually mean the server DB is already owned by a live process, the previous process left stale runtime files, or the local WAL/checkpoint is corrupt. Preserve the database first:
+Embedded PostgreSQL startup failures usually mean the server DB is already owned by a live process, the configured port is in use, or the data directory is not a valid embedded PostgreSQL cluster. Preserve the database first:
 
 1. Stop all `devos daemon`, `devos-server`, and related Bun processes that may own the server DB.
-2. Identify the affected DB. Helper scripts default to `PIV_SERVER_DATABASE_PATH`, then the instance DB from `~/.devos/config/instance.config.json` (usually `~/.devos/instances/default/db`), then repo-local `.devos/config/server-db`.
-3. Prefer validating a copied database with `bun run db:recover` or `bun run db:recover -- --db <path>` before applying recovery.
-4. If copied validation fails with WAL/checkpoint panic, rename the corrupt DB to `<path>.corrupt-$(date -u +%Y%m%dT%H%M%SZ)`, then recreate it with `bun run --filter devos-db migrate -- --db <path>`.
-5. Remove `postmaster.pid` only after confirming no live process owns the DB, or only from a copied database that you will validate before restoring.
-6. Keep the corrupt copy for later forensic recovery; do not replace it with an unvalidated database.
+2. Identify the affected DB. Helper scripts default to `PIV_SERVER_DATABASE_PATH`, then the instance DB from `~/.devos/config/instance.config.json` (usually `~/.devos/instances/default/db` on port `54329`), then repo-local `.devos/config/server-db`.
+3. Use `lsof -nP -iTCP:<port> -sTCP:LISTEN` to confirm the embedded PostgreSQL port is free before restart.
+4. Back up only stopped clusters. `bun run db:backup` refuses to copy a directory when `postmaster.pid` points at a live process.
+5. Prefer validating a copied database with `bun run db:recover` or `bun run db:recover -- --db <path>` before applying recovery.
+6. If validation fails or the directory is old PGlite data, rename the DB to `<path>.pglite-$(date -u +%Y%m%dT%H%M%SZ)` or `<path>.corrupt-$(date -u +%Y%m%dT%H%M%SZ)`, then recreate it with `bun run --filter devos-db migrate -- --db <path>`.
+7. Keep the preserved copy for later forensic recovery; do not replace it with an unvalidated database.
 
 ## Daemon-Owned Workflow Polling
 
-Use the server DB readiness recovery guidance above for PGlite startup failures.
+Use the embedded PostgreSQL readiness recovery guidance above for local server DB startup failures.
 
 ## Server-Owned Workflow Websocket
 

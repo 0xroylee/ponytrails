@@ -174,7 +174,9 @@ function createLoadedConfig(): LoadedConfig {
 					autoCreateLabels: true,
 				},
 				github: { useGhCli: true, defaultBugLabel: "bug" },
-				server: { database: { databasePath: "/tmp/devos.sqlite" } },
+				server: {
+					database: { databasePath: "/tmp/devos.sqlite", port: 54329 },
+				},
 				codex: { binary: "codex", streamLogs: false },
 				skills: {
 					root: "/tmp/skills",
@@ -189,7 +191,7 @@ function createLoadedConfig(): LoadedConfig {
 				dryRun: false,
 			},
 		],
-		server: { database: { databasePath: "/tmp/devos.sqlite" } },
+		server: { database: { databasePath: "/tmp/devos.sqlite", port: 54329 } },
 		polling: {
 			intervalMs: 30000,
 			maxCycles: undefined,

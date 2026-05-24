@@ -29,7 +29,7 @@ export function routeProjectsForIssueProjectId(
 		}
 		return {
 			skipReason:
-				"Target task has no source project id and cannot be safely routed in --all-projects mode.",
+				"Target task has no source project id and cannot be safely routed in server-projects scope.",
 		};
 	}
 

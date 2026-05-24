@@ -1,7 +1,7 @@
 import type {
 	WorkflowBoardTaskRecord,
 	WorkflowPullRequestRecord,
-} from "devos-server/workflow-data";
+} from "./workflow-data-protocol";
 
 export interface BoardTaskWorkflowRecord {
 	task: WorkflowBoardTaskRecord;
