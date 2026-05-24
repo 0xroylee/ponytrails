@@ -1,0 +1,9 @@
+{
+	"name": "@devos/tsconfig",
+	"version": "0.0.1",
+	"private": true,
+	"exports": {
+		"./base.json": "./base.json",
+		"./next.json": "./next.json"
+	}
+}

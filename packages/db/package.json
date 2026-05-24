@@ -17,6 +17,7 @@
 		"check": "biome check ."
 	},
 	"devDependencies": {
+		"@devos/tsconfig": "workspace:*",
 		"@types/bun": "^1.3.2",
 		"@types/pg": "^8.20.0",
 		"typescript": "^5.9.3"

@@ -21,6 +21,7 @@
 		"zustand": "^5.0.8"
 	},
 	"devDependencies": {
+		"@devos/tsconfig": "workspace:*",
 		"@types/node": "^24.10.0",
 		"@types/react": "^19.2.5",
 		"@types/react-dom": "^19.2.3",

@@ -22,6 +22,7 @@
 		"prepare:publish": "bun run check && bun run typecheck && bun run test && bun run build && npm --cache ./.npm-cache pack --dry-run --ignore-scripts"
 	},
 	"devDependencies": {
+		"@devos/tsconfig": "workspace:*",
 		"@types/bun": "^1.3.2",
 		"@types/node": "^24.10.0",
 		"typescript": "^5.9.3"
