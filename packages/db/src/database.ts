@@ -1,15 +1,19 @@
 import { mkdir, readdir, stat } from "node:fs/promises";
-import { createServer } from "node:net";
 import path from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import EmbeddedPostgres from "embedded-postgres";
 import { Pool } from "pg";
+import { ServerDatabaseInitializationError } from "./database-error";
+import { canOpenLoopbackPort, findAvailablePort } from "./database-port";
 import { hydrateEmbeddedPostgresNativeSymlinks } from "./embedded-postgres-symlinks";
 import { runMigrations } from "./migrations";
+import { initializePgliteServerDatabase } from "./pglite-database";
 import * as schema from "./schema";
 import type {
+	EmbeddedPostgresSettings,
 	InitializeServerDatabaseOptions,
 	ServerDatabase,
+	ServerDatabaseEngine,
 	ServerDatabaseInitializationPhase,
 } from "./types/database.types";
 
@@ -18,37 +22,15 @@ export const DEFAULT_EMBEDDED_POSTGRES_DATABASE = "devos";
 export const DEFAULT_EMBEDDED_POSTGRES_USER = "postgres";
 export const DEFAULT_EMBEDDED_POSTGRES_PASSWORD = "devos-local";
 
-interface InitializationErrorInput {
-	cause: unknown;
-	databasePath: string;
-	phase: ServerDatabaseInitializationPhase;
-	port: number;
-}
-
-export class ServerDatabaseInitializationError extends Error {
-	readonly databasePath: string;
-	readonly phase: ServerDatabaseInitializationPhase;
-	readonly port: number;
-
-	constructor(input: InitializationErrorInput) {
-		const causeMessage =
-			input.cause instanceof Error ? input.cause.message : String(input.cause);
-		super(
-			`Failed to initialize server database at ${input.databasePath} on port ${input.port} during ${input.phase}: ${causeMessage}`,
-			{ cause: input.cause },
-		);
-		this.name = "ServerDatabaseInitializationError";
-		this.databasePath = input.databasePath;
-		this.phase = input.phase;
-		this.port = input.port;
-	}
-}
-
 export async function initializeServerDatabase(
 	databasePath: string,
 	options: InitializeServerDatabaseOptions = {},
 ): Promise<ServerDatabase> {
 	const resolvedPath = path.resolve(databasePath);
+	if ((await resolveDatabaseEngine(options)) === "pglite") {
+		return initializePgliteServerDatabase(resolvedPath, options);
+	}
+
 	const settings = await resolveSettings(options);
 	let postgres: EmbeddedPostgres | undefined;
 	let client: Pool | undefined;
@@ -104,9 +86,30 @@ export async function initializeServerDatabase(
 	}
 }
 
+export { ServerDatabaseInitializationError } from "./database-error";
+
+async function resolveDatabaseEngine(
+	options: InitializeServerDatabaseOptions,
+): Promise<ServerDatabaseEngine> {
+	if (options.engine) {
+		return options.engine;
+	}
+	if (
+		process.env.DEVOS_DB_ENGINE === "pglite" ||
+		process.env.DEVOS_DB_ENGINE === "embedded-postgres"
+	) {
+		return process.env.DEVOS_DB_ENGINE;
+	}
+	return process.env.CODEX_SANDBOX === "seatbelt" ||
+		process.env.CODEX_SANDBOX_NETWORK_DISABLED === "1" ||
+		!(await canOpenLoopbackPort())
+		? "pglite"
+		: "embedded-postgres";
+}
+
 async function resolveSettings(
 	options: InitializeServerDatabaseOptions,
-): Promise<Required<InitializeServerDatabaseOptions>> {
+): Promise<EmbeddedPostgresSettings> {
 	return {
 		databaseName: options.databaseName ?? DEFAULT_EMBEDDED_POSTGRES_DATABASE,
 		logDatabaseProcess: options.logDatabaseProcess ?? false,
@@ -119,7 +122,7 @@ async function resolveSettings(
 
 function createEmbeddedPostgres(
 	databaseDir: string,
-	settings: Required<InitializeServerDatabaseOptions>,
+	settings: EmbeddedPostgresSettings,
 ): EmbeddedPostgres {
 	const onLog = settings.logDatabaseProcess ? console.log : () => {};
 	const onError = settings.logDatabaseProcess ? console.error : () => {};
@@ -188,7 +191,7 @@ async function ensureDatabaseExists(
 	}
 }
 
-function createPool(settings: Required<InitializeServerDatabaseOptions>): Pool {
+function createPool(settings: EmbeddedPostgresSettings): Pool {
 	return new Pool({
 		database: settings.databaseName,
 		host: "127.0.0.1",
@@ -221,21 +224,4 @@ async function pathExists(filePath: string): Promise<boolean> {
 	} catch {
 		return false;
 	}
-}
-
-async function findAvailablePort(): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const server = createServer();
-		server.once("error", reject);
-		server.listen(0, "127.0.0.1", () => {
-			const address = server.address();
-			server.close(() => {
-				if (typeof address === "object" && address?.port) {
-					resolve(address.port);
-					return;
-				}
-				reject(new Error("Unable to allocate an embedded PostgreSQL port"));
-			});
-		});
-	});
 }

@@ -1,5 +1,5 @@
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { Pool } from "pg";
+import type { QueryResultRow } from "pg";
 import type * as schema from "../schema";
 
 export type ServerDatabaseInitializationPhase =
@@ -10,8 +10,30 @@ export type ServerDatabaseInitializationPhase =
 	| "run_migrations"
 	| "bind_drizzle";
 
+export type ServerDatabaseEngine = "embedded-postgres" | "pglite";
+
+export type EmbeddedPostgresSettings = Required<
+	Omit<InitializeServerDatabaseOptions, "engine">
+>;
+
+export interface ServerDatabaseInitializationErrorInput {
+	cause: unknown;
+	databasePath: string;
+	phase: ServerDatabaseInitializationPhase;
+	port: number;
+}
+
+export interface ServerDatabaseClient {
+	query<T extends QueryResultRow = QueryResultRow>(
+		sql: string,
+		values?: unknown[],
+	): Promise<{ rows: T[] }>;
+	end?(): Promise<void>;
+}
+
 export interface InitializeServerDatabaseOptions {
 	databaseName?: string;
+	engine?: ServerDatabaseEngine;
 	logDatabaseProcess?: boolean;
 	password?: string;
 	port?: number;
@@ -20,7 +42,7 @@ export interface InitializeServerDatabaseOptions {
 }
 
 export interface ServerDatabase {
-	client: Pool;
+	client: ServerDatabaseClient;
 	databasePath: string;
 	db: NodePgDatabase<typeof schema>;
 	port: number;

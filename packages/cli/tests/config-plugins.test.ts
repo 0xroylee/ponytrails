@@ -8,11 +8,13 @@ import {
 } from "../src/features/setup";
 
 let previousHome: string | undefined;
+let previousSandbox: string | undefined;
 let testHomeDir: string | undefined;
 
 describe("plugin config resolution", () => {
 	beforeEach(async () => {
 		previousHome = process.env.HOME;
+		previousSandbox = process.env.CODEX_SANDBOX;
 		testHomeDir = await mkdtemp(path.join(process.cwd(), ".tmp-config-home-"));
 		process.env.HOME = testHomeDir;
 		process.env.CODEX_SANDBOX = "workspace-write";
@@ -20,6 +22,11 @@ describe("plugin config resolution", () => {
 
 	afterEach(async () => {
 		process.env.HOME = previousHome;
+		if (previousSandbox === undefined) {
+			Reflect.deleteProperty(process.env, "CODEX_SANDBOX");
+		} else {
+			process.env.CODEX_SANDBOX = previousSandbox;
+		}
 		if (testHomeDir) {
 			await rm(testHomeDir, { recursive: true, force: true });
 		}

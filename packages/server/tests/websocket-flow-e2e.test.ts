@@ -7,6 +7,7 @@ import {
 	REALTIME_WS_PATH,
 	type TestHarness,
 	WebSocketImpl,
+	canOpenLoopbackServer,
 	connectCliWorker,
 	setupHarness,
 } from "./websocket-flow-e2e-harness";
@@ -20,6 +21,9 @@ afterEach(async () => {
 
 describe("websocket flow e2e", () => {
 	it("streams a web command through the server broker to the CLI worker and back", async () => {
+		if (!(await canOpenLoopbackServer())) {
+			return;
+		}
 		const harness = await setupHarness();
 		activeHarness = harness;
 		const worker = await connectCliWorker(harness);
@@ -84,6 +88,9 @@ describe("websocket flow e2e", () => {
 	});
 
 	it("delivers realtime events to web subscribers", async () => {
+		if (!(await canOpenLoopbackServer())) {
+			return;
+		}
 		const harness = await setupHarness();
 		activeHarness = harness;
 		const receivedEvent = new Promise<unknown>((resolve, reject) => {

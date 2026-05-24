@@ -56,7 +56,7 @@ describe("buildFixPrompt", () => {
 		);
 		expect(prompt).toContain("Preserve unrelated user changes");
 		expect(prompt).toContain("Add or update regression tests");
-		expect(prompt).toContain("90%-100% meaningful behavior coverage");
+		expect(prompt).toContain("80%-90% meaningful behavior coverage");
 		expect(prompt).toContain("Prioritize business logic first");
 		expect(prompt).toContain("Run each listed verification command/check");
 		expect(prompt).toContain("completed and blocked checkpoints");
@@ -89,7 +89,7 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("expected behavior");
 		expect(prompt).toContain("likely files or code path");
 		expect(prompt).toContain("verification command/check");
-		expect(prompt).toContain("90%-100% meaningful behavior coverage");
+		expect(prompt).toContain("80%-90% meaningful behavior coverage");
 		expect(prompt).toContain("real product or workflow risk");
 	});
 

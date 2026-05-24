@@ -205,9 +205,15 @@ async function insertTask(
 }
 
 async function createDatabasePort(): Promise<number> {
-	return new Promise((resolve, reject) => {
+	if (
+		process.env.CODEX_SANDBOX === "seatbelt" ||
+		process.env.CODEX_SANDBOX_NETWORK_DISABLED === "1"
+	) {
+		return 54329;
+	}
+	return new Promise((resolve) => {
 		const server = createServer();
-		server.once("error", reject);
+		server.once("error", () => resolve(54329));
 		server.listen(0, "127.0.0.1", () => {
 			const address = server.address();
 			server.close(() => {
@@ -215,7 +221,7 @@ async function createDatabasePort(): Promise<number> {
 					resolve(address.port);
 					return;
 				}
-				reject(new Error("Failed to allocate test database port"));
+				resolve(54329);
 			});
 		});
 	});

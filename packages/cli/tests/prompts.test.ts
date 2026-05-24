@@ -34,7 +34,7 @@ describe("buildImplementPrompt", () => {
 
 		expect(prompt).toContain("do not run git fetch or git pull");
 		expect(prompt).toContain("Plan summary:");
-		expect(prompt).toContain("90%-100% meaningful behavior coverage");
+		expect(prompt).toContain("80%-90% meaningful behavior coverage");
 		expect(prompt).toContain("Prioritize business logic first");
 	});
 
@@ -127,7 +127,7 @@ describe("buildPlanPrompt", () => {
 			expect(prompt).toContain(
 				"implementation target and validation/progress signal",
 			);
-			expect(prompt).toContain("90%-100% meaningful behavior coverage");
+			expect(prompt).toContain("80%-90% meaningful behavior coverage");
 			expect(prompt).toContain("not exhaustive 100% line coverage");
 		} finally {
 			await rm(tmpDir, { recursive: true, force: true });

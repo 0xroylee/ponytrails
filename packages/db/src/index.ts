@@ -21,5 +21,7 @@ export type {
 	InitializeServerDatabaseOptions,
 	ServerDb,
 	ServerDatabase,
+	ServerDatabaseClient,
+	ServerDatabaseEngine,
 	ServerDatabaseInitializationPhase,
 } from "./types/database.types";

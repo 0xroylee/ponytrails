@@ -66,6 +66,18 @@ export async function setupHarness(): Promise<TestHarness> {
 	return harness;
 }
 
+export async function canOpenLoopbackServer(): Promise<boolean> {
+	const server = createServer();
+	try {
+		await listenOnPortZero(server);
+		return true;
+	} catch {
+		return false;
+	} finally {
+		await closeHttpServer(server);
+	}
+}
+
 export async function connectCliWorker(
 	harness: TestHarness,
 ): Promise<WebSocket> {

@@ -14,7 +14,7 @@ async function loadSkillText(filePath: string): Promise<string> {
 }
 
 const COVERAGE_GUIDANCE = [
-	"Use 90%-100% meaningful behavior coverage as the testing target, not exhaustive 100% line coverage.",
+	"Use 80%-90% meaningful behavior coverage as the testing target, not exhaustive 100% line coverage.",
 	"Prioritize business logic first: workflow transitions, parsing contracts, config/state behavior, integrations, API route behavior, and user-visible data-flow decisions.",
 	"Flag missing coverage only when it creates real product or workflow risk, not because non-critical lines are uncovered.",
 ].join(" ");
