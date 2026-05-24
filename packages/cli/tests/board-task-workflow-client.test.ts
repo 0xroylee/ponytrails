@@ -23,17 +23,19 @@ describe("BoardTaskWorkflowClient", () => {
 		const config = project("project-1");
 		const client = createBoardTaskWorkflowClient(config);
 
-		expect((await client.fetchWork()).map((task) => task.identifier)).toEqual([
-			"TASK-000001",
-		]);
+		const [readyTask] = await client.fetchWork();
+		expect(readyTask?.identifier).toBe("TASK(owner-1)-1");
+		expect(readyTask?.branchName).toBe("owner-1/1");
 		expect(
 			(await client.fetchWork(undefined, { includeUnprojected: true })).map(
 				(task) => task.identifier,
 			),
-		).toEqual(["TASK-000001", "TASK-000005"]);
+		).toEqual(["TASK(owner-1)-1", "TASK(owner-1)-5"]);
 		expect(
-			(await client.fetchWork("TASK-000002")).map((task) => task.identifier),
-		).toEqual(["TASK-000002"]);
+			(await client.fetchWork("TASK(owner-1)-2")).map(
+				(task) => task.identifier,
+			),
+		).toEqual(["TASK(owner-1)-2"]);
 		expect(await client.isAssignedState("todo")).toBe(true);
 		expect(await client.isAssignedState("planning")).toBe(false);
 		expect(calls.map((call) => call.body.action)).toEqual([
@@ -57,7 +59,7 @@ describe("BoardTaskWorkflowClient", () => {
 		await client.linkPullRequest?.("task-1", {
 			number: 42,
 			url: "https://github.com/acme/project/pull/42",
-			branch: "codex/task-000001",
+			branch: "owner-1/1",
 			title: "Task PR",
 		});
 
@@ -95,7 +97,8 @@ describe("BoardTaskWorkflowClient", () => {
 
 		const [task] = await client.fetchReviewOnlyWork();
 
-		expect(task?.identifier).toBe("TASK-000003");
+		expect(task?.identifier).toBe("TASK(owner-1)-3");
+		expect(task?.branchName).toBe("owner-1/3");
 		expect(task?.pullRequest?.url).toBe(
 			"https://github.com/acme/project/pull/7",
 		);
@@ -138,24 +141,36 @@ function installWorkflowSocket(): WorkflowCall[] {
 function payloadForAction(action: string, payload: unknown): unknown {
 	if (action === "tasks.list") {
 		return [
-			task({ id: "task-1", taskKey: "TASK-000001", status: "todo" }),
-			task({ id: "task-2", taskKey: "TASK-000002", status: "planning" }),
+			task({
+				id: "task-1",
+				taskKey: "TASK(owner-1)-1",
+				branchName: "owner-1/1",
+				status: "todo",
+			}),
+			task({
+				id: "task-2",
+				taskKey: "TASK(owner-1)-2",
+				branchName: "owner-1/2",
+				status: "planning",
+			}),
 			task({
 				id: "task-3",
-				taskKey: "TASK-000003",
+				taskKey: "TASK(owner-1)-3",
+				branchName: "owner-1/3",
 				status: "reviewing",
 				linkedPr: "https://github.com/acme/project/pull/7",
 				pullRequest: {
 					number: 7,
 					url: "https://github.com/acme/project/pull/7",
-					branch: "codex/task-000003",
+					branch: "owner-1/3",
 					title: "Task PR",
 				},
 			}),
-			task({ id: "task-4", taskKey: "TASK-000004", projectId: "other" }),
+			task({ id: "task-4", taskKey: "TASK(other)-4", projectId: "other" }),
 			task({
 				id: "task-5",
-				taskKey: "TASK-000005",
+				taskKey: "TASK(owner-1)-5",
+				branchName: "owner-1/5",
 				projectId: null,
 				status: "todo",
 			}),
@@ -164,7 +179,7 @@ function payloadForAction(action: string, payload: unknown): unknown {
 	if (action === "tasks.update" && isRecord(payload)) {
 		return task({ id: String(payload.taskId), status: "implementing" });
 	}
-	return task({ id: "task-1", taskKey: "TASK-000001" });
+	return task({ id: "task-1", taskKey: "TASK(owner-1)-1" });
 }
 
 function task(overrides: Record<string, unknown> = {}) {

@@ -56,7 +56,7 @@ describe("task routes", () => {
 			title: string;
 		};
 		expect(created.title).toBe("Task 1");
-		expect(created.taskKey).toBe("TASK(project-1)-1");
+		expect(created.taskKey).toBe("TASK(owner-1)-1");
 		expect(created.assigneeId).toBe("owner-2");
 
 		const unassignedResponse = await app(

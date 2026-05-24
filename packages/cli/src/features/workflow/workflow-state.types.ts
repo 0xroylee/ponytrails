@@ -38,6 +38,7 @@ export interface LinearIssue {
 export interface IssueRef {
 	id: string;
 	key: string;
+	branchName?: string;
 	title: string;
 	description?: string;
 	url: string;

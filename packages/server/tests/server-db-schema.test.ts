@@ -241,6 +241,7 @@ describe("server drizzle schema", () => {
 			repository: "acme/repo",
 			prNumber: "42",
 			prUrl: "https://github.com/acme/repo/pull/42",
+			branch: "owner-1/1",
 			createdAt: "2026-05-12 01:04:00",
 		};
 		const executionLog: NewTaskExecutionLogRow = {
@@ -366,6 +367,7 @@ describe("server drizzle schema", () => {
 		expect(prRow?.repository).toBe(taskPr.repository);
 		expect(prRow?.prNumber).toBe(taskPr.prNumber);
 		expect(prRow?.prUrl).toBe(taskPr.prUrl ?? null);
+		expect(prRow?.branch).toBe(taskPr.branch ?? null);
 		expect(executionLogRow?.id).toBe(executionLog.id);
 		expect(executionLogRow?.taskId).toBe(executionLog.taskId);
 		expect(executionLogRow?.status).toBe(executionLog.status);

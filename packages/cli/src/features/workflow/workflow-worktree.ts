@@ -85,6 +85,7 @@ export async function prepareIsolatedExecutionWorkspace(
 		state.issue.key,
 		state.pullRequest,
 		worktreePath,
+		state.issue.branchName,
 	);
 	state.executionWorkspace = {
 		mode: "git-worktree",

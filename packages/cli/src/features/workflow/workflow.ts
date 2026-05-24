@@ -640,7 +640,9 @@ async function fetchStaleIssuesForRetry(
 		staleIssues.push({
 			id: issue.id,
 			identifier: issue.identifier,
+			branchName: issue.branchName,
 			title: issue.title,
+			description: issue.description,
 			url: issue.url,
 			projectId: issue.projectId,
 			teamId: issue.teamId,
@@ -670,7 +672,9 @@ async function fetchReviewOnlyIssues(
 		localIssues.push({
 			id: issue.id,
 			identifier: issue.identifier,
+			branchName: issue.branchName,
 			title: issue.title,
+			description: issue.description,
 			url: issue.url,
 			projectId: issue.projectId,
 			teamId: issue.teamId,
@@ -698,7 +702,11 @@ async function fetchReviewOnlyIssues(
 			continue;
 		}
 		try {
-			const discovered = await runtime.findOpenPullRequestForIssue(config, key);
+			const discovered = await runtime.findOpenPullRequestForIssue(
+				config,
+				key,
+				issue.branchName,
+			);
 			discoveredPullRequestsByIssueKey.set(key, discovered);
 			if (discovered) {
 				await linear.linkPullRequest?.(issue.id, discovered);
@@ -811,6 +819,7 @@ async function processIssue(
 			issue: {
 				id: issue.id,
 				key,
+				branchName: issue.branchName,
 				title: issue.title,
 				description: issue.description,
 				url: issue.url,
@@ -1346,7 +1355,7 @@ async function handleImplementingStage(
 	if (!hasExistingPr) {
 		if (config.dryRun) {
 			state.pullRequest = {
-				branch: issueBranchName(state.issue.key),
+				branch: issueBranchName(state.issue.key, state.issue.branchName),
 				title: `[codex] ${state.issue.key}: ${state.issue.title}`,
 				url: "https://example.invalid/dry-run",
 			};
@@ -1355,6 +1364,7 @@ async function handleImplementingStage(
 				config,
 				state.issue.key,
 				state.issue.title,
+				state.issue.branchName,
 			);
 		}
 	} else if (!config.dryRun) {
@@ -1426,6 +1436,7 @@ export async function prepareImplementationBranchForStage(
 		config,
 		state.issue.key,
 		state.pullRequest,
+		state.issue.branchName,
 	);
 	if (!state.pullRequest) {
 		state.pullRequest = {

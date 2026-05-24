@@ -64,7 +64,7 @@ describe("chat task create route", () => {
 			task: BoardTaskApiRow;
 		};
 		expect(body.status).toBe("created");
-		expect(body.task.taskKey).toBe("TASK(project-1)-1");
+		expect(body.task.taskKey).toBe("TASK(owner-1)-1");
 		expect(body.task.title).toBe("Compose task creation");
 		expect(body.task.content).toBe("Create both task records.");
 		expect(body.task.status).toBe("planning");

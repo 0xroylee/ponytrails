@@ -31,6 +31,7 @@ describe("buildBugIssueBody", () => {
 
 	it("builds deterministic issue branch names", () => {
 		expect(issueBranchName("ENG-42")).toBe("codex/eng-42");
+		expect(issueBranchName("TASK(OWNER-1)-1", "owner-1/1")).toBe("owner-1/1");
 	});
 });
 
@@ -441,6 +442,64 @@ describe("createDraftPrFromWorktree", () => {
 		expect(commitAttempts).toBe(1);
 		expect(pr.number).toBe(99);
 	});
+
+	it("creates draft PRs from branch name overrides", async () => {
+		const calls: string[][] = [];
+		const runCommand = mock(
+			async (_command: string, args: string[]): Promise<CommandResult> => {
+				calls.push(args);
+				if (args[0] === "rev-parse") {
+					return { code: 0, stdout: "true\n", stderr: "" };
+				}
+				if (args[0] === "branch" && args[1] === "--show-current") {
+					return { code: 0, stdout: "owner-1/1\n", stderr: "" };
+				}
+				if (args[0] === "diff") {
+					return { code: 1, stdout: "", stderr: "" };
+				}
+				if (
+					args[0] === "add" ||
+					args[0] === "commit" ||
+					args[0] === "push" ||
+					args[0] === "auth"
+				) {
+					return { code: 0, stdout: "", stderr: "" };
+				}
+				if (args[0] === "pr" && args[1] === "create") {
+					return {
+						code: 0,
+						stdout: "https://github.com/acme/repo/pull/100\n",
+						stderr: "",
+					};
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		);
+
+		const pr = await createDraftPrFromWorktree(
+			createProjectConfig(),
+			"TASK(OWNER-1)-1",
+			"Workspace task",
+			"owner-1/1",
+			{ runCommand, assertCommandOk: assertOk },
+		);
+
+		expect(pr.branch).toBe("owner-1/1");
+		expect(calls).toContainEqual(["push", "-u", "origin", "owner-1/1"]);
+		expect(calls).toContainEqual([
+			"pr",
+			"create",
+			"--draft",
+			"--title",
+			"[codex] TASK(OWNER-1)-1: Workspace task",
+			"--body",
+			expect.any(String),
+			"--base",
+			"main",
+			"--head",
+			"owner-1/1",
+		]);
+	});
 });
 
 describe("ensureIssueWorktree", () => {
@@ -506,6 +565,41 @@ describe("ensureIssueWorktree", () => {
 			"-b",
 			"codex/eng-42",
 			"/tmp/worktrees/eng-42",
+			"origin/main",
+		]);
+	});
+
+	it("creates a new issue worktree with a branch name override", async () => {
+		const calls: string[][] = [];
+		const runCommand = mock(
+			async (_command: string, args: string[]): Promise<CommandResult> => {
+				calls.push(args);
+				if (args[0] === "rev-parse") {
+					return { code: 0, stdout: "true\n", stderr: "" };
+				}
+				if (args[0] === "show-ref") {
+					return { code: 1, stdout: "", stderr: "" };
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		);
+
+		const branch = await ensureIssueWorktree(
+			createProjectConfig(),
+			"TASK(OWNER-1)-1",
+			undefined,
+			"/tmp/worktrees/owner-1-1",
+			"owner-1/1",
+			{ runCommand, assertCommandOk: assertOk },
+		);
+
+		expect(branch).toBe("owner-1/1");
+		expect(calls).toContainEqual([
+			"worktree",
+			"add",
+			"-b",
+			"owner-1/1",
+			"/tmp/worktrees/owner-1-1",
 			"origin/main",
 		]);
 	});
@@ -843,6 +937,45 @@ describe("findOpenPullRequestForIssue", () => {
 		);
 
 		expect(pr).toBeUndefined();
+	});
+
+	it("matches open PRs by branch name override", async () => {
+		const runCommand = mock(
+			async (_command: string, args: string[]): Promise<CommandResult> => {
+				if (args[0] === "pr" && args[1] === "list") {
+					return {
+						code: 0,
+						stdout: JSON.stringify([
+							{
+								number: 171,
+								url: "https://github.com/acme/repo/pull/171",
+								title: "[codex] Workspace task",
+								headRefName: "owner-1/1",
+							},
+						]),
+						stderr: "",
+					};
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		);
+
+		const pr = await findOpenPullRequestForIssue(
+			createProjectConfig(),
+			"TASK(OWNER-1)-1",
+			"owner-1/1",
+			{
+				runCommand,
+				assertCommandOk: assertOk,
+			},
+		);
+
+		expect(pr).toEqual({
+			number: 171,
+			url: "https://github.com/acme/repo/pull/171",
+			branch: "owner-1/1",
+			title: "[codex] Workspace task",
+		});
 	});
 });
 

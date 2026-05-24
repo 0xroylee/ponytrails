@@ -18,8 +18,22 @@ import type {
 
 const GITHUB_RETRY_ATTEMPTS = 3;
 
-export function issueBranchName(issueKey: string): string {
+export function issueBranchName(issueKey: string, branchName?: string): string {
+	const trimmedBranchName = branchName?.trim();
+	if (trimmedBranchName) {
+		return trimmedBranchName;
+	}
 	return `codex/${issueKey.toLowerCase()}`;
+}
+
+function resolveBranchNameDeps(
+	branchNameOrDeps: string | GithubCommandDeps | undefined,
+	deps: GithubCommandDeps,
+): { branchName?: string; deps: GithubCommandDeps } {
+	if (typeof branchNameOrDeps === "string") {
+		return { branchName: branchNameOrDeps, deps };
+	}
+	return { deps: branchNameOrDeps ?? deps };
 }
 
 export async function ensureGhAuth(
@@ -116,15 +130,17 @@ export async function createDraftPrFromWorktree(
 	config: ResolvedProjectConfig,
 	issueKey: string,
 	issueTitle: string,
+	branchNameOrDeps: string | GithubCommandDeps = {},
 	deps: GithubCommandDeps = {},
 ): Promise<PullRequestRef> {
-	const commandRunner = deps.runCommand ?? runCommand;
-	const assertOk = deps.assertCommandOk ?? assertCommandOk;
+	const normalized = resolveBranchNameDeps(branchNameOrDeps, deps);
+	const commandRunner = normalized.deps.runCommand ?? runCommand;
+	const assertOk = normalized.deps.assertCommandOk ?? assertCommandOk;
 	await ensureGitRepository(config, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,
 	});
-	const branch = issueBranchName(issueKey);
+	const branch = issueBranchName(issueKey, normalized.branchName);
 	await ensureCurrentBranch(config, branch, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,
@@ -245,6 +261,7 @@ export async function prepareImplementationBranch(
 	config: ResolvedProjectConfig,
 	issueKey: string,
 	pullRequest: PullRequestRef | undefined,
+	branchName?: string,
 ): Promise<string> {
 	await ensureGitRepository(config);
 	await ensureCleanWorktree(config);
@@ -255,7 +272,7 @@ export async function prepareImplementationBranch(
 	}
 
 	await checkoutBranch(config, config.repo.baseBranch);
-	const branch = issueBranchName(issueKey);
+	const branch = issueBranchName(issueKey, branchName);
 	await checkoutBranch(config, branch, { create: true });
 	return branch;
 }
@@ -265,11 +282,14 @@ export async function ensureIssueWorktree(
 	issueKey: string,
 	pullRequest: PullRequestRef | undefined,
 	worktreePath: string,
+	branchNameOrDeps: string | GithubCommandDeps = {},
 	deps: GithubCommandDeps = {},
 ): Promise<string> {
-	const commandRunner = deps.runCommand ?? runCommand;
-	const assertOk = deps.assertCommandOk ?? assertCommandOk;
-	const branch = pullRequest?.branch ?? issueBranchName(issueKey);
+	const normalized = resolveBranchNameDeps(branchNameOrDeps, deps);
+	const commandRunner = normalized.deps.runCommand ?? runCommand;
+	const assertOk = normalized.deps.assertCommandOk ?? assertCommandOk;
+	const branch =
+		pullRequest?.branch ?? issueBranchName(issueKey, normalized.branchName);
 	await ensureGitRepository(config, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,
@@ -567,10 +587,12 @@ export async function squashMergePullRequest(
 export async function findOpenPullRequestForIssue(
 	config: ResolvedProjectConfig,
 	issueKey: string,
+	branchNameOrDeps: string | GithubCommandDeps = {},
 	deps: GithubCommandDeps = {},
 ): Promise<PullRequestRef | undefined> {
-	const commandRunner = deps.runCommand ?? runCommand;
-	const assertOk = deps.assertCommandOk ?? assertCommandOk;
+	const normalized = resolveBranchNameDeps(branchNameOrDeps, deps);
+	const commandRunner = normalized.deps.runCommand ?? runCommand;
+	const assertOk = normalized.deps.assertCommandOk ?? assertCommandOk;
 	const search = `${issueKey} in:title`;
 	const list = await withRetries("gh pr list", async () => {
 		const result = await commandRunner(
@@ -599,8 +621,9 @@ export async function findOpenPullRequestForIssue(
 		return undefined;
 	}
 	const key = issueKey.trim().toLowerCase();
+	const expectedBranch = issueBranchName(issueKey, normalized.branchName);
 	const matched = parsed.find((entry) =>
-		isMatchingIssuePullRequest(entry, key, issueBranchName(issueKey)),
+		isMatchingIssuePullRequest(entry, key, expectedBranch),
 	);
 	if (!matched) {
 		return undefined;
@@ -611,7 +634,7 @@ export async function findOpenPullRequestForIssue(
 	return {
 		number: matched.number,
 		url: matched.url,
-		branch: matched.headRefName || issueBranchName(issueKey),
+		branch: matched.headRefName || expectedBranch,
 		title: matched.title || `[codex] ${issueKey}`,
 	};
 }

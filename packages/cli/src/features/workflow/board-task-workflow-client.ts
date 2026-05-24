@@ -166,6 +166,7 @@ function mapTaskToWorkflowIssue(
 	return {
 		id: task.id,
 		identifier: task.taskKey,
+		branchName: task.branchName,
 		title: task.title,
 		description: task.content,
 		url: `devos://tasks/${task.id}`,

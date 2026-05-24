@@ -11,6 +11,7 @@ export const taskPullRequestsTable = pgTable(
 		repository: text("repository").notNull(),
 		prNumber: text("pr_number").notNull(),
 		prUrl: text("pr_url"),
+		branch: text("branch"),
 		createdAt: timestamp("created_at", { mode: "string" }).notNull(),
 	},
 	(table) => ({

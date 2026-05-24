@@ -42,7 +42,9 @@ describe("database scripts", () => {
 					"SELECT id FROM schema_migrations ORDER BY id",
 				);
 				expect(migrations.rows.length).toBeGreaterThan(0);
-				expect(migrations.rows.at(-1)?.id).toBe("0011_project_metadata");
+				expect(migrations.rows.at(-1)?.id).toBe(
+					"0012_task_pull_request_branch",
+				);
 			} finally {
 				await database.close();
 			}

@@ -71,7 +71,11 @@ describe("workflow data websocket", () => {
 
 		expect(await db.select().from(taskCommentsTable)).toHaveLength(3);
 		expect(await db.select().from(taskPullRequestsTable)).toEqual([
-			expect.objectContaining({ taskId: "task-1", prNumber: "12" }),
+			expect.objectContaining({
+				branch: "codex/task-000001",
+				taskId: "task-1",
+				prNumber: "12",
+			}),
 		]);
 		expect(events.map((event) => event.type)).toEqual([
 			"issue.updated",
@@ -117,13 +121,15 @@ describe("workflow data websocket", () => {
 
 		expect(workflow.payload).toEqual(
 			expect.objectContaining({
-				taskKey: "TASK(project-1)-1",
+				branchName: "owner-1/1",
+				taskKey: "TASK(owner-1)-1",
 				status: "todo",
 			}),
 		);
 		expect(intake.payload).toEqual(
 			expect.objectContaining({
-				taskKey: "TASK(project-1)-2",
+				branchName: "owner-1/2",
+				taskKey: "TASK(owner-1)-2",
 				status: "planning",
 				creatorId: "owner-1",
 			}),
@@ -131,6 +137,28 @@ describe("workflow data websocket", () => {
 		expect(await db.select().from(pollingStatusTable)).toHaveLength(1);
 		expect(await db.select().from(pollingEventsTable)).toHaveLength(1);
 		expect(events.map((event) => event.type)).toContain("polling.event");
+	});
+
+	it("falls back to synthesized branches for legacy pull request rows", async () => {
+		const { socket, db } = await setupSocket();
+		await db.insert(taskPullRequestsTable).values({
+			id: "pr-legacy",
+			taskId: "task-1",
+			repository: "acme/repo",
+			prNumber: "7",
+			prUrl: "https://github.com/acme/repo/pull/7",
+			createdAt: "2026-05-13T00:01:00.000Z",
+		});
+
+		const response = await sendWorkflowDataRequest(socket, "tasks.list");
+
+		expect(response.payload).toEqual([
+			expect.objectContaining({
+				pullRequest: expect.objectContaining({
+					branch: "codex/task-000001",
+				}),
+			}),
+		]);
 	});
 
 	it("records task execution logs, streams, and progress idempotently", async () => {

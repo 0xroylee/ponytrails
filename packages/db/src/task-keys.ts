@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import type { ServerDatabase } from "./database.types";
+import { boardProjectsTable } from "./schema/board-projects.schema";
 import { boardTasksTable } from "./schema/board-tasks.schema";
 import type { BoardTaskKeyScope } from "./task-keys.types";
 
@@ -8,13 +10,29 @@ export async function generateBoardTaskKey(
 	db: ServerDatabase["db"],
 	scope: BoardTaskKeyScope,
 ): Promise<string> {
-	const slug = resolveTaskKeySlug(scope);
+	const slug = await resolveTaskKeySlug(db, scope);
 	const rows = await db
-		.select({ taskKey: boardTasksTable.taskKey })
+		.select({
+			creatorId: boardTasksTable.creatorId,
+			projectId: boardTasksTable.projectId,
+			taskKey: boardTasksTable.taskKey,
+		})
 		.from(boardTasksTable);
+	const projects = await db
+		.select({ id: boardProjectsTable.id, ownerId: boardProjectsTable.ownerId })
+		.from(boardProjectsTable);
+	const projectOwners = new Map(
+		projects.map((project) => [project.id, project.ownerId]),
+	);
 	let max = 0;
 	for (const row of rows) {
-		const value = parseTaskKeyNumber(row.taskKey, slug);
+		const rowSlug = row.projectId
+			? projectOwners.get(row.projectId)
+			: row.creatorId;
+		if (rowSlug !== slug) {
+			continue;
+		}
+		const value = parseScopedTaskKeyNumber(row.taskKey);
 		if (value > max) {
 			max = value;
 		}
@@ -22,20 +40,53 @@ export async function generateBoardTaskKey(
 	return formatBoardTaskKey(slug, max + 1);
 }
 
-function resolveTaskKeySlug(scope: BoardTaskKeyScope): string {
-	return scope.projectId?.trim() || scope.creatorId.trim();
+export function boardTaskBranchName(taskKey: string): string | undefined {
+	const parsed = parseScopedTaskKey(taskKey);
+	if (!parsed) {
+		return undefined;
+	}
+	return `${parsed.slug}/${parsed.value}`;
 }
 
-function parseTaskKeyNumber(taskKey: string, slug: string): number {
-	const prefix = `${TASK_KEY_PREFIX}(${slug})-`;
-	if (!taskKey.startsWith(prefix)) {
-		return 0;
+async function resolveTaskKeySlug(
+	db: ServerDatabase["db"],
+	scope: BoardTaskKeyScope,
+): Promise<string> {
+	if (!scope.projectId?.trim()) {
+		return scope.creatorId.trim();
 	}
-	const suffix = taskKey.slice(prefix.length);
+	const [project] = await db
+		.select({ ownerId: boardProjectsTable.ownerId })
+		.from(boardProjectsTable)
+		.where(eq(boardProjectsTable.id, scope.projectId.trim()));
+	return project?.ownerId ?? scope.projectId.trim();
+}
+
+function parseScopedTaskKeyNumber(taskKey: string): number {
+	return parseScopedTaskKey(taskKey)?.value ?? 0;
+}
+
+function parseScopedTaskKey(
+	taskKey: string,
+): { slug: string; value: number } | undefined {
+	const match = taskKey.match(/^TASK\(([^)]+)\)-([1-9]\d*)$/);
+	if (!match) {
+		return undefined;
+	}
+	const slug = match[1];
+	const suffix = match[2];
+	if (!slug || !suffix) {
+		return undefined;
+	}
 	const parsed = Number(suffix);
-	return Number.isInteger(parsed) && parsed > 0 && String(parsed) === suffix
-		? parsed
-		: 0;
+	if (
+		!Number.isSafeInteger(parsed) ||
+		parsed <= 0 ||
+		String(parsed) !== suffix
+	) {
+		return undefined;
+	}
+	return { slug, value: parsed };
 }
 
 function formatBoardTaskKey(slug: string, value: number): string {

@@ -185,6 +185,7 @@ async function upsertPullRequest(
 			repository: input.repository,
 			prNumber: String(prNumber),
 			prUrl: input.pullRequest.url ?? null,
+			branch: input.pullRequest.branch,
 			createdAt: new Date().toISOString(),
 		})
 		.onConflictDoUpdate({
@@ -193,7 +194,10 @@ async function upsertPullRequest(
 				taskPullRequestsTable.repository,
 				taskPullRequestsTable.prNumber,
 			],
-			set: { prUrl: input.pullRequest.url ?? null },
+			set: {
+				branch: input.pullRequest.branch,
+				prUrl: input.pullRequest.url ?? null,
+			},
 		});
 }
 

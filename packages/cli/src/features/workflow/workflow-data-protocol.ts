@@ -24,6 +24,7 @@ export interface WorkflowPullRequestRecord {
 export interface WorkflowBoardTaskRecord {
 	id: string;
 	taskKey: string;
+	branchName?: string;
 	projectId: string | null;
 	title: string;
 	content: string;

@@ -41,6 +41,10 @@ const MIGRATIONS: Migration[] = [
 		id: "0011_project_metadata",
 		fileName: "0011_project_metadata.sql",
 	},
+	{
+		id: "0012_task_pull_request_branch",
+		fileName: "0012_task_pull_request_branch.sql",
+	},
 ];
 
 async function ensureMigrationsTable(

@@ -2787,6 +2787,7 @@ describe("isolated worktree workflow helpers", () => {
 			"ENG-42",
 			undefined,
 			isolatedConfig.executionPath,
+			undefined,
 		);
 		expect(prepareWorktreeDependencies).toHaveBeenCalledWith(
 			isolatedConfig.executionPath,
@@ -2796,6 +2797,38 @@ describe("isolated worktree workflow helpers", () => {
 			"ensureIssueWorktree",
 			"prepareWorktreeDependencies:/tmp/workspace/.devos/projects/default/worktrees/eng-42",
 		]);
+	});
+
+	it("passes board task branch names into isolated worktree preparation", async () => {
+		const config = createProject("default");
+		config.workflow.isolatedWorktrees = { enabled: true };
+		const state = createRunState("TASK(OWNER-1)-1", "implementing", Date.now());
+		state.issue.branchName = "owner-1/1";
+		const ensureIssueWorktree = mock(async () => "owner-1/1");
+		const runtime = {
+			ensureBaseBranchFresh: mock(async () => {}),
+			ensureIssueWorktree,
+			prepareWorktreeDependencies: mock(async () => {}),
+		} as unknown as WorkflowRuntime;
+
+		const isolatedConfig = await prepareIsolatedExecutionConfig(
+			config,
+			state,
+			runtime,
+		);
+
+		expect(state.executionWorkspace).toMatchObject({
+			mode: "git-worktree",
+			path: isolatedConfig.executionPath,
+			branch: "owner-1/1",
+		});
+		expect(ensureIssueWorktree).toHaveBeenCalledWith(
+			config,
+			"TASK(OWNER-1)-1",
+			undefined,
+			isolatedConfig.executionPath,
+			"owner-1/1",
+		);
 	});
 
 	it("builds absolute isolated worktree paths from relative workspace config", async () => {
@@ -2949,6 +2982,29 @@ describe("isolated worktree workflow helpers", () => {
 });
 
 describe("prepareImplementationBranchForStage", () => {
+	it("passes board task branch names into normal branch preparation", async () => {
+		const config = createProject("default");
+		const state = createRunState("TASK(OWNER-1)-1", "implementing", Date.now());
+		state.issue.branchName = "owner-1/1";
+		const prepareImplementationBranch = mock(async () => "owner-1/1");
+		const runtime = {
+			prepareImplementationBranch,
+		} as unknown as WorkflowRuntime;
+
+		await prepareImplementationBranchForStage(config, state, runtime);
+
+		expect(prepareImplementationBranch).toHaveBeenCalledWith(
+			config,
+			"TASK(OWNER-1)-1",
+			undefined,
+			"owner-1/1",
+		);
+		expect(state.pullRequest).toMatchObject({
+			branch: "owner-1/1",
+			title: "[codex] TASK(OWNER-1)-1: TASK(OWNER-1)-1",
+		});
+	});
+
 	it("does not prepare a branch again inside an isolated worktree", async () => {
 		const config = createProject("default");
 		const state = createRunState("ENG-42", "implementing", Date.now());

@@ -14,6 +14,7 @@ import type { CreatedLinearIssueRef } from "../../integrations/linear";
 export interface WorkflowIssue {
 	id: string;
 	identifier: string;
+	branchName?: string;
 	title: string;
 	description?: string;
 	url: string;
@@ -113,6 +114,7 @@ export interface WorkflowRuntime {
 		issueKey: string,
 		pullRequest: PullRequestRef | undefined,
 		worktreePath: string,
+		branchName?: string,
 	): Promise<string>;
 	prepareWorktreeDependencies(worktreePath: string): Promise<void>;
 	removeIssueWorktree(
@@ -122,6 +124,7 @@ export interface WorkflowRuntime {
 	findOpenPullRequestForIssue(
 		config: ResolvedProjectConfig,
 		issueKey: string,
+		branchName?: string,
 	): Promise<PullRequestRef | undefined>;
 	getPullRequestMergeStatus(
 		config: ResolvedProjectConfig,
@@ -131,11 +134,13 @@ export interface WorkflowRuntime {
 		config: ResolvedProjectConfig,
 		issueKey: string,
 		pullRequest: PullRequestRef | undefined,
+		branchName?: string,
 	): Promise<string>;
 	createDraftPrFromWorktree(
 		config: ResolvedProjectConfig,
 		issueKey: string,
 		issueTitle: string,
+		branchName?: string,
 	): Promise<PullRequestRef>;
 	updateDraftPrFromWorktree(
 		config: ResolvedProjectConfig,

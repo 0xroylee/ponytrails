@@ -13,6 +13,7 @@ export interface RunStateIssueIdentityRefresh {
 type RunStateIssueIdentityField =
 	| "id"
 	| "key"
+	| "branchName"
 	| "title"
 	| "description"
 	| "url"
@@ -25,6 +26,7 @@ type RunStateIssueIdentityField =
 const ISSUE_IDENTITY_FIELDS: RunStateIssueIdentityField[] = [
 	"id",
 	"key",
+	"branchName",
 	"title",
 	"description",
 	"url",
@@ -61,6 +63,7 @@ export function refreshRunStateIssueIdentity(
 	const nextIdentity = {
 		id: issue.id,
 		key: normalizeIssueKey(issue.identifier),
+		branchName: issue.branchName,
 		title: issue.title,
 		description: issue.description,
 		url: issue.url,

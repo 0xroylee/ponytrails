@@ -9,6 +9,7 @@ describe("workflow run-state identity refresh", () => {
 		const refreshed = refreshRunStateIssueIdentity(state, {
 			id: "current-task-id",
 			identifier: "task-000001",
+			branchName: "owner-1/1",
 			title: "Current title",
 			description: "Current content",
 			url: "devos://tasks/current-task-id",
@@ -42,6 +43,7 @@ describe("workflow run-state identity refresh", () => {
 		expect(state.issue).toMatchObject({
 			id: "current-task-id",
 			key: "TASK-000001",
+			branchName: "owner-1/1",
 			title: "Current title",
 			description: "Current content",
 			url: "devos://tasks/current-task-id",

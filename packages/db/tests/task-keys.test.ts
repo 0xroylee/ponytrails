@@ -6,6 +6,7 @@ import path from "node:path";
 import {
 	type ServerDatabase,
 	boardProjectsTable,
+	boardTaskBranchName,
 	boardTasksTable,
 	generateBoardTaskKey,
 	initializeServerDatabase,
@@ -34,12 +35,13 @@ afterEach(async () => {
 
 describe("generateBoardTaskKey", () => {
 	it(
-		"generates per-project keys from matching new-format task keys",
+		"generates workspace-wide keys from project owner ids",
 		async () => {
 			testDatabase = await createTestDatabase();
 			const { db } = testDatabase;
 			await seedProject(db, "project-1");
 			await seedProject(db, "project-2");
+			await seedProject(db, "project-3", "owner-2");
 			await insertTask(db, {
 				id: "legacy-task",
 				taskKey: "TASK-000999",
@@ -70,19 +72,31 @@ describe("generateBoardTaskKey", () => {
 				projectId: "project-2",
 				creatorId: "owner-1",
 			});
+			await insertTask(db, {
+				id: "owner-2-task",
+				taskKey: "TASK(project-3)-20",
+				projectId: "project-3",
+				creatorId: "owner-2",
+			});
 
 			await expect(
 				generateBoardTaskKey(db, {
 					projectId: "project-1",
 					creatorId: "owner-1",
 				}),
-			).resolves.toBe("TASK(project-1)-14");
+			).resolves.toBe("TASK(owner-1)-14");
 			await expect(
 				generateBoardTaskKey(db, {
 					projectId: "project-2",
 					creatorId: "owner-1",
 				}),
-			).resolves.toBe("TASK(project-2)-5");
+			).resolves.toBe("TASK(owner-1)-14");
+			await expect(
+				generateBoardTaskKey(db, {
+					projectId: "project-3",
+					creatorId: "owner-2",
+				}),
+			).resolves.toBe("TASK(owner-2)-21");
 		},
 		EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
 	);
@@ -120,6 +134,12 @@ describe("generateBoardTaskKey", () => {
 		},
 		EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
 	);
+
+	it("formats branch names from workspace-format task keys", () => {
+		expect(boardTaskBranchName("TASK(owner-1)-4")).toBe("owner-1/4");
+		expect(boardTaskBranchName("TASK-000001")).toBeUndefined();
+		expect(boardTaskBranchName("TASK(owner-1)-004")).toBeUndefined();
+	});
 });
 
 async function createTestDatabase() {
@@ -134,6 +154,7 @@ async function createTestDatabase() {
 async function seedProject(
 	db: ServerDatabase["db"],
 	projectId: string,
+	ownerId = "owner-1",
 ): Promise<void> {
 	await db
 		.insert(projectBoardsTable)
@@ -152,7 +173,7 @@ async function seedProject(
 		externalProjectId: null,
 		name: projectId,
 		description: null,
-		ownerId: "owner-1",
+		ownerId,
 		createdAt: NOW,
 		updatedAt: NOW,
 	});
