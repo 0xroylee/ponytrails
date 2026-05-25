@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { WebSocket } from "ws";
-import { createApiClient } from "../../web/src/lib/api/client";
-import { subscribeToRealtimeEvents } from "../../web/src/lib/realtime/realtime-client";
-import { WORKFLOW_DATA_WS_PATH } from "../src/workflow-data";
+import { WORKFLOW_DATA_WS_PATH } from "../../packages/server/src/workflow-data";
+import { createApiClient } from "../../packages/web/src/lib/api/client";
+import { subscribeToRealtimeEvents } from "../../packages/web/src/lib/realtime/realtime-client";
 import {
 	REALTIME_WS_PATH,
 	type TestHarness,

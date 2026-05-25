@@ -1,12 +1,12 @@
 import { type Server, createServer } from "node:http";
-import { handleWorkerMessage } from "devos/features/daemon";
-import type { CliCommandExecutionResult } from "devos/features/server";
 import { WebSocket } from "ws";
-import { createRealtimeEventBus } from "../src/realtime";
-import { WORKFLOW_DATA_WS_PATH } from "../src/workflow-data";
-import { createWorkflowCommandBroker } from "../src/workflow-data/workflow-command-broker";
-import { attachWorkflowDataSocket } from "../src/workflow-data/workflow-data-socket";
-import { attachRealtimeEventsSocket } from "../src/ws/realtime-events";
+import { handleWorkerMessage } from "../../packages/cli/src/features/daemon";
+import type { CliCommandExecutionResult } from "../../packages/cli/src/features/server";
+import { createRealtimeEventBus } from "../../packages/server/src/realtime";
+import { WORKFLOW_DATA_WS_PATH } from "../../packages/server/src/workflow-data";
+import { createWorkflowCommandBroker } from "../../packages/server/src/workflow-data/workflow-command-broker";
+import { attachWorkflowDataSocket } from "../../packages/server/src/workflow-data/workflow-data-socket";
+import { attachRealtimeEventsSocket } from "../../packages/server/src/ws/realtime-events";
 
 export const REALTIME_WS_PATH = "/api/events";
 export const WebSocketImpl =

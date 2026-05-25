@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createHandleRequest } from "../src/app";
-import { createRealtimeEventBus } from "../src/realtime";
-import type { RealtimeEvent } from "../src/realtime";
-import { createWorkflowDataService } from "../src/workflow-data/workflow-data-service";
+import { createHandleRequest } from "../../packages/server/src/app";
+import { createRealtimeEventBus } from "../../packages/server/src/realtime";
+import type { RealtimeEvent } from "../../packages/server/src/realtime";
+import { createWorkflowDataService } from "../../packages/server/src/workflow-data/workflow-data-service";
 import {
 	type DrizzleServerTestDatabase,
 	createDrizzleServerTestDatabase,
-} from "./server-db-test-helpers";
-import { seedTaskRouteProject } from "./task-route-test-helpers";
+} from "../../packages/server/tests/server-db-test-helpers";
+import { seedTaskRouteProject } from "../../packages/server/tests/task-route-test-helpers";
 
 interface TestServer {
 	handler: ReturnType<typeof createHandleRequest>;

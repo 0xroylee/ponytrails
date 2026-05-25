@@ -43,7 +43,6 @@ const SERVER_DB_TESTS = [
 	"packages/server/tests/server-routes.test.ts",
 	"packages/server/tests/task-activity-routes.test.ts",
 	"packages/server/tests/task-chat-create.test.ts",
-	"packages/server/tests/task-lifecycle-e2e.test.ts",
 	"packages/server/tests/task-routes.test.ts",
 	"packages/server/tests/workflow-data-socket.test.ts",
 ] as const;
@@ -57,9 +56,7 @@ const FAST_TEST_TARGETS = [
 ] as const;
 
 const DB_TEST_TARGETS = ["packages/db/tests", ...SERVER_DB_TESTS] as const;
-const E2E_TEST_TARGETS = [
-	"packages/server/tests/websocket-flow-e2e.test.ts",
-] as const;
+const E2E_TEST_TARGETS = ["e2e"] as const;
 
 type TestLane = "coverage" | "db" | "default" | "e2e" | "fast";
 
