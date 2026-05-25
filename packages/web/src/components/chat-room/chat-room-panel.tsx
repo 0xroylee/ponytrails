@@ -209,7 +209,6 @@ export function ChatRoomPanel({
 				activeSessionId={selectedSessionId}
 				isCreating={createSession.isPending}
 				projects={projectsQuery.data ?? []}
-				sidebarControlId={SIDEBAR_CONTROL_ID}
 				sessions={sessions}
 				onCloseSidebar={closeMobileSidebar}
 				onNewSession={() => void startNewSession(true)}
