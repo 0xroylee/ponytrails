@@ -63,6 +63,40 @@ export interface ChatSendResult {
 	session: ChatSessionRecord;
 }
 
+export interface ChatStreamStartedPayload {
+	runId: string;
+	sessionId: string;
+	userMessageId: string;
+}
+
+export interface ChatStreamDeltaPayload {
+	runId: string;
+	sessionId: string;
+	delta: string;
+}
+
+export interface ChatStreamCompletedPayload {
+	runId: string;
+	sessionId: string;
+	message: ChatMessageRecord;
+}
+
+export interface ChatStreamErrorPayload {
+	runId: string;
+	sessionId: string;
+	error: string;
+}
+
+export interface ChatSendStreamCallbacks {
+	runId: string;
+	onAssistantMessage?(message: ChatMessageRecord): void;
+	onStreamCompleted?(payload: ChatStreamCompletedPayload): void;
+	onStreamDelta?(payload: ChatStreamDeltaPayload): void;
+	onStreamError?(payload: ChatStreamErrorPayload): void;
+	onStreamStarted?(payload: ChatStreamStartedPayload): void;
+	onUserMessage?(message: ChatMessageRecord): void;
+}
+
 export interface ChatSendAnswer {
 	question: string;
 	answer: string;
@@ -115,6 +149,7 @@ export interface ChatService {
 	sendMessage(
 		sessionId: string,
 		input: ChatSendInput,
+		stream?: ChatSendStreamCallbacks,
 	): Promise<ChatSendResult | null>;
 	updateSession(
 		sessionId: string,

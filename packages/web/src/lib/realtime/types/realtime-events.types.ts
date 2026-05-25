@@ -25,7 +25,35 @@ export type RealtimeProjectEventType =
 export type RealtimeChatEventType =
 	| "chat.session.created"
 	| "chat.session.updated"
-	| "chat.message.created";
+	| "chat.message.created"
+	| "chat.stream.started"
+	| "chat.stream.delta"
+	| "chat.stream.completed"
+	| "chat.stream.error";
+
+export interface RealtimeChatStreamStarted {
+	runId: string;
+	sessionId: string;
+	userMessageId: string;
+}
+
+export interface RealtimeChatStreamDelta {
+	runId: string;
+	sessionId: string;
+	delta: string;
+}
+
+export interface RealtimeChatStreamCompleted {
+	runId: string;
+	sessionId: string;
+	message: ChatMessageRecord;
+}
+
+export interface RealtimeChatStreamError {
+	runId: string;
+	sessionId: string;
+	error: string;
+}
 
 export interface WorkflowProgressEvent {
 	schema: "devos.workflow.stream.v1";
@@ -81,6 +109,30 @@ export type RealtimeEvent =
 	| {
 			id: string;
 			emittedAt: string;
+			type: "chat.stream.started";
+			stream: RealtimeChatStreamStarted;
+	  }
+	| {
+			id: string;
+			emittedAt: string;
+			type: "chat.stream.delta";
+			stream: RealtimeChatStreamDelta;
+	  }
+	| {
+			id: string;
+			emittedAt: string;
+			type: "chat.stream.completed";
+			stream: RealtimeChatStreamCompleted;
+	  }
+	| {
+			id: string;
+			emittedAt: string;
+			type: "chat.stream.error";
+			stream: RealtimeChatStreamError;
+	  }
+	| {
+			id: string;
+			emittedAt: string;
 			type: "task.execution.event";
 			execution: RealtimeTaskExecutionEventRecord;
 	  }
@@ -108,4 +160,9 @@ export type RealtimeProjectEvent = Extract<
 export type RealtimeChatSessionEvent = Extract<
 	RealtimeEvent,
 	{ type: "chat.session.created" | "chat.session.updated" }
+>;
+
+export type RealtimeChatStreamEvent = Extract<
+	RealtimeEvent,
+	{ type: `chat.stream.${string}` }
 >;

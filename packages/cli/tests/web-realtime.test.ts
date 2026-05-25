@@ -109,6 +109,7 @@ function emptyState(): RealtimeStoreState {
 		status: "idle",
 		lastError: null,
 		lastEvent: null,
+		chatStreamsByRunId: {},
 		issuesById: {},
 		projectsById: {},
 		inboxMessagesByScope: {},

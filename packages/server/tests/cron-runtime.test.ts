@@ -204,5 +204,6 @@ function createLoadedConfig(): LoadedConfig {
 				to: [],
 			},
 		},
+		workspace: { id: "owner-1", name: "Default Workspace" },
 	};
 }

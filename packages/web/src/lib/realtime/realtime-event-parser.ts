@@ -56,6 +56,9 @@ export function parseRealtimeEvent(payload: string): RealtimeEvent {
 			message: parseChatMessageRecord(row.message),
 		};
 	}
+	if (type.startsWith("chat.stream.")) {
+		return parseChatStreamEvent(id, emittedAt, type, row.stream);
+	}
 	if (type === "inbox.message.created") {
 		return {
 			id,
@@ -78,6 +81,58 @@ export function parseRealtimeEvent(payload: string): RealtimeEvent {
 			emittedAt,
 			type,
 			polling: parsePollingEvent(row.polling),
+		};
+	}
+	throw new Error("Invalid realtime event type");
+}
+
+function parseChatStreamEvent(
+	id: string,
+	emittedAt: string,
+	type: string,
+	value: unknown,
+): RealtimeEvent {
+	const row = assertRecord(value);
+	const runId = readString(row, "runId");
+	const sessionId = readString(row, "sessionId");
+	if (type === "chat.stream.started") {
+		return {
+			id,
+			emittedAt,
+			type,
+			stream: {
+				runId,
+				sessionId,
+				userMessageId: readString(row, "userMessageId"),
+			},
+		};
+	}
+	if (type === "chat.stream.delta") {
+		return {
+			id,
+			emittedAt,
+			type,
+			stream: { runId, sessionId, delta: readString(row, "delta") },
+		};
+	}
+	if (type === "chat.stream.completed") {
+		return {
+			id,
+			emittedAt,
+			type,
+			stream: {
+				runId,
+				sessionId,
+				message: parseChatMessageRecord(row.message),
+			},
+		};
+	}
+	if (type === "chat.stream.error") {
+		return {
+			id,
+			emittedAt,
+			type,
+			stream: { runId, sessionId, error: readString(row, "error") },
 		};
 	}
 	throw new Error("Invalid realtime event type");

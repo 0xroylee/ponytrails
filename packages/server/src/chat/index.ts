@@ -5,7 +5,12 @@ export type {
 	ChatMessageKind,
 	ChatMessageRecord,
 	ChatMessageRole,
+	ChatSendStreamCallbacks,
 	ChatSendResult,
 	ChatService,
 	ChatSessionRecord,
+	ChatStreamCompletedPayload,
+	ChatStreamDeltaPayload,
+	ChatStreamErrorPayload,
+	ChatStreamStartedPayload,
 } from "./types/chat.types";

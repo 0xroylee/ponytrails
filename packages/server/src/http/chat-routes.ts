@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { LocalWorkspaceIdentity } from "../local-workspace";
 import type { RealtimeEventPublisher } from "../realtime";
 import {
+	createChatSendRealtimeCallbacks,
 	publishChatAppendResult,
 	publishChatSendResult,
 	publishChatSessionEvent,
@@ -185,7 +186,11 @@ async function handleSendRoute(
 	if (!parsed.ok) {
 		return badRequest(parsed.error);
 	}
-	const result = await service.sendMessage(sessionId, parsed.value);
+	const result = await service.sendMessage(
+		sessionId,
+		parsed.value,
+		createChatSendRealtimeCallbacks(realtimeEvents),
+	);
 	publishChatSendResult(realtimeEvents, result);
 	return result ? jsonSuccess(result) : notFound("Chat session not found");
 }

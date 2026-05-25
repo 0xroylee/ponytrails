@@ -1,0 +1,143 @@
+import { describe, expect, it } from "bun:test";
+import type {
+	BoardProjectRow,
+	ChatMessageRow,
+	ChatSessionRow,
+	NewChatMessageRow,
+	NewChatSessionRow,
+} from "devos-db";
+import {
+	DEFAULT_CHAT_ISSUE_CONTENT,
+	DEFAULT_CHAT_ISSUE_TITLE,
+} from "../src/chat/chat-defaults";
+import { sendChatMessage } from "../src/chat/chat-send-service";
+import type {
+	ChatRepository,
+	ChatSendStreamCallbacks,
+	ChatServiceDeps,
+} from "../src/chat/types/chat.types";
+import type { BoardTaskApiRecord } from "../src/tasks";
+
+describe("chat send service streaming", () => {
+	it("emits stream error after a durable user message when send fails", async () => {
+		const session = chatSession();
+		const issue = boardTask();
+		const messages: ChatMessageRow[] = [];
+		const events: Array<{ type: string; error?: string }> = [];
+		const repository = createRepository(session, messages);
+		const deps: ChatServiceDeps = {
+			ensureDefaultProject: async () => defaultProject(),
+			createIssue: async () => issue,
+			getIssue: async () => issue,
+			updateIssue: async () => {
+				throw new Error("update exploded");
+			},
+		};
+		const stream: ChatSendStreamCallbacks = {
+			runId: "run-1",
+			onStreamError: (payload) =>
+				events.push({ type: "error", error: payload.error }),
+			onStreamStarted: () => events.push({ type: "started" }),
+			onUserMessage: () => events.push({ type: "message" }),
+		};
+
+		await expect(
+			sendChatMessage(
+				repository,
+				deps,
+				session.id,
+				{ content: "Build it" },
+				stream,
+			),
+		).rejects.toThrow("update exploded");
+
+		expect(messages).toHaveLength(1);
+		expect(messages[0]).toMatchObject({ role: "user", content: "Build it" });
+		expect(events).toEqual([
+			{ type: "message" },
+			{ type: "started" },
+			{ type: "error", error: "update exploded" },
+		]);
+	});
+});
+
+function createRepository(
+	session: ChatSessionRow,
+	messages: ChatMessageRow[],
+): ChatRepository {
+	return {
+		addMessage: async (_sessionId: string, message: NewChatMessageRow) => {
+			const row: ChatMessageRow = {
+				...message,
+				commandAction: message.commandAction ?? null,
+				metadata: message.metadata ?? null,
+				taskId: message.taskId ?? null,
+			};
+			messages.push(row);
+			return row;
+		},
+		createSession: async (input: NewChatSessionRow) => input as ChatSessionRow,
+		getSession: async () => session,
+		listMessages: async () => messages,
+		listSessions: async () => [session],
+		updateSession: async (_id: string, input: Partial<NewChatSessionRow>) => ({
+			...session,
+			...input,
+		}),
+	};
+}
+
+function chatSession(): ChatSessionRow {
+	return {
+		id: "session-1",
+		workspaceId: "owner-1",
+		projectId: "default",
+		taskId: "task-1",
+		title: "Untitled",
+		pendingRequest: null,
+		pendingQuestions: null,
+		createdAt: "2026-05-16T00:00:00.000Z",
+		updatedAt: "2026-05-16T00:00:00.000Z",
+	};
+}
+
+function boardTask(): BoardTaskApiRecord {
+	return {
+		id: "task-1",
+		taskKey: "TASK(owner-1)-1",
+		projectId: "default",
+		title: DEFAULT_CHAT_ISSUE_TITLE,
+		content: DEFAULT_CHAT_ISSUE_CONTENT,
+		priority: 0,
+		status: "planning",
+		dueDate: null,
+		creatorId: "owner-1",
+		assigneeId: null,
+		linkedPr: null,
+		linearIssueId: null,
+		linearIdentifier: null,
+		linearUrl: null,
+		createdAt: "2026-05-16T00:00:00.000Z",
+		updatedAt: "2026-05-16T00:00:00.000Z",
+	};
+}
+
+function defaultProject(): BoardProjectRow {
+	return {
+		id: "default",
+		boardId: "board-1",
+		externalProjectId: null,
+		name: "Default Project",
+		description: null,
+		ownerId: "owner-1",
+		repoOwner: null,
+		repoName: null,
+		baseBranch: null,
+		localFolder: null,
+		lead: null,
+		category: null,
+		priority: null,
+		createdAt: "2026-05-16T00:00:00.000Z",
+		updatedAt: "2026-05-16T00:00:00.000Z",
+	};
+}

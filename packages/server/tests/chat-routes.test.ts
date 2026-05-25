@@ -170,9 +170,15 @@ describe("chat routes", () => {
 			title: "Build the dashboard",
 			content: "Build the dashboard",
 		});
-		expect(body.messages).toHaveLength(1);
+		expect(body.messages).toHaveLength(2);
 		expect(body.messages[0]).toMatchObject({
 			content: "Build the dashboard",
+			taskId: session.taskId,
+		});
+		expect(body.messages[1]).toMatchObject({
+			content: "Updated task TASK(owner-1)-1: Build the dashboard",
+			role: "assistant",
+			kind: "task",
 			taskId: session.taskId,
 		});
 		expect(cliCalls).toEqual([]);
@@ -180,7 +186,12 @@ describe("chat routes", () => {
 			"project.created",
 			"issue.created",
 			"chat.session.created",
+			"chat.message.created",
+			"chat.stream.started",
 			"issue.updated",
+			"chat.stream.delta",
+			"chat.stream.delta",
+			"chat.stream.completed",
 			"chat.message.created",
 			"chat.session.updated",
 		]);

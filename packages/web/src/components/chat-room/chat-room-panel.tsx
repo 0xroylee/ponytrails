@@ -12,14 +12,13 @@ import {
 } from "@/lib/api/chat-queries";
 import { useCurrentWorkspaceQuery } from "@/lib/api/queries";
 import { useWorkspaceProjectsQuery } from "@/lib/api/realtime-queries";
+import { useRealtimeStore } from "@/lib/realtime";
 
 import { parseChatCommand } from "./chat-command-utils";
-import { ChatComposer } from "./chat-composer";
 import { executeCommandInput } from "./chat-room-command-actions";
-import { ChatRoomHeader } from "./chat-room-header";
-import { ChatRoomSidebar } from "./chat-room-sidebar";
+import { ChatRoomPanelView } from "./chat-room-panel-view";
 import { replaceAt } from "./chat-room-state-utils";
-import { ChatTranscript } from "./chat-transcript";
+import { chatStreamLinesForSession } from "./chat-room-stream-utils";
 import type {
 	ChatAnswerPayload,
 	ChatRoomPanelProps,
@@ -37,7 +36,9 @@ export function ChatRoomPanel({
 	const [answerDrafts, setAnswerDrafts] = useState<Record<string, string[]>>(
 		{},
 	);
-	const [streamLines, setStreamLines] = useState<ChatStreamLine[]>([]);
+	const [commandStreamLines, setCommandStreamLines] = useState<
+		ChatStreamLine[]
+	>([]);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const handledNewSessionRequest = useRef(0);
 	const sidebarToggleRef = useRef<HTMLInputElement>(null);
@@ -70,6 +71,13 @@ export function ChatRoomPanel({
 	const pendingAnswers = selectedSessionId
 		? (answerDrafts[selectedSessionId] ?? [])
 		: [];
+	const chatStreamsByRunId = useRealtimeStore(
+		(state) => state.chatStreamsByRunId,
+	);
+	const streamLines = [
+		...commandStreamLines,
+		...chatStreamLinesForSession(chatStreamsByRunId, selectedSessionId),
+	];
 	const isBusy =
 		currentWorkspaceQuery.isLoading ||
 		createSession.isPending ||
@@ -153,7 +161,7 @@ export function ChatRoomPanel({
 		await executeCommandInput(
 			{
 				appendMessage: (input) => appendMessage.mutateAsync(input),
-				setStreamLines,
+				setStreamLines: setCommandStreamLines,
 				startNewSession,
 				updateProject: ({ sessionId: targetSessionId, projectId }) =>
 					updateSession.mutateAsync({
@@ -191,72 +199,43 @@ export function ChatRoomPanel({
 	}
 
 	return (
-		<section className="relative grid h-[100dvh] min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-[#0f1013] text-zinc-100 md:grid-cols-[18rem_minmax(0,1fr)]">
-			<input
-				aria-hidden="true"
-				className="peer sr-only"
-				id={SIDEBAR_CONTROL_ID}
-				ref={sidebarToggleRef}
-				tabIndex={-1}
-				type="checkbox"
-			/>
-			<label
-				aria-label="Close chat sidebar"
-				className="fixed inset-0 z-30 hidden bg-black/60 peer-checked:block md:hidden"
-				htmlFor={SIDEBAR_CONTROL_ID}
-			/>
-			<ChatRoomSidebar
-				activeSessionId={selectedSessionId}
-				isCreating={createSession.isPending}
-				projects={projectsQuery.data ?? []}
-				sidebarControlId={SIDEBAR_CONTROL_ID}
-				sessions={sessions}
-				onCloseSidebar={closeMobileSidebar}
-				onNewSession={() => void startNewSession(true)}
-				onSearch={() => {
-					closeMobileSidebar();
-					onSearchRequest();
-				}}
-				onSelectSession={(sessionId) => {
-					setActiveSessionId(sessionId);
-					closeMobileSidebar();
-				}}
-			/>
-			<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]">
-				<ChatRoomHeader
-					projectId={selectedSession?.projectId ?? "default"}
-					sidebarControlId={SIDEBAR_CONTROL_ID}
-					title={selectedSession?.title ?? "Untitled"}
-				/>
-				<ChatTranscript
-					error={messagesQuery.error}
-					isLoading={messagesQuery.isLoading}
-					messages={messagesQuery.data ?? []}
-					pendingAnswers={pendingAnswers}
-					session={selectedSession}
-					streamLines={streamLines}
-					onAnswerChange={(index, value) =>
-						setAnswerDrafts((current) => ({
-							...current,
-							[selectedSessionId]: replaceAt(pendingAnswers, index, value),
-						}))
-					}
-					onSubmitAnswers={() => void submitAnswers()}
-				/>
-				{errorMessage ? (
-					<p className="m-0 border-t border-red-900/60 bg-red-950/30 px-4 py-2 text-sm text-red-100">
-						{errorMessage}
-					</p>
-				) : null}
-				<ChatComposer
-					disabled={isBusy}
-					draft={draft}
-					isSending={sendMessage.isPending}
-					onDraftChange={setDraft}
-					onSelectCommand={setDraft}
-					onSubmit={() => void handleSubmit()}
-				/>
-			</div>
-		</section>
+		<ChatRoomPanelView
+			activeSessionId={selectedSessionId}
+			draft={draft}
+			errorMessage={errorMessage}
+			isBusy={isBusy}
+			isCreatingSession={createSession.isPending}
+			isMessagesLoading={messagesQuery.isLoading}
+			isSending={sendMessage.isPending}
+			messages={messagesQuery.data ?? []}
+			messagesError={messagesQuery.error}
+			pendingAnswers={pendingAnswers}
+			projects={projectsQuery.data ?? []}
+			selectedSession={selectedSession}
+			sidebarControlId={SIDEBAR_CONTROL_ID}
+			sidebarToggleRef={sidebarToggleRef}
+			sessions={sessions}
+			streamLines={streamLines}
+			onAnswerChange={(index, value) =>
+				setAnswerDrafts((current) => ({
+					...current,
+					[selectedSessionId]: replaceAt(pendingAnswers, index, value),
+				}))
+			}
+			onCloseSidebar={closeMobileSidebar}
+			onDraftChange={setDraft}
+			onNewSession={() => void startNewSession(true)}
+			onSearch={() => {
+				closeMobileSidebar();
+				onSearchRequest();
+			}}
+			onSelectCommand={setDraft}
+			onSelectSession={(sessionId) => {
+				setActiveSessionId(sessionId);
+				closeMobileSidebar();
+			}}
+			onSubmit={() => void handleSubmit()}
+			onSubmitAnswers={() => void submitAnswers()}
+		/>
 	);
 }

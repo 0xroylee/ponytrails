@@ -3,6 +3,7 @@ import type {
 	ChatAddMessageResult,
 	ChatMessageRecord,
 	ChatSendResult,
+	ChatSendStreamCallbacks,
 	ChatSessionRecord,
 } from "../chat";
 import {
@@ -71,12 +72,39 @@ export function publishChatSendResult(
 	result: ChatSendResult | null,
 ): void {
 	if (!result) return;
-	for (const message of result.messages) {
-		publishChatMessageEvent(realtimeEvents, message);
-	}
 	publishChatSessionEvent(
 		realtimeEvents,
 		"chat.session.updated",
 		result.session,
 	);
+}
+
+export function createChatSendRealtimeCallbacks(
+	realtimeEvents: RealtimeEventPublisher | undefined,
+): ChatSendStreamCallbacks | undefined {
+	if (!realtimeEvents) {
+		return undefined;
+	}
+	const runId = crypto.randomUUID();
+	return {
+		runId,
+		onAssistantMessage: (message) => {
+			publishChatMessageEvent(realtimeEvents, message);
+		},
+		onStreamCompleted: (stream) => {
+			realtimeEvents.publish({ type: "chat.stream.completed", stream });
+		},
+		onStreamDelta: (stream) => {
+			realtimeEvents.publish({ type: "chat.stream.delta", stream });
+		},
+		onStreamError: (stream) => {
+			realtimeEvents.publish({ type: "chat.stream.error", stream });
+		},
+		onStreamStarted: (stream) => {
+			realtimeEvents.publish({ type: "chat.stream.started", stream });
+		},
+		onUserMessage: (message) => {
+			publishChatMessageEvent(realtimeEvents, message);
+		},
+	};
 }

@@ -1,6 +1,13 @@
 import type { BoardProjectRow, BoardTaskRow } from "devos-db";
 import type { WorkflowProgressEvent } from "devos/features/server";
-import type { ChatMessageRecord, ChatSessionRecord } from "../../chat";
+import type {
+	ChatMessageRecord,
+	ChatSessionRecord,
+	ChatStreamCompletedPayload,
+	ChatStreamDeltaPayload,
+	ChatStreamErrorPayload,
+	ChatStreamStartedPayload,
+} from "../../chat";
 import type { InboxMessageRecord } from "../../inbox";
 
 export type RealtimeIssueEventType =
@@ -18,7 +25,11 @@ export type RealtimeInboxEventType = "inbox.message.created";
 export type RealtimeChatEventType =
 	| "chat.session.created"
 	| "chat.session.updated"
-	| "chat.message.created";
+	| "chat.message.created"
+	| "chat.stream.started"
+	| "chat.stream.delta"
+	| "chat.stream.completed"
+	| "chat.stream.error";
 
 export interface RealtimeProjectRecord {
 	id: string;
@@ -42,6 +53,10 @@ export type RealtimeIssueRecord = BoardTaskRow;
 export type RealtimeInboxMessageRecord = InboxMessageRecord;
 export type RealtimeChatSessionRecord = ChatSessionRecord;
 export type RealtimeChatMessageRecord = ChatMessageRecord;
+export type RealtimeChatStreamStarted = ChatStreamStartedPayload;
+export type RealtimeChatStreamDelta = ChatStreamDeltaPayload;
+export type RealtimeChatStreamCompleted = ChatStreamCompletedPayload;
+export type RealtimeChatStreamError = ChatStreamErrorPayload;
 
 export interface RealtimeTaskExecutionEventRecord {
 	taskId: string;
@@ -76,6 +91,22 @@ export type RealtimeEventPayload =
 	| {
 			type: "chat.message.created";
 			message: RealtimeChatMessageRecord;
+	  }
+	| {
+			type: "chat.stream.started";
+			stream: RealtimeChatStreamStarted;
+	  }
+	| {
+			type: "chat.stream.delta";
+			stream: RealtimeChatStreamDelta;
+	  }
+	| {
+			type: "chat.stream.completed";
+			stream: RealtimeChatStreamCompleted;
+	  }
+	| {
+			type: "chat.stream.error";
+			stream: RealtimeChatStreamError;
 	  }
 	| {
 			type: "task.execution.event";

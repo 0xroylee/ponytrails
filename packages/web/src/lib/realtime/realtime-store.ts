@@ -15,6 +15,7 @@ const createDefaultState = (): RealtimeStoreState => ({
 	status: "idle",
 	lastError: null,
 	lastEvent: null,
+	chatStreamsByRunId: {},
 	issuesById: {},
 	projectsById: {},
 	inboxMessagesByScope: {},
@@ -77,6 +78,88 @@ export function applyRealtimeEvent(
 	if (event.type === "task.execution.event") {
 		return { ...state, lastEvent: event };
 	}
+	if (event.type === "chat.message.created") {
+		return removeCompletedChatStream(state, event);
+	}
+	if (event.type === "chat.stream.started") {
+		return {
+			...state,
+			lastEvent: event,
+			chatStreamsByRunId: {
+				...state.chatStreamsByRunId,
+				[event.stream.runId]: {
+					runId: event.stream.runId,
+					sessionId: event.stream.sessionId,
+					userMessageId: event.stream.userMessageId,
+					content: "",
+					status: "streaming",
+					error: null,
+					completedMessageId: null,
+					updatedAt: event.emittedAt,
+				},
+			},
+		};
+	}
+	if (event.type === "chat.stream.delta") {
+		const current = state.chatStreamsByRunId[event.stream.runId];
+		return {
+			...state,
+			lastEvent: event,
+			chatStreamsByRunId: {
+				...state.chatStreamsByRunId,
+				[event.stream.runId]: {
+					runId: event.stream.runId,
+					sessionId: event.stream.sessionId,
+					userMessageId: current?.userMessageId ?? null,
+					content: `${current?.content ?? ""}${event.stream.delta}`,
+					status: "streaming",
+					error: null,
+					completedMessageId: null,
+					updatedAt: event.emittedAt,
+				},
+			},
+		};
+	}
+	if (event.type === "chat.stream.completed") {
+		const current = state.chatStreamsByRunId[event.stream.runId];
+		return {
+			...state,
+			lastEvent: event,
+			chatStreamsByRunId: {
+				...state.chatStreamsByRunId,
+				[event.stream.runId]: {
+					runId: event.stream.runId,
+					sessionId: event.stream.sessionId,
+					userMessageId: current?.userMessageId ?? null,
+					content: event.stream.message.content,
+					status: "completed",
+					error: null,
+					completedMessageId: event.stream.message.id,
+					updatedAt: event.emittedAt,
+				},
+			},
+		};
+	}
+	if (event.type === "chat.stream.error") {
+		const current = state.chatStreamsByRunId[event.stream.runId];
+		return {
+			...state,
+			lastEvent: event,
+			chatStreamsByRunId: {
+				...state.chatStreamsByRunId,
+				[event.stream.runId]: {
+					runId: event.stream.runId,
+					sessionId: event.stream.sessionId,
+					userMessageId: current?.userMessageId ?? null,
+					content: current?.content ?? "",
+					status: "error",
+					error: event.stream.error,
+					completedMessageId: null,
+					updatedAt: event.emittedAt,
+				},
+			},
+		};
+	}
 	if (event.type === "inbox.message.created") {
 		const key = inboxScopeKey(event.message);
 		return {
@@ -92,6 +175,20 @@ export function applyRealtimeEvent(
 		};
 	}
 	return { ...state, lastEvent: event };
+}
+
+function removeCompletedChatStream(
+	state: RealtimeStoreState,
+	event: Extract<RealtimeEvent, { type: "chat.message.created" }>,
+): RealtimeStoreState {
+	const entries = Object.entries(state.chatStreamsByRunId).filter(
+		([, stream]) => stream.completedMessageId !== event.message.id,
+	);
+	return {
+		...state,
+		lastEvent: event,
+		chatStreamsByRunId: Object.fromEntries(entries),
+	};
 }
 
 function isIssueEvent(event: RealtimeEvent): event is RealtimeIssueEvent {

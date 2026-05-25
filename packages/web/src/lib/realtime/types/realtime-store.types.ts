@@ -12,9 +12,21 @@ export interface RealtimeStoreState {
 	status: RealtimeConnectionStatus;
 	lastError: string | null;
 	lastEvent: RealtimeEvent | null;
+	chatStreamsByRunId: Record<string, RealtimeChatStreamBuffer>;
 	issuesById: Record<string, ProjectBoardTaskRecord>;
 	projectsById: Record<string, WorkspaceProjectRecord>;
 	inboxMessagesByScope: Record<string, InboxMessageRecord[]>;
+}
+
+export interface RealtimeChatStreamBuffer {
+	runId: string;
+	sessionId: string;
+	userMessageId: string | null;
+	content: string;
+	status: "streaming" | "completed" | "error";
+	error: string | null;
+	completedMessageId: string | null;
+	updatedAt: string;
 }
 
 export interface RealtimeStoreActions {

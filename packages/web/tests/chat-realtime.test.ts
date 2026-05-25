@@ -34,6 +34,23 @@ describe("chat realtime events", () => {
 			type: "chat.message.created",
 			message: { id: "message-1" },
 		});
+		expect(
+			parseRealtimeEvent(
+				JSON.stringify({
+					id: "event-stream",
+					emittedAt: "2026-05-16T00:00:00.000Z",
+					type: "chat.stream.delta",
+					stream: {
+						runId: "run-1",
+						sessionId: "session-1",
+						delta: "Hello",
+					},
+				}),
+			),
+		).toMatchObject({
+			type: "chat.stream.delta",
+			stream: { runId: "run-1", delta: "Hello" },
+		});
 		expect(() =>
 			parseRealtimeEvent(
 				JSON.stringify({
@@ -44,6 +61,16 @@ describe("chat realtime events", () => {
 				}),
 			),
 		).toThrow("Invalid /api/chat/sessions response field 'workspaceId'");
+		expect(() =>
+			parseRealtimeEvent(
+				JSON.stringify({
+					id: "bad-stream",
+					emittedAt: "2026-05-16T00:00:00.000Z",
+					type: "chat.stream.delta",
+					stream: { runId: "run-1", sessionId: "session-1" },
+				}),
+			),
+		).toThrow("Invalid realtime event field 'delta'");
 	});
 
 	it("bridges chat events into React Query caches", () => {

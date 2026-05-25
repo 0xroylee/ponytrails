@@ -46,6 +46,9 @@ export function applyRealtimeEventToQueryClient(
 		upsertChatMessage(queryClient, event.message);
 		return;
 	}
+	if (event.type.startsWith("chat.stream.")) {
+		return;
+	}
 	if (event.type === "task.execution.event") {
 		void queryClient.invalidateQueries({
 			queryKey: serverStateQueryKeys.taskActivity(event.execution.taskId),
