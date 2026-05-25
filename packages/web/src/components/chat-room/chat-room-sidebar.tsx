@@ -73,7 +73,7 @@ export function ChatRoomSidebar({
 			aria-label="Projects and sessions"
 			className="fixed inset-y-0 left-0 z-40 grid min-h-0 w-[18rem] max-w-[calc(100vw-2rem)] -translate-x-full border-r border-zinc-900 bg-[#15161a] shadow-2xl transition-transform peer-checked:translate-x-0 md:static md:z-auto md:max-w-none md:translate-x-0 md:shadow-none"
 		>
-			<div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto]">
+			<div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto]">
 				<div className="grid gap-2 border-b border-zinc-900 p-3">
 					<div className="flex min-w-0 gap-2">
 						<button

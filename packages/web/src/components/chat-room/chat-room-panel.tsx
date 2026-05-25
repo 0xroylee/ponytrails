@@ -10,6 +10,7 @@ import {
 	useSendChatMessageMutation,
 	useUpdateChatSessionMutation,
 } from "@/lib/api/chat-queries";
+import { useCurrentWorkspaceQuery } from "@/lib/api/queries";
 import { useWorkspaceProjectsQuery } from "@/lib/api/realtime-queries";
 
 import { parseChatCommand } from "./chat-command-utils";
@@ -18,7 +19,6 @@ import { executeCommandInput } from "./chat-room-command-actions";
 import { ChatRoomHeader } from "./chat-room-header";
 import { ChatRoomSidebar } from "./chat-room-sidebar";
 import { replaceAt } from "./chat-room-state-utils";
-import { LOCAL_WORKSPACE_ID } from "./chat-room.constants";
 import { ChatTranscript } from "./chat-transcript";
 import type {
 	ChatAnswerPayload,
@@ -42,10 +42,14 @@ export function ChatRoomPanel({
 	const handledNewSessionRequest = useRef(0);
 	const sidebarToggleRef = useRef<HTMLInputElement>(null);
 
-	const sessionsQuery = useChatSessionsQuery(LOCAL_WORKSPACE_ID, {
+	const currentWorkspaceQuery = useCurrentWorkspaceQuery({
 		refetchIntervalMs: false,
 	});
-	const projectsQuery = useWorkspaceProjectsQuery(LOCAL_WORKSPACE_ID, {
+	const workspaceId = currentWorkspaceQuery.data?.workspaceId ?? "";
+	const sessionsQuery = useChatSessionsQuery(workspaceId, {
+		refetchIntervalMs: false,
+	});
+	const projectsQuery = useWorkspaceProjectsQuery(workspaceId, {
 		refetchIntervalMs: false,
 	});
 	const createSession = useCreateChatSessionMutation();
@@ -67,6 +71,7 @@ export function ChatRoomPanel({
 		? (answerDrafts[selectedSessionId] ?? [])
 		: [];
 	const isBusy =
+		currentWorkspaceQuery.isLoading ||
 		createSession.isPending ||
 		updateSession.isPending ||
 		appendMessage.isPending ||
@@ -75,17 +80,22 @@ export function ChatRoomPanel({
 	useEffect(() => {
 		if (
 			newSessionRequest > 0 &&
-			newSessionRequest !== handledNewSessionRequest.current
+			newSessionRequest !== handledNewSessionRequest.current &&
+			workspaceId
 		) {
 			handledNewSessionRequest.current = newSessionRequest;
 			void startNewSession();
 		}
-	}, [newSessionRequest]);
+	}, [newSessionRequest, workspaceId]);
 
 	async function startNewSession(closeSidebar = false): Promise<void> {
 		setErrorMessage(null);
+		if (!workspaceId) {
+			setErrorMessage("Workspace is still loading.");
+			return;
+		}
 		const session = await createSession.mutateAsync({
-			workspaceId: LOCAL_WORKSPACE_ID,
+			workspaceId,
 		});
 		setActiveSessionId(session.id);
 		setDraft("");
@@ -103,8 +113,11 @@ export function ChatRoomPanel({
 		if (selectedSession) {
 			return selectedSession;
 		}
+		if (!workspaceId) {
+			throw new Error("Workspace is still loading.");
+		}
 		const session = await createSession.mutateAsync({
-			workspaceId: LOCAL_WORKSPACE_ID,
+			workspaceId,
 		});
 		setActiveSessionId(session.id);
 		return session;
