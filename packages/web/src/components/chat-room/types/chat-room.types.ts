@@ -4,6 +4,7 @@ import type {
 	ChatSessionRecord,
 	CliCommandStreamEvent,
 	CliCommandStreamRequest,
+	TaskClarificationQuestion,
 	TaskCreateAnswer,
 	WorkspaceProjectRecord,
 } from "@/lib/api";
@@ -50,12 +51,9 @@ export interface ChatTranscriptProps {
 	isLoading: boolean;
 	isThinking: boolean;
 	messages: ChatMessageRecord[];
-	pendingAnswers: string[];
-	pendingQuestionIndex: number;
 	session: ChatSessionRecord | null;
 	streamLines: ChatStreamLine[];
-	onAnswerChange: (index: number, value: string) => void;
-	onSubmitAnswers: () => void;
+	workingStartedAt: string | null;
 }
 
 export interface ChatTaskDetailSheetProps {
@@ -85,7 +83,9 @@ export interface ChatRoomPanelViewProps {
 	sidebarToggleRef: RefObject<HTMLInputElement | null>;
 	sessions: ChatSessionRecord[];
 	streamLines: ChatStreamLine[];
+	workingStartedAt: string | null;
 	onAnswerChange: (index: number, value: string) => void;
+	onArchiveSession: (sessionId: string) => void;
 	onCloseSidebar: () => void;
 	onCloseTaskDetails: () => void;
 	onDraftChange: (value: string) => void;
@@ -93,6 +93,7 @@ export interface ChatRoomPanelViewProps {
 	onOpenTaskDetails: () => void;
 	onSearch: () => void;
 	onSelectCommand: (value: string) => void;
+	onSelectOption: (index: number, value: string) => void;
 	onSelectSession: (sessionId: string) => void;
 	onSubmit: () => void;
 	onSubmitAnswers: () => void;
@@ -104,6 +105,16 @@ export interface ChatComposerProps {
 	isSending: boolean;
 	onDraftChange: (value: string) => void;
 	onSelectCommand: (value: string) => void;
+	onSubmit: () => void;
+}
+
+export interface ChatClarificationComposerProps {
+	answers: string[];
+	disabled: boolean;
+	pendingQuestionIndex: number;
+	questions: TaskClarificationQuestion[];
+	onAnswerChange: (index: number, value: string) => void;
+	onSelectOption: (index: number, value: string) => void;
 	onSubmit: () => void;
 }
 

@@ -38,6 +38,7 @@ export function createChatService(
 					title: input.title?.trim() || UNTITLED_SESSION,
 					pendingRequest: null,
 					pendingQuestions: null,
+					archived: false,
 					createdAt: now,
 					updatedAt: now,
 				}),

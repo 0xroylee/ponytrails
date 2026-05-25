@@ -20,6 +20,7 @@ export interface ChatSessionRecord {
 	title: string;
 	pendingRequest: string | null;
 	pendingQuestions: TaskClarificationQuestion[];
+	archived: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -43,6 +44,7 @@ export interface ChatSessionCreateRequest {
 }
 
 export interface ChatSessionUpdateRequest {
+	archived?: boolean;
 	projectId?: string | null;
 	title?: string;
 	pendingRequest?: string | null;

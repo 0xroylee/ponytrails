@@ -1,13 +1,10 @@
 "use client";
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
-import type { ReactElement } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 
-import { resolveClarificationStep } from "@/components/clarification/clarification-queue-utils";
 import { TextShimmer } from "@/components/loading/text-shimmer";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type { ChatMessageRecord, TaskClarificationQuestion } from "@/lib/api";
+import type { ChatMessageRecord } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import { resolveChatMessageDisplay } from "./chat-message-display";
@@ -18,17 +15,16 @@ export function ChatTranscript({
 	isLoading,
 	isThinking,
 	messages,
-	pendingAnswers,
-	pendingQuestionIndex,
 	session,
 	streamLines,
-	onAnswerChange,
-	onSubmitAnswers,
+	workingStartedAt,
 }: ChatTranscriptProps): ReactElement {
 	const pendingQuestions = session?.pendingQuestions ?? [];
 	const hasPendingQuestions = pendingQuestions.length > 0;
 	const showThinking =
 		isThinking && !hasPendingQuestions && streamLines.length === 0;
+	const showWorkingHeader =
+		Boolean(workingStartedAt) && (showThinking || streamLines.length > 0);
 	return (
 		<div className="min-h-0 overflow-auto px-4 py-6">
 			<div className="mx-auto grid max-w-4xl gap-4">
@@ -45,14 +41,8 @@ export function ChatTranscript({
 				{messages.map((message) => (
 					<ChatMessageBubble key={message.id} message={message} />
 				))}
-				{hasPendingQuestions ? (
-					<ClarificationBox
-						answers={pendingAnswers}
-						pendingQuestionIndex={pendingQuestionIndex}
-						questions={pendingQuestions}
-						onAnswerChange={onAnswerChange}
-						onSubmit={onSubmitAnswers}
-					/>
+				{showWorkingHeader ? (
+					<WorkingSectionHeader startedAt={workingStartedAt ?? ""} />
 				) : null}
 				{showThinking ? <ThinkingLine /> : null}
 				{streamLines.length > 0 ? (
@@ -72,15 +62,38 @@ export function ChatTranscript({
 	);
 }
 
-function ThinkingLine(): ReactElement {
+function WorkingSectionHeader({
+	startedAt,
+}: {
+	startedAt: string;
+}): ReactElement {
+	const [now, setNow] = useState(() => Date.now());
+
+	useEffect(() => {
+		const timer = window.setInterval(() => setNow(Date.now()), 1000);
+		return () => window.clearInterval(timer);
+	}, []);
+
 	return (
-		<output
-			aria-live="polite"
-			className="justify-self-start rounded-md border border-zinc-800 bg-[#17181c] px-3 py-2 text-sm"
-		>
-			<TextShimmer>Thinking...</TextShimmer>
-		</output>
+		<div className="grid gap-4 pt-2">
+			<p className="m-0 text-lg font-medium text-zinc-500">
+				Working for {formatElapsedSeconds(startedAt, now)}s
+			</p>
+			<div className="h-px bg-zinc-800" />
+		</div>
 	);
+}
+
+function formatElapsedSeconds(startedAt: string, now: number): number {
+	const startedTime = new Date(startedAt).getTime();
+	if (!Number.isFinite(startedTime)) {
+		return 1;
+	}
+	return Math.max(1, Math.floor((now - startedTime) / 1000));
+}
+
+function ThinkingLine(): ReactElement {
+	return <TextShimmer>Thinking...</TextShimmer>;
 }
 
 function ChatMessageBubble({
@@ -108,12 +121,10 @@ function ChatMessageBubble({
 				isError && "border-red-900/60 bg-red-950/30 text-red-100",
 			)}
 		>
-			<div className="flex items-center gap-2 text-xs text-zinc-500">
+			{/* <div className="flex items-center gap-2 text-xs text-zinc-500">
 				{message.kind === "task" ? <CheckCircle2 size={14} /> : null}
 				{isError ? <CircleAlert size={14} /> : null}
-				<span>{message.role}</span>
-				<span>{message.kind}</span>
-			</div>
+			</div> */}
 			<p className="m-0 whitespace-pre-wrap leading-6">{message.content}</p>
 		</article>
 	);
@@ -147,76 +158,6 @@ function PlanMessage({
 			<div className="text-xs font-medium uppercase text-blue-300">Plan</div>
 			<p className="m-0 whitespace-pre-wrap leading-6">{message.content}</p>
 		</article>
-	);
-}
-
-function ClarificationBox({
-	answers,
-	pendingQuestionIndex,
-	questions,
-	onAnswerChange,
-	onSubmit,
-}: {
-	answers: string[];
-	pendingQuestionIndex: number;
-	questions: TaskClarificationQuestion[];
-	onAnswerChange: (index: number, value: string) => void;
-	onSubmit: () => void;
-}): ReactElement {
-	const step = resolveClarificationStep(questions, pendingQuestionIndex);
-	const canSubmit =
-		step.currentQuestion !== null &&
-		Boolean(answers[step.currentIndex]?.trim());
-	return (
-		<div className="grid gap-3 justify-self-start rounded-md border border-zinc-800 bg-[#17181c] p-3">
-			{step.currentQuestion ? (
-				<label
-					className="grid gap-1.5 text-sm"
-					htmlFor={`clarification-answer-${step.currentIndex}`}
-					key={step.currentQuestion.question}
-				>
-					<span className="text-zinc-300">{step.currentQuestion.question}</span>
-					{step.currentQuestion.options?.length ? (
-						<div className="flex flex-wrap gap-2">
-							{step.currentQuestion.options.map((option) => (
-								<Button
-									key={option.value}
-									onClick={() =>
-										onAnswerChange(step.currentIndex, option.value)
-									}
-									size="sm"
-									type="button"
-									variant={
-										answers[step.currentIndex] === option.value
-											? "default"
-											: "secondary"
-									}
-								>
-									{option.label}
-								</Button>
-							))}
-						</div>
-					) : null}
-					<Input
-						className="w-[min(36rem,78vw)]"
-						id={`clarification-answer-${step.currentIndex}`}
-						onChange={(event) =>
-							onAnswerChange(step.currentIndex, event.target.value)
-						}
-						placeholder="Type a custom answer"
-						value={answers[step.currentIndex] ?? ""}
-					/>
-				</label>
-			) : null}
-			<Button
-				className="justify-self-end"
-				disabled={!canSubmit}
-				onClick={onSubmit}
-				type="button"
-			>
-				{step.isFinalStep ? "Submit" : "Next"}
-			</Button>
-		</div>
 	);
 }
 

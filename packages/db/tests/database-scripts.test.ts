@@ -46,17 +46,16 @@ describe("database scripts", () => {
 					"SELECT id FROM schema_migrations ORDER BY id",
 				);
 				expect(migrations.rows.length).toBeGreaterThan(0);
-				expect(migrations.rows.at(-1)?.id).toBe(
-					"0015_literal_backlog_plan_statuses",
-				);
+				expect(migrations.rows.at(-1)?.id).toBe("0016_chat_session_archive");
 				const columns = await database.client.query<{ column_name: string }>(
 					`
 						SELECT column_name
 						FROM information_schema.columns
-						WHERE table_name = 'chat_sessions' AND column_name = 'task_id'
+						WHERE table_name = 'chat_sessions'
+							AND column_name IN ('task_id', 'archived')
 					`,
 				);
-				expect(columns.rows).toHaveLength(1);
+				expect(columns.rows).toHaveLength(2);
 			} finally {
 				await database.close();
 			}

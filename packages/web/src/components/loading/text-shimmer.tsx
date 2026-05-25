@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import { ShimmeringText } from "@/components/animate-ui/primitives/texts/shimmering";
 
 import { cn } from "@/lib/utils";
 
@@ -6,12 +6,17 @@ export function TextShimmer({
 	children,
 	className,
 }: {
-	children: ReactNode;
+	children: string;
 	className?: string;
-}): ReactElement {
+}) {
 	return (
-		<span className={cn("text-shimmer inline-block font-medium", className)}>
-			{children}
-		</span>
+		<ShimmeringText
+			aria-label={children}
+			className={cn("font-medium", className)}
+			color="#a1a1aa"
+			duration={1}
+			shimmeringColor="#f4f4f5"
+			text={children}
+		/>
 	);
 }

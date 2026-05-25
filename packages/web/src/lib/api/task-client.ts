@@ -2,6 +2,7 @@ import {
 	assertObjectRecord,
 	encodePathSegment,
 	parseListResponse,
+	readBoolean,
 	readNullableString,
 	readNumber,
 	readString,
@@ -124,10 +125,15 @@ function parseQuestionOptions(payload: unknown): TaskClarificationOption[] {
 			"description" in row
 				? readString(row, "description", TASK_CHAT_CREATE_PATH)
 				: undefined;
+		const recommended =
+			"recommended" in row
+				? readBoolean(row, "recommended", TASK_CHAT_CREATE_PATH)
+				: undefined;
 		return {
 			label: readString(row, "label", TASK_CHAT_CREATE_PATH),
 			value: readString(row, "value", TASK_CHAT_CREATE_PATH),
 			...(description ? { description } : {}),
+			...(recommended ? { recommended } : {}),
 		};
 	});
 }

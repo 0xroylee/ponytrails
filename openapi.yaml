@@ -152,6 +152,13 @@ paths:
           $ref: '#/components/responses/TypedError'
         '404':
           $ref: '#/components/responses/TypedError'
+    delete:
+      tags: [Chat]
+      responses:
+        '200':
+          description: Archived chat session.
+        '404':
+          $ref: '#/components/responses/TypedError'
   /api/chat/sessions/{id}/messages:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -693,6 +700,7 @@ components:
         label: { type: string, minLength: 1 }
         value: { type: string, minLength: 1 }
         description: { type: string, minLength: 1 }
+        recommended: { type: boolean }
     ClarificationQuestion:
       oneOf:
         - type: string
@@ -722,6 +730,7 @@ components:
       type: object
       additionalProperties: false
       properties:
+        archived: { type: boolean }
         projectId:
           type: string
           minLength: 1

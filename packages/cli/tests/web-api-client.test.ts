@@ -158,6 +158,43 @@ describe("web api client task create", () => {
 		});
 	});
 
+	it("preserves recommended clarification options from chat task create", async () => {
+		const fetchFn = (async () =>
+			new Response(
+				JSON.stringify({
+					status: "needs_info",
+					questions: [
+						{
+							question: "Which agent?",
+							options: [
+								{ label: "Codex", value: "codex", recommended: true },
+								{ label: "Claude", value: "claude" },
+							],
+						},
+					],
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			)) as unknown as typeof fetch;
+		const client = createApiClient({
+			baseUrl: "http://localhost:3000",
+			fetchFn,
+		});
+
+		const response = await client.createTask({ request: "Create a task" });
+
+		expect(response).toMatchObject({
+			status: "needs_info",
+			questions: [
+				{
+					options: [
+						{ label: "Codex", value: "codex", recommended: true },
+						{ label: "Claude", value: "claude" },
+					],
+				},
+			],
+		});
+	});
+
 	it("formats task creation failures as board task errors", () => {
 		expect(
 			formatTaskCreateError({

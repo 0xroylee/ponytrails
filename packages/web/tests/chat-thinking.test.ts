@@ -47,39 +47,55 @@ describe("chat thinking indicator", () => {
 	});
 
 	it("renders shimmer text for thinking and suppresses it when streams exist", () => {
-		const html = renderTranscript({ isThinking: true, streamLines: [] });
-		expect(html).toContain("Thinking...");
-		expect(html).toContain("text-shimmer");
-		expect(html).toContain("<output");
+		const html = renderTranscript({
+			isThinking: true,
+			streamLines: [],
+			workingStartedAt: activeStartedAt(),
+		});
+		expect(textContent(html)).toContain("Working for");
+		expect(textContent(html)).toContain("Thinking...");
+		expect(html).toContain("<span");
+		expect(html).toContain("--shimmering-color");
 
 		const idleHtml = renderTranscript({ isThinking: false, streamLines: [] });
+		expect(idleHtml).not.toContain("Working for");
 		expect(idleHtml).not.toContain("Thinking...");
 
 		const streamingHtml = renderTranscript({
 			isThinking: true,
-			streamLines: [{ id: "run-1", stream: "system", text: "Working" }],
+			streamLines: [{ id: "run-1", stream: "system", text: "Ran 7 commands" }],
+			workingStartedAt: activeStartedAt(),
 		});
+		expect(textContent(streamingHtml)).toContain("Working for");
 		expect(streamingHtml).not.toContain("Thinking...");
-		expect(streamingHtml).toContain("Working");
+		expect(streamingHtml.indexOf("Working for")).toBeLessThan(
+			streamingHtml.indexOf("Ran 7 commands"),
+		);
+		expect(streamingHtml).toContain("Ran 7 commands");
+
+		const staleStreamHtml = renderTranscript({
+			isThinking: false,
+			streamLines: [{ id: "run-2", stream: "system", text: "Previous output" }],
+		});
+		expect(staleStreamHtml).not.toContain("Working for");
+		expect(staleStreamHtml).toContain("Previous output");
 	});
 
 	it("renders reusable shimmer content", () => {
 		const html = renderToStaticMarkup(
 			createElement(TextShimmer, null, "Loading"),
 		);
-		expect(html).toContain("Loading");
-		expect(html).toContain("text-shimmer");
+		expect(textContent(html)).toContain("Loading");
+		expect(html).toContain("--shimmering-color");
 	});
 
-	it("renders one pending clarification question at a time", () => {
+	it("keeps pending clarification controls out of the transcript", () => {
 		const html = renderToStaticMarkup(
 			createElement(ChatTranscript, {
 				error: null,
 				isLoading: false,
 				isThinking: false,
 				messages: [],
-				pendingAnswers: ["codex"],
-				pendingQuestionIndex: 1,
 				session: chatSession({
 					pendingQuestions: [
 						{
@@ -93,14 +109,13 @@ describe("chat thinking indicator", () => {
 					],
 				}),
 				streamLines: [],
-				onAnswerChange: () => undefined,
-				onSubmitAnswers: () => undefined,
+				workingStartedAt: null,
 			}),
 		);
 
-		expect(html).toContain("What scope?");
+		expect(html).not.toContain("What scope?");
 		expect(html).not.toContain("Which agent?");
-		expect(html).toContain("Type a custom answer");
+		expect(html).not.toContain("Type a custom answer");
 	});
 
 	it("renders assistant notes plainly and plan-shaped content in a box", () => {
@@ -164,6 +179,7 @@ function renderTranscript({
 	isThinking,
 	messages = [],
 	streamLines,
+	workingStartedAt = null,
 }: {
 	isThinking: boolean;
 	messages?: ChatMessageRecord[];
@@ -172,6 +188,7 @@ function renderTranscript({
 		stream: "stdout" | "stderr" | "system";
 		text: string;
 	}>;
+	workingStartedAt?: string | null;
 }): string {
 	return renderToStaticMarkup(
 		createElement(ChatTranscript, {
@@ -179,14 +196,19 @@ function renderTranscript({
 			isLoading: false,
 			isThinking,
 			messages,
-			pendingAnswers: [],
-			pendingQuestionIndex: 0,
 			session: chatSession(),
 			streamLines,
-			onAnswerChange: () => undefined,
-			onSubmitAnswers: () => undefined,
+			workingStartedAt,
 		}),
 	);
+}
+
+function activeStartedAt(): string {
+	return new Date(Date.now() - 13_000).toISOString();
+}
+
+function textContent(html: string): string {
+	return html.replace(/<[^>]*>/g, "");
 }
 
 function chatMessage(
@@ -217,6 +239,7 @@ function chatSession(
 		title: "Untitled",
 		pendingRequest: null,
 		pendingQuestions: [],
+		archived: false,
 		createdAt: "2026-05-20T00:00:00.000Z",
 		updatedAt: "2026-05-20T00:00:00.000Z",
 		...overrides,

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { boardProjectsTable } from "./board-projects.schema";
 import { boardTasksTable } from "./board-tasks.schema";
 
@@ -14,6 +14,7 @@ export const chatSessionsTable = pgTable("chat_sessions", {
 	title: text("title").notNull(),
 	pendingRequest: text("pending_request"),
 	pendingQuestions: text("pending_questions"),
+	archived: boolean("archived").notNull().default(false),
 	createdAt: timestamp("created_at", { mode: "string" }).notNull(),
 	updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
 });

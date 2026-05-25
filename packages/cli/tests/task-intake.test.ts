@@ -47,7 +47,7 @@ describe("parseTaskIntakeDecision", () => {
 			parseTaskIntakeDecision(
 				[
 					"RESULT: NEEDS_INFO",
-					`QUESTIONS_JSON: [{"question":"Which agent?","options":[{"label":"Codex","value":"codex"},{"label":"Claude","value":"claude","description":"Use Claude Code"}]}]`,
+					`QUESTIONS_JSON: [{"question":"Which agent?","options":[{"label":"Codex","value":"codex","recommended":true},{"label":"Claude","value":"claude","description":"Use Claude Code"}]}]`,
 				].join("\n"),
 			),
 		).toEqual({
@@ -56,7 +56,7 @@ describe("parseTaskIntakeDecision", () => {
 				{
 					question: "Which agent?",
 					options: [
-						{ label: "Codex", value: "codex" },
+						{ label: "Codex", value: "codex", recommended: true },
 						{
 							label: "Claude",
 							value: "claude",
@@ -66,6 +66,17 @@ describe("parseTaskIntakeDecision", () => {
 				},
 			],
 		});
+	});
+
+	it("rejects malformed recommended option values", () => {
+		expect(() =>
+			parseTaskIntakeDecision(
+				[
+					"RESULT: NEEDS_INFO",
+					`QUESTIONS_JSON: [{"question":"Which agent?","options":[{"label":"Codex","value":"codex","recommended":"yes"},{"label":"Claude","value":"claude"}]}]`,
+				].join("\n"),
+			),
+		).toThrow("recommended must be a boolean");
 	});
 
 	it("rejects malformed task json", () => {
@@ -114,6 +125,8 @@ describe("buildTaskIntakePrompt", () => {
 			expect(prompt).toContain("RESULT: CLEAR or NEEDS_INFO");
 			expect(prompt).toContain("return exactly one concise question");
 			expect(prompt).toContain("optional options array");
+			expect(prompt).toContain("mark exactly one best option");
+			expect(prompt).toContain('"recommended":true');
 			expect(prompt).toContain("custom free-form answer");
 		} finally {
 			await rm(tmpDir, { recursive: true, force: true });

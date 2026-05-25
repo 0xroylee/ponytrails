@@ -50,6 +50,7 @@ export interface TaskClarificationOption {
 	label: string;
 	value: string;
 	description?: string;
+	recommended?: boolean;
 }
 
 export interface TaskClarificationQuestion {

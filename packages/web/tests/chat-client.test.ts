@@ -23,7 +23,15 @@ describe("chat API client", () => {
 				taskId: "task-1",
 				title: "Untitled",
 				pendingRequest: null,
-				pendingQuestions: [],
+				pendingQuestions: [
+					{
+						question: "Which agent?",
+						options: [
+							{ label: "Codex", value: "codex", recommended: true },
+							{ label: "Claude", value: "claude" },
+						],
+					},
+				],
 				createdAt: "2026-05-20T00:00:00.000Z",
 				updatedAt: "2026-05-20T00:00:00.000Z",
 			});
@@ -34,6 +42,35 @@ describe("chat API client", () => {
 
 		expect(session.taskId).toBe("task-1");
 		expect(session.projectId).toBe("default");
+		expect(session.archived).toBe(false);
+		expect(session.pendingQuestions[0]?.options?.[0]?.recommended).toBe(true);
+	});
+
+	it("sends archive updates for chat sessions", async () => {
+		const fetchFn = (async (input: URL | RequestInfo, init?: RequestInit) => {
+			expect(String(input)).toBe("/api/chat/sessions/session-1");
+			expect(init?.method).toBe("PATCH");
+			expect(JSON.parse(String(init?.body))).toEqual({ archived: true });
+			return okJsonResponse({
+				id: "session-1",
+				workspaceId: "owner-1",
+				projectId: "default",
+				taskId: "task-1",
+				title: "Untitled",
+				pendingRequest: null,
+				pendingQuestions: [],
+				archived: true,
+				createdAt: "2026-05-20T00:00:00.000Z",
+				updatedAt: "2026-05-20T00:01:00.000Z",
+			});
+		}) as typeof fetch;
+		const client = createApiClient({ fetchFn });
+
+		const session = await client.updateChatSession("session-1", {
+			archived: true,
+		});
+
+		expect(session.archived).toBe(true);
 	});
 
 	it("parses chat send responses with the linked issue", async () => {
@@ -52,6 +89,7 @@ describe("chat API client", () => {
 					title: "Build the dashboard",
 					pendingRequest: null,
 					pendingQuestions: [],
+					archived: false,
 					createdAt: "2026-05-20T00:00:00.000Z",
 					updatedAt: "2026-05-20T00:01:00.000Z",
 				},

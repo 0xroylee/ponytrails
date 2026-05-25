@@ -15,16 +15,15 @@ import { useWorkspaceProjectsQuery } from "@/lib/api/realtime-queries";
 import { useRealtimeStore } from "@/lib/realtime";
 
 import { useChatClarificationState } from "./chat-clarification-state";
+import { createChatClarificationSubmitters } from "./chat-clarification-submitters";
 import { parseChatCommand } from "./chat-command-utils";
 import { executeCommandInput } from "./chat-room-command-actions";
 import { ChatRoomPanelView } from "./chat-room-panel-view";
 import { chatStreamLinesForSession } from "./chat-room-stream-utils";
 import { findActiveTaskId } from "./chat-task-utils";
 import { shouldShowChatThinkingIndicator } from "./chat-thinking-state";
-import type {
-	ChatStreamLine as Line,
-	ChatRoomPanelProps as Props,
-} from "./types/chat-room.types";
+import { useWorkingSectionState } from "./chat-working-section-state";
+import type * as CRT from "./types/chat-room.types";
 
 const SIDEBAR_CONTROL_ID = "chat-sidebar-toggle";
 const NO_REFETCH = { refetchIntervalMs: false } as const;
@@ -33,16 +32,17 @@ export function ChatRoomPanel({
 	commandDraftRequest,
 	newSessionRequest,
 	onSearchRequest,
-}: Props): ReactElement {
+}: CRT.ChatRoomPanelProps): ReactElement {
 	const [activeSessionId, setActiveSessionId] = useState("");
-	const [draftValue, setDraft] = useState("");
-	const [commandStreamLines, setCommandStreamLines] = useState<Line[]>([]);
+	const [draft, setDraft] = useState("");
+	const [commandLines, setCommandLines] = useState<CRT.ChatStreamLine[]>([]);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isTaskDetailSheetOpen, setIsTaskDetailSheetOpen] = useState(false);
 	const clarificationState = useChatClarificationState();
 	const handledCommandDraftRequest = useRef(0);
 	const handledNewSessionRequest = useRef(0);
 	const sidebarToggleRef = useRef<HTMLInputElement>(null);
+	const { runWithWorkingLabel, workingStartedAt } = useWorkingSectionState();
 
 	const currentWorkspaceQuery = useCurrentWorkspaceQuery(NO_REFETCH);
 	const workspaceId = currentWorkspaceQuery.data?.workspaceId ?? "";
@@ -54,9 +54,14 @@ export function ChatRoomPanel({
 	const sendMessage = useSendChatMessageMutation();
 
 	const sessions = sessionsQuery.data ?? [];
-	const selectedSessionId = activeSessionId || sessions[0]?.id || "";
-	const selectedSession =
-		sessions.find(({ id }) => id === selectedSessionId) ?? null;
+	const selectedSessionId =
+		sessions.find((session) => session.id === activeSessionId)?.id ??
+		sessions[0]?.id ??
+		"";
+	const selectedSession = useMemo(
+		() => sessions.find((session) => session.id === selectedSessionId) ?? null,
+		[sessions, selectedSessionId],
+	);
 	const messagesQuery = useChatMessagesQuery(selectedSessionId, {
 		enabled: Boolean(selectedSessionId),
 		refetchIntervalMs: false,
@@ -73,7 +78,7 @@ export function ChatRoomPanel({
 		(state) => state.chatStreamsByRunId,
 	);
 	const streamLines = [
-		...commandStreamLines,
+		...commandLines,
 		...chatStreamLinesForSession(chatStreamsByRunId, selectedSessionId),
 	];
 	const isThinking = shouldShowChatThinkingIndicator({
@@ -83,17 +88,20 @@ export function ChatRoomPanel({
 		sendingSessionId: sendMessage.variables?.sessionId,
 		streamLineCount: streamLines.length,
 	});
-	const isBusy =
-		currentWorkspaceQuery.isLoading ||
-		[createSession, updateSession, appendMessage, sendMessage].some(
-			(mutation) => mutation.isPending,
-		);
-	const pendingCommandDraftRequest =
-		commandDraftRequest?.id === handledCommandDraftRequest.current
-			? null
-			: commandDraftRequest;
-	const draft = pendingCommandDraftRequest?.draft ?? draftValue;
-
+	const mutationBusy =
+		createSession.isPending ||
+		updateSession.isPending ||
+		appendMessage.isPending ||
+		sendMessage.isPending;
+	const isBusy = currentWorkspaceQuery.isLoading || mutationBusy;
+	const clarificationSubmitters = createChatClarificationSubmitters({
+		clarificationState,
+		pendingAnswers,
+		pendingQuestionIndex,
+		runWithWorkingLabel,
+		selectedSession,
+		sendMessage: (input) => sendMessage.mutateAsync(input),
+	});
 	useEffect(() => {
 		if (
 			newSessionRequest <= 0 ||
@@ -122,25 +130,9 @@ export function ChatRoomPanel({
 		const toggle = sidebarToggleRef.current;
 		if (toggle) toggle.checked = false;
 	}
-
-	function markCommandDraftHandled(): void {
-		if (pendingCommandDraftRequest) {
-			handledCommandDraftRequest.current = pendingCommandDraftRequest.id;
-		}
-	}
-
-	function handleDraftChange(value: string): void {
-		markCommandDraftHandled();
-		setDraft(value);
-	}
-
 	async function ensureSession() {
-		if (selectedSession) {
-			return selectedSession;
-		}
-		if (!workspaceId) {
-			throw new Error("Workspace is still loading.");
-		}
+		if (selectedSession) return selectedSession;
+		if (!workspaceId) throw new Error("Workspace is still loading.");
 		const session = await createSession.mutateAsync({ workspaceId });
 		setActiveSessionId(session.id);
 		return session;
@@ -153,11 +145,13 @@ export function ChatRoomPanel({
 		setDraft("");
 		setErrorMessage(null);
 		try {
-			const session = await ensureSession();
-			const command = parseChatCommand(content, {
-				projectId: session.projectId,
+			await runWithWorkingLabel(async () => {
+				const session = await ensureSession();
+				const command = parseChatCommand(content, {
+					projectId: session.projectId,
+				});
+				await executeInput(session.id, content, command);
 			});
-			await executeInput(session.id, content, command);
 		} catch (error) {
 			setErrorMessage(error instanceof Error ? error.message : "Send failed");
 		}
@@ -175,7 +169,7 @@ export function ChatRoomPanel({
 		await executeCommandInput(
 			{
 				appendMessage: (input) => appendMessage.mutateAsync(input),
-				setStreamLines: setCommandStreamLines,
+				setStreamLines: setCommandLines,
 				startNewSession,
 				updateProject: ({ sessionId: targetSessionId, projectId }) =>
 					updateSession.mutateAsync({
@@ -189,20 +183,20 @@ export function ChatRoomPanel({
 		);
 	}
 
-	async function submitAnswers(): Promise<void> {
-		await clarificationState.submitAnswers({
-			pendingAnswers,
-			pendingQuestionIndex,
-			selectedSession,
-			sendAnswers: async ({ sessionId, content, answers }) => {
-				await sendMessage.mutateAsync({
-					sessionId,
-					message: { content, answers },
-				});
-			},
-		});
+	async function archiveSession(sessionId: string): Promise<void> {
+		setErrorMessage(null);
+		try {
+			await updateSession.mutateAsync({
+				sessionId,
+				session: { archived: true },
+			});
+			if (sessionId === selectedSessionId) setActiveSessionId("");
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "Archive failed",
+			);
+		}
 	}
-
 	return (
 		<ChatRoomPanelView
 			activeSessionId={selectedSessionId}
@@ -225,9 +219,11 @@ export function ChatRoomPanel({
 			sidebarToggleRef={sidebarToggleRef}
 			sessions={sessions}
 			streamLines={streamLines}
+			workingStartedAt={workingStartedAt}
 			onAnswerChange={(index, value) =>
 				clarificationState.updateAnswerDraft(selectedSessionId, index, value)
 			}
+			onArchiveSession={(sessionId) => void archiveSession(sessionId)}
 			onCloseSidebar={closeMobileSidebar}
 			onCloseTaskDetails={() => setIsTaskDetailSheetOpen(false)}
 			onDraftChange={handleDraftChange}
@@ -237,13 +233,16 @@ export function ChatRoomPanel({
 				closeMobileSidebar();
 				onSearchRequest();
 			}}
-			onSelectCommand={handleDraftChange}
+			onSelectCommand={setDraft}
+			onSelectOption={(index, value) =>
+				void clarificationSubmitters.submitAnswerValue(index, value)
+			}
 			onSelectSession={(sessionId) => {
 				setActiveSessionId(sessionId);
 				closeMobileSidebar();
 			}}
 			onSubmit={() => void handleSubmit()}
-			onSubmitAnswers={() => void submitAnswers()}
+			onSubmitAnswers={() => void clarificationSubmitters.submitAnswers()}
 		/>
 	);
 }

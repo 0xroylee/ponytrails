@@ -50,5 +50,8 @@ export async function updateChatSessionRow(
 			? JSON.stringify(input.pendingQuestions)
 			: null;
 	}
+	if (input.archived !== undefined) {
+		update.archived = input.archived;
+	}
 	return repository.updateSession(sessionId, update);
 }

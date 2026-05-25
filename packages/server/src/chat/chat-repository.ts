@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "devos-db";
+import { and, asc, desc, eq } from "devos-db";
 import type { ServerDatabase } from "devos-db";
 import { chatMessagesTable, chatSessionsTable } from "devos-db";
 import type { NewChatMessageRow, NewChatSessionRow } from "devos-db";
@@ -10,7 +10,12 @@ export function createChatRepository(db: ServerDatabase["db"]): ChatRepository {
 			return db
 				.select()
 				.from(chatSessionsTable)
-				.where(eq(chatSessionsTable.workspaceId, workspaceId))
+				.where(
+					and(
+						eq(chatSessionsTable.workspaceId, workspaceId),
+						eq(chatSessionsTable.archived, false),
+					),
+				)
 				.orderBy(desc(chatSessionsTable.updatedAt));
 		},
 		async getSession(id) {

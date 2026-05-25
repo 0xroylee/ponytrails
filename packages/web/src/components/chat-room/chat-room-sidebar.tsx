@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Archive,
 	ChevronDown,
 	ChevronRight,
 	Folder,
@@ -24,6 +25,7 @@ export function ChatRoomSidebar({
 	projects,
 	sessions,
 	onNewSession,
+	onArchiveSession,
 	onCloseSidebar,
 	onSearch,
 	onSelectSession,
@@ -146,31 +148,42 @@ export function ChatRoomSidebar({
 										{group.isActive ? (
 											<div className="grid gap-1 pl-6">
 												{group.sessions.map((session) => (
-													<Button
-														aria-current={
-															session.id === activeSessionId
-																? "page"
-																: undefined
-														}
+													<div
 														className={cn(
-															"h-auto min-w-0 justify-start rounded-md px-2 py-2 text-left text-sm",
+															"rounded-md group grid min-w-0 grid-cols-[minmax(0,1fr)_2rem] gap-1 hover:bg-zinc-900 hover:text-zinc-200",
 															session.id === activeSessionId
 																? "bg-zinc-800 text-zinc-100"
-																: "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200",
+																: "text-zinc-400",
 														)}
 														key={session.id}
-														onClick={() => onSelectSession(session.id)}
-														size="sm"
-														type="button"
-														variant="ghost"
 													>
-														<span className="block truncate">
-															{session.title}
-														</span>
-														<span className="mt-1 block truncate text-xs text-zinc-600">
-															{session.taskId ?? "No issue"}
-														</span>
-													</Button>
+														<Button
+															className="h-auto min-w-0 justify-start px-2 py-2 text-left text-sm"
+															onClick={() => onSelectSession(session.id)}
+															type="button"
+															variant="ghost"
+														>
+															<span className="min-w-0 flex-1">
+																<span className="block truncate">
+																	{session.title}
+																</span>
+																{/* <span className="mt-1 block truncate text-xs text-zinc-600">
+																	{session.taskId ?? "No issue"}
+																</span> */}
+															</span>
+														</Button>
+														<Button
+															aria-label={`Archive ${session.title}`}
+															className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+															onClick={() => onArchiveSession(session.id)}
+															size="icon"
+															title="Archive session"
+															type="button"
+															variant="ghost"
+														>
+															<Archive size={14} />
+														</Button>
+													</div>
 												))}
 											</div>
 										) : null}

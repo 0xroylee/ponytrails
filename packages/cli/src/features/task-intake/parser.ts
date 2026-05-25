@@ -149,10 +149,16 @@ function parseQuestionOption(
 		typeof record.description === "string" && record.description.trim()
 			? record.description.trim()
 			: undefined;
+	if ("recommended" in record && typeof record.recommended !== "boolean") {
+		throw new Error(
+			`QUESTIONS_JSON item ${questionIndex}.options[${optionIndex}].recommended must be a boolean.`,
+		);
+	}
 	return {
 		label: record.label.trim(),
 		value: record.value.trim(),
 		...(description ? { description } : {}),
+		...(record.recommended === true ? { recommended: true } : {}),
 	};
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
+import { ChatClarificationComposer } from "./chat-clarification-composer";
 import { ChatComposer } from "./chat-composer";
 import { ChatRoomHeader } from "./chat-room-header";
 import { ChatRoomSidebar } from "./chat-room-sidebar";
@@ -29,7 +30,9 @@ export function ChatRoomPanelView({
 	sidebarToggleRef,
 	sessions,
 	streamLines,
+	workingStartedAt,
 	onAnswerChange,
+	onArchiveSession,
 	onCloseSidebar,
 	onCloseTaskDetails,
 	onDraftChange,
@@ -37,10 +40,14 @@ export function ChatRoomPanelView({
 	onOpenTaskDetails,
 	onSearch,
 	onSelectCommand,
+	onSelectOption,
 	onSelectSession,
 	onSubmit,
 	onSubmitAnswers,
 }: ChatRoomPanelViewProps): ReactElement {
+	const pendingQuestions = selectedSession?.pendingQuestions ?? [];
+	const hasPendingQuestions = pendingQuestions.length > 0;
+
 	return (
 		<section className="relative grid h-[100dvh] min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-[#0f1013] text-zinc-100 md:grid-cols-[18rem_minmax(0,1fr)]">
 			<input
@@ -62,6 +69,7 @@ export function ChatRoomPanelView({
 				projects={projects}
 				sidebarControlId={sidebarControlId}
 				sessions={sessions}
+				onArchiveSession={onArchiveSession}
 				onCloseSidebar={onCloseSidebar}
 				onNewSession={onNewSession}
 				onSearch={onSearch}
@@ -80,26 +88,35 @@ export function ChatRoomPanelView({
 					isLoading={isMessagesLoading}
 					isThinking={isThinking}
 					messages={messages}
-					pendingAnswers={pendingAnswers}
-					pendingQuestionIndex={pendingQuestionIndex}
 					session={selectedSession}
 					streamLines={streamLines}
-					onAnswerChange={onAnswerChange}
-					onSubmitAnswers={onSubmitAnswers}
+					workingStartedAt={workingStartedAt}
 				/>
 				{errorMessage ? (
 					<p className="m-0 border-t border-red-900/60 bg-red-950/30 px-4 py-2 text-sm text-red-100">
 						{errorMessage}
 					</p>
 				) : null}
-				<ChatComposer
-					disabled={isBusy}
-					draft={draft}
-					isSending={isSending}
-					onDraftChange={onDraftChange}
-					onSelectCommand={onSelectCommand}
-					onSubmit={onSubmit}
-				/>
+				{hasPendingQuestions ? (
+					<ChatClarificationComposer
+						answers={pendingAnswers}
+						disabled={isBusy || isSending}
+						pendingQuestionIndex={pendingQuestionIndex}
+						questions={pendingQuestions}
+						onAnswerChange={onAnswerChange}
+						onSelectOption={onSelectOption}
+						onSubmit={onSubmitAnswers}
+					/>
+				) : (
+					<ChatComposer
+						disabled={isBusy}
+						draft={draft}
+						isSending={isSending}
+						onDraftChange={onDraftChange}
+						onSelectCommand={onSelectCommand}
+						onSubmit={onSubmit}
+					/>
+				)}
 			</div>
 			<ChatTaskDetailSheet
 				isOpen={isTaskDetailSheetOpen}

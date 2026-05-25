@@ -57,6 +57,10 @@ const MIGRATIONS: Migration[] = [
 		id: "0015_literal_backlog_plan_statuses",
 		fileName: "0015_literal_backlog_plan_statuses.sql",
 	},
+	{
+		id: "0016_chat_session_archive",
+		fileName: "0016_chat_session_archive.sql",
+	},
 ];
 
 async function ensureMigrationsTable(

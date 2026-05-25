@@ -83,6 +83,11 @@ describe("chat realtime events", () => {
 			id: "session-new",
 			updatedAt: "2026-05-16T00:01:00.000Z",
 		});
+		const archivedOlder = chatSession({
+			...older,
+			archived: true,
+			updatedAt: "2026-05-16T00:02:00.000Z",
+		});
 		const first = chatMessage({
 			id: "message-1",
 			createdAt: "2026-05-16T00:00:00.000Z",
@@ -95,6 +100,10 @@ describe("chat realtime events", () => {
 		applyRealtimeEventToQueryClient(queryClient as never, sessionEvent(older));
 		applyRealtimeEventToQueryClient(queryClient as never, sessionEvent(newer));
 		applyRealtimeEventToQueryClient(queryClient as never, sessionEvent(newer));
+		applyRealtimeEventToQueryClient(
+			queryClient as never,
+			sessionEvent(archivedOlder),
+		);
 		applyRealtimeEventToQueryClient(queryClient as never, messageEvent(second));
 		applyRealtimeEventToQueryClient(queryClient as never, messageEvent(first));
 		applyRealtimeEventToQueryClient(queryClient as never, messageEvent(first));
@@ -103,7 +112,7 @@ describe("chat realtime events", () => {
 			queryClient.getQueryData<ChatSessionRecord[]>(
 				serverStateQueryKeys.chatSessions("owner-1"),
 			),
-		).toEqual([newer, older]);
+		).toEqual([newer]);
 		expect(
 			queryClient.getQueryData<ChatMessageRecord[]>(
 				serverStateQueryKeys.chatMessages("session-1"),
@@ -163,6 +172,7 @@ function chatSession(
 		title: "Untitled",
 		pendingRequest: null,
 		pendingQuestions: [],
+		archived: false,
 		createdAt: "2026-05-16T00:00:00.000Z",
 		updatedAt: "2026-05-16T00:00:00.000Z",
 		...overrides,

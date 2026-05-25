@@ -12,6 +12,7 @@ export interface TaskIntakeQuestionOption {
 	label: string;
 	value: string;
 	description?: string;
+	recommended?: boolean;
 }
 
 export interface TaskIntakeQuestion {

@@ -143,9 +143,9 @@ function upsertChatSession(
 	queryClient.setQueryData<ChatSessionRecord[]>(
 		serverStateQueryKeys.chatSessions(session.workspaceId),
 		(current = []) =>
-			upsertById(current, session).sort((left, right) =>
-				right.updatedAt.localeCompare(left.updatedAt),
-			),
+			upsertById(current, session)
+				.filter((item) => !item.archived)
+				.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
 	);
 }
 

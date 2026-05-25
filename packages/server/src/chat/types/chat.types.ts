@@ -24,6 +24,7 @@ export interface ChatClarificationOption {
 	label: string;
 	value: string;
 	description?: string;
+	recommended?: boolean;
 }
 
 export interface ChatClarificationQuestion {
@@ -42,6 +43,7 @@ export interface ChatSessionCreateInput {
 }
 
 export interface ChatSessionUpdateInput {
+	archived?: boolean;
 	projectId?: string | null;
 	taskId?: string | null;
 	title?: string;

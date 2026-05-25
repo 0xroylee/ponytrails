@@ -53,6 +53,7 @@ const sessionCreateSchema = z.object({
 });
 
 const sessionUpdateSchema = z.object({
+	archived: z.boolean().optional(),
 	projectId: z.string().trim().min(1).nullable().optional(),
 	title: z.string().trim().min(1).optional(),
 	pendingRequest: z.string().nullable().optional(),
@@ -156,6 +157,11 @@ async function handleSessionRoute(
 	sessionId: string,
 	realtimeEvents?: RealtimeEventPublisher,
 ): Promise<Response> {
+	if (request.method === "DELETE") {
+		const session = await service.updateSession(sessionId, { archived: true });
+		publishChatSessionEvent(realtimeEvents, "chat.session.updated", session);
+		return session ? jsonSuccess(session) : notFound("Chat session not found");
+	}
 	if (request.method !== "PATCH") {
 		return methodNotAllowed();
 	}

@@ -21,11 +21,35 @@ interface UseChatClarificationStateInput {
 	}): Promise<void>;
 }
 
+interface ResolveClarificationAnswerInput {
+	answerValue?: string;
+	pendingAnswers: string[];
+	pendingQuestionIndex: number;
+	questions: ChatSessionRecord["pendingQuestions"];
+}
+
+export type ClarificationAnswerAction =
+	| { kind: "none" }
+	| {
+			answerDrafts: string[];
+			kind: "advance";
+			nextQuestionIndex: number;
+	  }
+	| {
+			answerDrafts: string[];
+			answers: ChatAnswerPayload;
+			content: string;
+			kind: "submit";
+	  };
+
 export function useChatClarificationState(): {
 	answerDrafts: Record<string, string[]>;
 	answerStepBySession: Record<string, number>;
 	setAnswerDrafts: Dispatch<SetStateAction<Record<string, string[]>>>;
 	setAnswerStepBySession: Dispatch<SetStateAction<Record<string, number>>>;
+	submitAnswerValue(
+		input: UseChatClarificationStateInput & { answerValue: string },
+	): Promise<void>;
 	submitAnswers(input: UseChatClarificationStateInput): Promise<void>;
 	updateAnswerDraft(sessionId: string, index: number, value: string): void;
 } {
@@ -51,35 +75,62 @@ export function useChatClarificationState(): {
 		}));
 	}
 
+	async function submitAnswerValue({
+		answerValue,
+		...input
+	}: UseChatClarificationStateInput & { answerValue: string }): Promise<void> {
+		await applyClarificationAction({
+			...input,
+			answerValue,
+		});
+	}
+
 	async function submitAnswers({
 		pendingAnswers,
 		pendingQuestionIndex,
 		selectedSession,
 		sendAnswers,
 	}: UseChatClarificationStateInput): Promise<void> {
-		if (!selectedSession?.pendingQuestions.length) return;
-		const step = resolveClarificationStep(
-			selectedSession.pendingQuestions,
+		await applyClarificationAction({
+			pendingAnswers,
 			pendingQuestionIndex,
-		);
-		if (!step.currentQuestion || !pendingAnswers[step.currentIndex]?.trim()) {
-			return;
-		}
-		if (!step.isFinalStep) {
+			selectedSession,
+			sendAnswers,
+		});
+	}
+
+	async function applyClarificationAction({
+		answerValue,
+		pendingAnswers,
+		pendingQuestionIndex,
+		selectedSession,
+		sendAnswers,
+	}: UseChatClarificationStateInput & {
+		answerValue?: string;
+	}): Promise<void> {
+		if (!selectedSession?.pendingQuestions.length) return;
+		const action = resolveClarificationAnswerAction({
+			answerValue,
+			pendingAnswers,
+			pendingQuestionIndex,
+			questions: selectedSession.pendingQuestions,
+		});
+		if (action.kind === "none") return;
+		if (action.kind === "advance") {
+			setAnswerDrafts((current) => ({
+				...current,
+				[selectedSession.id]: action.answerDrafts,
+			}));
 			setAnswerStepBySession((current) => ({
 				...current,
-				[selectedSession.id]: step.currentIndex + 1,
+				[selectedSession.id]: action.nextQuestionIndex,
 			}));
 			return;
 		}
-		const answers = buildClarificationAnswers(
-			selectedSession.pendingQuestions,
-			pendingAnswers,
-		);
 		await sendAnswers({
 			sessionId: selectedSession.id,
-			content: answers.map((answer) => answer.answer).join("\n"),
-			answers,
+			content: action.content,
+			answers: action.answers,
 		});
 		setAnswerDrafts((current) => ({ ...current, [selectedSession.id]: [] }));
 		setAnswerStepBySession((current) => ({
@@ -93,7 +144,41 @@ export function useChatClarificationState(): {
 		answerStepBySession,
 		setAnswerDrafts,
 		setAnswerStepBySession,
+		submitAnswerValue,
 		submitAnswers,
 		updateAnswerDraft,
+	};
+}
+
+export function resolveClarificationAnswerAction({
+	answerValue,
+	pendingAnswers,
+	pendingQuestionIndex,
+	questions,
+}: ResolveClarificationAnswerInput): ClarificationAnswerAction {
+	const step = resolveClarificationStep(questions, pendingQuestionIndex);
+	if (!step.currentQuestion) return { kind: "none" };
+	const answerDrafts =
+		answerValue === undefined
+			? pendingAnswers
+			: updateClarificationAnswer(
+					pendingAnswers,
+					step.currentIndex,
+					answerValue,
+				);
+	if (!answerDrafts[step.currentIndex]?.trim()) return { kind: "none" };
+	if (!step.isFinalStep) {
+		return {
+			answerDrafts,
+			kind: "advance",
+			nextQuestionIndex: step.currentIndex + 1,
+		};
+	}
+	const answers = buildClarificationAnswers(questions, answerDrafts);
+	return {
+		answerDrafts,
+		answers,
+		content: answers.map((answer) => answer.answer).join("\n"),
+		kind: "submit",
 	};
 }

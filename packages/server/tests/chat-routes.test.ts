@@ -82,6 +82,7 @@ describe("chat routes", () => {
 
 		expect(response.status).toBe(201);
 		const body = (await response.json()) as {
+			archived: boolean;
 			id: string;
 			projectId: string;
 			taskId: string;
@@ -90,6 +91,7 @@ describe("chat routes", () => {
 		expect(body.projectId).toBe("default");
 		expect(body.taskId).toBeTruthy();
 		expect(body.title).toBe("Untitled");
+		expect(body.archived).toBe(false);
 
 		const [project] = await testDatabase.db
 			.select()
@@ -124,6 +126,19 @@ describe("chat routes", () => {
 			type: "chat.session.created",
 			session: { id: body.id },
 		});
+
+		const archiveResponse = await app(
+			new Request(`http://localhost/api/chat/sessions/${body.id}`, {
+				method: "DELETE",
+			}),
+		);
+		const archived = (await archiveResponse.json()) as { archived: boolean };
+		const listResponse = await app(
+			new Request("http://localhost/api/chat/sessions?workspaceId=owner-1"),
+		);
+		expect(archiveResponse.status).toBe(200);
+		expect(archived.archived).toBe(true);
+		expect(await listResponse.json()).toEqual([]);
 	});
 
 	it("resolves the first chat message through task intake", async () => {

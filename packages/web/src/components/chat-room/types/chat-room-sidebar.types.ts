@@ -8,6 +8,7 @@ export interface ChatRoomSidebarProps {
 	sessions: ChatSessionRecord[];
 	onNewSession: () => void;
 	onCloseSidebar: () => void;
+	onArchiveSession: (sessionId: string) => void;
 	onSearch: () => void;
 	onSelectSession: (sessionId: string) => void;
 }

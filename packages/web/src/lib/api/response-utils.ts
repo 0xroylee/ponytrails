@@ -48,6 +48,18 @@ export function readNumber(
 	return value;
 }
 
+export function readBoolean(
+	record: Record<string, unknown>,
+	key: string,
+	endpoint: string,
+): boolean {
+	const value = record[key];
+	if (typeof value === "boolean") {
+		return value;
+	}
+	throw new Error(`Invalid ${endpoint} response field '${key}'`);
+}
+
 export function readNullableString(
 	record: Record<string, unknown>,
 	key: string,

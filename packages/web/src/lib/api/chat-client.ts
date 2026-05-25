@@ -2,6 +2,7 @@ import {
 	assertObjectRecord,
 	encodePathSegment,
 	parseListResponse,
+	readBoolean,
 	readNullableString,
 	readString,
 } from "./response-utils";
@@ -24,7 +25,6 @@ import type {
 } from "./types/task.types";
 
 const CHAT_SESSIONS_PATH = "/api/chat/sessions";
-
 type RequestWithBase = (
 	path: string,
 	method: "GET" | "POST" | "PATCH" | "DELETE",
@@ -138,6 +138,10 @@ export function parseChatSessionRecord(payload: unknown): ChatSessionRecord {
 			CHAT_SESSIONS_PATH,
 		),
 		pendingQuestions: readQuestionList(row.pendingQuestions),
+		archived:
+			"archived" in row
+				? readBoolean(row, "archived", CHAT_SESSIONS_PATH)
+				: false,
 		createdAt: readString(row, "createdAt", CHAT_SESSIONS_PATH),
 		updatedAt: readString(row, "updatedAt", CHAT_SESSIONS_PATH),
 	};
@@ -213,10 +217,15 @@ function readQuestionOptions(value: unknown): TaskClarificationOption[] {
 			"description" in row
 				? readString(row, "description", CHAT_SESSIONS_PATH)
 				: undefined;
+		const recommended =
+			"recommended" in row
+				? readBoolean(row, "recommended", CHAT_SESSIONS_PATH)
+				: undefined;
 		return {
 			label: readString(row, "label", CHAT_SESSIONS_PATH),
 			value: readString(row, "value", CHAT_SESSIONS_PATH),
 			...(description ? { description } : {}),
+			...(recommended ? { recommended } : {}),
 		};
 	});
 }

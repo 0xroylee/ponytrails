@@ -163,9 +163,9 @@ function mergeSessions(
 	current: ChatSessionRecord[],
 	next: ChatSessionRecord[],
 ): ChatSessionRecord[] {
-	return mergeById(current, next).sort((left, right) =>
-		right.updatedAt.localeCompare(left.updatedAt),
-	);
+	return mergeById(current, next)
+		.filter((session) => !session.archived)
+		.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 function mergeMessages(
