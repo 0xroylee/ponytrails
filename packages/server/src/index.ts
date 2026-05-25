@@ -45,6 +45,7 @@ export async function startServer(
 export async function startServerRuntime(
 	port = resolveServerPort(process.env),
 ): Promise<ServerRuntime> {
+	const startupStartedAt = Date.now();
 	const cwd = process.cwd();
 	const workspacePath = resolveServerWorkspacePath(process.env);
 	const config = await loadServerStartupConfig(workspacePath);
@@ -59,11 +60,48 @@ export async function startServerRuntime(
 		{ port, databasePath, databasePort, cwd, workspacePath, workspace },
 		"Starting server",
 	);
+	const startupContext = {
+		port,
+		databasePath,
+		databasePort,
+		cwd,
+		workspacePath,
+		workspace,
+	};
+	logServerStartupPhase("database_initialize:start", startupStartedAt, {
+		codexSandbox: process.env.CODEX_SANDBOX,
+		codexSandboxNetworkDisabled: process.env.CODEX_SANDBOX_NETWORK_DISABLED,
+		databasePath,
+		databasePort,
+		requestedDatabaseEngine: process.env.DEVOS_DB_ENGINE,
+	});
 	const serverDatabase = await initializeServerDatabase(databasePath, {
 		logDatabaseProcess: process.env.PIV_POSTGRES_DEBUG === "1",
+		onInitializationPhase: (event) => {
+			logServerStartupPhase(
+				`database:${event.engine}:${event.phase}:${event.status}`,
+				startupStartedAt,
+				{
+					databasePath: event.databasePath,
+					databasePort: event.port,
+					errorMessage: event.errorMessage,
+				},
+			);
+		},
 		port: databasePort,
 	});
+	logServerStartupPhase("database_initialize:done", startupStartedAt, {
+		databasePath,
+		databasePort,
+	});
+	logServerStartupPhase("local_project_board:start", startupStartedAt, {
+		workspace,
+	});
 	await ensureLocalProjectBoard(serverDatabase.db, workspace);
+	logServerStartupPhase("local_project_board:done", startupStartedAt, {
+		workspace,
+	});
+	logServerStartupPhase("app_create:start", startupStartedAt, startupContext);
 	const commandBroker = createWorkflowCommandBroker();
 	const realtimeEvents = createRealtimeEventBus();
 	const app = createExpressApp(
@@ -85,7 +123,19 @@ export async function startServerRuntime(
 		}),
 		{ logger },
 	);
+	logServerStartupPhase("app_create:done", startupStartedAt, startupContext);
+	logServerStartupPhase("http_listen:start", startupStartedAt, { port });
 	const server = await listenExpressApp(app, port);
+	const address = server.address();
+	const listeningPort = typeof address === "object" ? address?.port : port;
+	logServerStartupPhase("http_listen:done", startupStartedAt, {
+		address,
+		port: listeningPort ?? port,
+	});
+	logServerStartupPhase("websocket_attach:start", startupStartedAt, {
+		realtimePath: "/api/events",
+		workflowDataPath: WORKFLOW_DATA_WS_PATH,
+	});
 	const realtimeEventsSocket = attachRealtimeEventsSocket({
 		server,
 		path: "/api/events",
@@ -98,6 +148,11 @@ export async function startServerRuntime(
 		commandBroker,
 		realtimeEvents,
 	});
+	logServerStartupPhase("websocket_attach:done", startupStartedAt, {
+		realtimePath: "/api/events",
+		workflowDataPath: WORKFLOW_DATA_WS_PATH,
+	});
+	logServerStartupPhase("runtime_create:start", startupStartedAt);
 	const runtime = createServerRuntime({
 		server,
 		serverDatabase,
@@ -105,8 +160,7 @@ export async function startServerRuntime(
 		workflowDataSocket,
 		logger,
 	});
-	const address = server.address();
-	const listeningPort = typeof address === "object" ? address?.port : port;
+	logServerStartupPhase("runtime_create:done", startupStartedAt);
 	logger.info(
 		{
 			port: listeningPort ?? port,
@@ -126,11 +180,27 @@ if (import.meta.main) {
 	startServerRuntime()
 		.then((runtime) => {
 			installServerShutdownHandlers(runtime, { logger });
+			logger.info("Server shutdown handlers installed");
 		})
 		.catch((error) => {
 			logger.fatal({ err: normalizeError(error) }, "Server startup failed");
 			process.exit(1);
 		});
+}
+
+function logServerStartupPhase(
+	phase: string,
+	startedAt: number,
+	context: Record<string, unknown> = {},
+): void {
+	logger.info(
+		{
+			phase,
+			elapsedMs: Date.now() - startedAt,
+			...context,
+		},
+		"Server startup phase",
+	);
 }
 
 function resolveServerPort(env: NodeJS.ProcessEnv): number {

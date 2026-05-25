@@ -13,13 +13,22 @@ import { createServerLogger } from "../src/logger";
 describe("listenExpressApp", () => {
 	it("uses the requested fixed port when non-zero", async () => {
 		const calls: number[] = [];
-		const app = createFakeExpress((port, server) => {
+		const app = createFakeExpress((port, _server, onListening) => {
 			calls.push(port);
-			queueMicrotask(() => server.emit("listening"));
+			queueMicrotask(() => onListening?.());
 		});
 
 		await listenExpressApp(app, 3300);
 		expect(calls).toEqual([3300]);
+	});
+
+	it("resolves when listen completes before event listeners are attached", async () => {
+		const app = createFakeExpress((_port, _server, onListening) => {
+			onListening?.();
+		});
+
+		const server = await listenExpressApp(app, 3301);
+		expect(server).toBeDefined();
 	});
 
 	it("rejects bind errors without retrying", async () => {
@@ -119,12 +128,16 @@ describe("listenExpressApp", () => {
 });
 
 function createFakeExpress(
-	listenImpl: (port: number, server: EventEmitter) => void,
+	listenImpl: (
+		port: number,
+		server: EventEmitter,
+		onListening?: () => void,
+	) => void,
 ): Express {
 	return {
-		listen(port: number) {
+		listen(port: number, onListening?: () => void) {
 			const server = new EventEmitter() as unknown as Server;
-			listenImpl(port, server as unknown as EventEmitter);
+			listenImpl(port, server as unknown as EventEmitter, onListening);
 			return server;
 		},
 	} as unknown as Express;

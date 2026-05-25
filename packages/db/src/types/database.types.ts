@@ -4,17 +4,28 @@ import type * as schema from "../schema";
 
 export type ServerDatabaseInitializationPhase =
 	| "create_directory"
+	| "hydrate_native_symlinks"
 	| "initialise_cluster"
 	| "start_cluster"
 	| "create_database"
 	| "run_migrations"
-	| "bind_drizzle";
+	| "bind_drizzle"
+	| "cleanup_partial_client";
 
 export type ServerDatabaseEngine = "embedded-postgres" | "pglite";
 
 export type EmbeddedPostgresSettings = Required<
-	Omit<InitializeServerDatabaseOptions, "engine">
+	Omit<InitializeServerDatabaseOptions, "engine" | "onInitializationPhase">
 >;
+
+export interface ServerDatabaseInitializationEvent {
+	databasePath: string;
+	engine: ServerDatabaseEngine;
+	errorMessage?: string;
+	phase: ServerDatabaseInitializationPhase;
+	port: number;
+	status: "start" | "done" | "failed";
+}
 
 export interface ServerDatabaseInitializationErrorInput {
 	cause: unknown;
@@ -35,6 +46,7 @@ export interface InitializeServerDatabaseOptions {
 	databaseName?: string;
 	engine?: ServerDatabaseEngine;
 	logDatabaseProcess?: boolean;
+	onInitializationPhase?: (event: ServerDatabaseInitializationEvent) => void;
 	password?: string;
 	port?: number;
 	runMigrations?: boolean;

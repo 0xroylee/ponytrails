@@ -27,44 +27,68 @@ export async function initializeServerDatabase(
 	options: InitializeServerDatabaseOptions = {},
 ): Promise<ServerDatabase> {
 	const resolvedPath = path.resolve(databasePath);
-	if ((await resolveDatabaseEngine(options)) === "pglite") {
+	const engine = await resolveDatabaseEngine(options);
+	if (engine === "pglite") {
 		return initializePgliteServerDatabase(resolvedPath, options);
 	}
 
 	const settings = await resolveSettings(options);
+	const emitPhase = createDatabasePhaseEmitter(
+		options,
+		"embedded-postgres",
+		resolvedPath,
+		settings.port,
+	);
+	let clusterStarted = false;
 	let postgres: EmbeddedPostgres | undefined;
 	let client: Pool | undefined;
 	let phase: ServerDatabaseInitializationPhase = "create_directory";
 
 	try {
+		emitPhase(phase, "start");
 		await mkdir(path.dirname(resolvedPath), { recursive: true });
+		emitPhase(phase, "done");
 
+		phase = "hydrate_native_symlinks";
+		emitPhase(phase, "start");
 		await hydrateEmbeddedPostgresNativeSymlinks();
+		emitPhase(phase, "done");
 		postgres = createEmbeddedPostgres(resolvedPath, settings);
 
 		phase = "initialise_cluster";
+		emitPhase(phase, "start");
 		await initialiseClusterIfNeeded(resolvedPath, postgres);
+		emitPhase(phase, "done");
 
 		phase = "start_cluster";
+		emitPhase(phase, "start");
 		await postgres.start();
+		clusterStarted = true;
+		emitPhase(phase, "done");
 
 		phase = "create_database";
+		emitPhase(phase, "start");
 		await ensureDatabaseExists(postgres, settings.databaseName);
 		client = createPool(settings);
+		emitPhase(phase, "done");
 
 		if (settings.runMigrations) {
 			phase = "run_migrations";
+			emitPhase(phase, "start");
 			const migrationClient = await client.connect();
 			try {
 				await runMigrations(migrationClient);
 			} finally {
 				migrationClient.release();
 			}
+			emitPhase(phase, "done");
 		}
 
 		phase = "bind_drizzle";
+		emitPhase(phase, "start");
 		const initializedClient = client;
 		const db = drizzle({ client: initializedClient, schema });
+		emitPhase(phase, "done");
 		return {
 			client: initializedClient,
 			databasePath: resolvedPath,
@@ -76,7 +100,10 @@ export async function initializeServerDatabase(
 			},
 		};
 	} catch (error) {
-		await closePartialClient(client, postgres);
+		emitPhase(phase, "failed", toErrorMessage(error));
+		emitPhase("cleanup_partial_client", "start");
+		await closePartialClient(client, clusterStarted ? postgres : undefined);
+		emitPhase("cleanup_partial_client", "done");
 		throw new ServerDatabaseInitializationError({
 			cause: error,
 			databasePath: resolvedPath,
@@ -84,6 +111,35 @@ export async function initializeServerDatabase(
 			port: settings.port,
 		});
 	}
+}
+
+function createDatabasePhaseEmitter(
+	options: InitializeServerDatabaseOptions,
+	engine: ServerDatabaseEngine,
+	databasePath: string,
+	port: number,
+): (
+	phase: ServerDatabaseInitializationPhase,
+	status: "start" | "done" | "failed",
+	errorMessage?: string,
+) => void {
+	return (phase, status, errorMessage) => {
+		options.onInitializationPhase?.({
+			databasePath,
+			engine,
+			errorMessage,
+			phase,
+			port,
+			status,
+		});
+	};
+}
+
+function toErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return error === undefined ? "Unknown error" : String(error);
 }
 
 export { ServerDatabaseInitializationError } from "./database-error";

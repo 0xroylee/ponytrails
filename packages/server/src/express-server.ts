@@ -67,9 +67,14 @@ export function createExpressApp(
 
 export function listenExpressApp(app: Express, port: number): Promise<Server> {
 	return new Promise((resolve, reject) => {
-		const server = app.listen(port);
-		server.once("listening", () => resolve(server));
-		server.once("error", reject);
+		const onError = (error: Error) => reject(error);
+		const server = app.listen(port, () => {
+			queueMicrotask(() => {
+				server.off("error", onError);
+				resolve(server);
+			});
+		});
+		server.once("error", onError);
 	});
 }
 

@@ -9,8 +9,7 @@ export class ServerDatabaseInitializationError extends Error {
 	readonly port: number;
 
 	constructor(input: ServerDatabaseInitializationErrorInput) {
-		const causeMessage =
-			input.cause instanceof Error ? input.cause.message : String(input.cause);
+		const causeMessage = normalizeCauseMessage(input.cause);
 		super(
 			`Failed to initialize server database at ${input.databasePath} on port ${input.port} during ${input.phase}: ${causeMessage}`,
 			{ cause: input.cause },
@@ -20,4 +19,11 @@ export class ServerDatabaseInitializationError extends Error {
 		this.phase = input.phase;
 		this.port = input.port;
 	}
+}
+
+function normalizeCauseMessage(cause: unknown): string {
+	if (cause instanceof Error) {
+		return cause.message;
+	}
+	return cause === undefined ? "Unknown error" : String(cause);
 }
