@@ -104,10 +104,7 @@ export function ChatComposer({
 	return (
 		<div className={cn(isHero ? "px-0 py-0" : "px-4 py-3")}>
 			<div
-				className={cn(
-					"relative mx-auto",
-					isHero ? "max-w-5xl" : "max-w-4xl xl:mr-[22rem]",
-				)}
+				className={cn("relative mx-auto", isHero ? "max-w-5xl" : "max-w-4xl")}
 			>
 				{showCommands ? (
 					<ChatCommandMenu

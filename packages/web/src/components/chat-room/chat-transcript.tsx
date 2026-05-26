@@ -98,13 +98,13 @@ export function ChatTranscript({
 					</div>
 				) : null}
 			</div>
-			{hasSessionActivity ? (
+			{/* {hasSessionActivity ? (
 				<ChatEnvironmentPanel
 					missionProgress={missionProgress}
 					projectId={session?.projectId ?? null}
 					onDraftCommand={onDraftCommand}
 				/>
-			) : null}
+			) : null} */}
 		</div>
 	);
 }
@@ -123,7 +123,7 @@ function WorkingSectionHeader({
 
 	return (
 		<div className="grid gap-4 pt-2">
-			<Typography className="text-lg font-medium" variant="description">
+			<Typography className="" variant="description">
 				Working for {formatElapsedSeconds(startedAt, now)}s
 			</Typography>
 			<div className="h-px bg-surface-active" />

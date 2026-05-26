@@ -83,9 +83,7 @@ export function ChatEnvironmentPanel({
 			</div>
 			<div className="my-4 h-px bg-zinc-700/70" />
 			<div className="grid gap-3">
-				<Typography className="text-zinc-400" variant="sectionTitle">
-					Sources
-				</Typography>
+				<Typography variant="sectionTitle">Sources</Typography>
 				{environment?.mcps.map((source) => (
 					<EnvironmentRow
 						icon={<Database size={16} />}

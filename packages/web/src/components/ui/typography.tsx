@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 const defaultElementByVariant: Record<TypographyVariant, React.ElementType> = {
 	pageTitle: "h1",
-	sectionTitle: "h2",
+	sectionTitle: "h3",
 	cardTitle: "h3",
 	dialogTitle: "h2",
 	label: "span",
@@ -33,7 +33,7 @@ const typographyVariants = cva("m-0", {
 	variants: {
 		variant: {
 			pageTitle: "text-xl font-medium text-zinc-100",
-			sectionTitle: "text-base font-medium text-zinc-100",
+			sectionTitle: "text-base text-zinc-100",
 			cardTitle: "text-sm font-medium text-zinc-100",
 			dialogTitle:
 				"text-lg font-medium leading-none tracking-tight text-zinc-100",
