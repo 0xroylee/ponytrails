@@ -1,6 +1,7 @@
 import {
 	assertObjectRecord,
 	parseListResponse,
+	readNullableNumber,
 	readNullableString,
 	readNumber,
 	readString,
@@ -39,9 +40,16 @@ export function parseTokenUsageRecord(payload: unknown): TokenUsageRecord {
 			"/api/token-usage",
 		),
 		stage: readString(row, "stage", "/api/token-usage"),
+		agentBackend: readNullableString(row, "agentBackend", "/api/token-usage"),
+		model: readNullableString(row, "model", "/api/token-usage"),
 		inputTokens: readNumber(row, "inputTokens", "/api/token-usage"),
 		outputTokens: readNumber(row, "outputTokens", "/api/token-usage"),
 		totalTokens: readNumber(row, "totalTokens", "/api/token-usage"),
+		estimatedCostMicrousd: readNullableNumber(
+			row,
+			"estimatedCostMicrousd",
+			"/api/token-usage",
+		),
 		recordedAt: readString(row, "recordedAt", "/api/token-usage"),
 	};
 }

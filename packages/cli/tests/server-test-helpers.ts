@@ -14,7 +14,7 @@ export async function createServerTestDatabase(): Promise<TestDatabase> {
 	const db = new Database(dbPath, { create: true });
 	try {
 		db.run(
-			"CREATE TABLE token_usage (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, stage TEXT NOT NULL, input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL, total_tokens INTEGER NOT NULL, recorded_at TEXT NOT NULL)",
+			"CREATE TABLE token_usage (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, task_id TEXT, task_execution_log_id TEXT, stage TEXT NOT NULL, agent_backend TEXT, model TEXT, input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL, total_tokens INTEGER NOT NULL, estimated_cost_microusd INTEGER, recorded_at TEXT NOT NULL)",
 		);
 		db.run(
 			"CREATE TABLE jobs (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, issue_key TEXT NOT NULL, stage TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)",

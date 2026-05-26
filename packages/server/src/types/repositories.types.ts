@@ -4,9 +4,12 @@ export interface TokenUsageRecord {
 	taskId: string | null;
 	taskExecutionLogId: string | null;
 	stage: string;
+	agentBackend: string | null;
+	model: string | null;
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;
+	estimatedCostMicrousd: number | null;
 	recordedAt: string;
 }
 

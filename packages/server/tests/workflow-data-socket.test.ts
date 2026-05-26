@@ -7,6 +7,7 @@ import {
 	taskExecutionLogsTable,
 	taskExecutionStepsTable,
 	taskPullRequestsTable,
+	tokenUsageTable,
 } from "devos-db";
 import type { RealtimeEventPayload } from "../src/realtime";
 import { WORKFLOW_DATA_WS_PATH } from "../src/workflow-data";
@@ -213,6 +214,39 @@ describe("workflow data websocket", () => {
 			executionLogId: "exec-1",
 			status: "succeeded",
 			finishedAt: "2026-05-13T00:01:03.000Z",
+			usage: [
+				{
+					id: "exec-1:usage:0001",
+					runId: "project-1:TASK-000001:2026-05-13T00:00:00.000Z",
+					stage: "implementing",
+					agentBackend: "codex",
+					model: "gpt-5",
+					inputTokens: 100,
+					outputTokens: 25,
+					totalTokens: 125,
+					estimatedCostMicrousd: 2000,
+					recordedAt: "2026-05-13T00:01:02.500Z",
+				},
+			],
+		});
+		await sendWorkflowDataRequest(socket, "taskExecutions.finish", {
+			executionLogId: "exec-1",
+			status: "succeeded",
+			finishedAt: "2026-05-13T00:01:03.000Z",
+			usage: [
+				{
+					id: "exec-1:usage:0001",
+					runId: "project-1:TASK-000001:2026-05-13T00:00:00.000Z",
+					stage: "implementing",
+					agentBackend: "codex",
+					model: "gpt-5",
+					inputTokens: 100,
+					outputTokens: 25,
+					totalTokens: 125,
+					estimatedCostMicrousd: 2000,
+					recordedAt: "2026-05-13T00:01:02.500Z",
+				},
+			],
 		});
 
 		const [log] = await db.select().from(taskExecutionLogsTable);
@@ -224,6 +258,15 @@ describe("workflow data websocket", () => {
 		expect(log?.finishedAt).toContain("2026-05-13");
 		expect(log?.log.match(/Implemented the thing/g)).toHaveLength(1);
 		expect(await db.select().from(taskExecutionStepsTable)).toHaveLength(1);
+		expect(await db.select().from(tokenUsageTable)).toEqual([
+			expect.objectContaining({
+				id: "exec-1:usage:0001",
+				taskId: "task-1",
+				taskExecutionLogId: "exec-1",
+				model: "gpt-5",
+				estimatedCostMicrousd: 2000,
+			}),
+		]);
 		expect(events.map((event) => event.type)).toContain("task.execution.event");
 	});
 

@@ -73,35 +73,40 @@ export function ChatTranscript({
 			className="relative min-h-0 min-w-0 overflow-auto px-4 py-6"
 			ref={scrollContainerRef}
 		>
-			<div className="mx-auto grid min-w-0 max-w-4xl gap-4">
-				{isLoading ? <ChatTranscriptSkeleton /> : null}
-				{error ? <ErrorLine text={error.message} /> : null}
+			<div className="mx-auto grid min-w-0 max-w-6xl gap-4">
 				<ChatMissionProgress
 					liveLogLines={streamLines}
 					mission={missionProgress}
 				/>
-				{!isLoading && messages.length === 0 && !missionProgress ? (
-					<ChatSelectedSessionWelcome />
-				) : null}
-				{messages.map((message) => (
-					<ChatMessageBubble key={message.id} message={message} />
-				))}
-				{showWorkingHeader ? (
-					<WorkingSectionHeader startedAt={workingStartedAt ?? ""} />
-				) : null}
-				{showThinking ? <ThinkingLine /> : null}
-				{showStandaloneStream ? (
-					<div className="justify-self-start whitespace-pre-wrap rounded-md border border-border bg-surface-panel px-3 py-2 font-mono text-xs text-zinc-300">
-						{streamLines.map((line) => (
-							<div
-								className={line.stream === "stderr" ? "text-red-200" : ""}
-								key={line.id}
-							>
-								{line.text}
-							</div>
-						))}
-					</div>
-				) : null}
+				<div
+					className="mx-auto grid w-full min-w-0 max-w-4xl gap-4"
+					data-chat-transcript-message-column="true"
+				>
+					{isLoading ? <ChatTranscriptSkeleton /> : null}
+					{error ? <ErrorLine text={error.message} /> : null}
+					{!isLoading && messages.length === 0 && !missionProgress ? (
+						<ChatSelectedSessionWelcome />
+					) : null}
+					{messages.map((message) => (
+						<ChatMessageBubble key={message.id} message={message} />
+					))}
+					{showWorkingHeader ? (
+						<WorkingSectionHeader startedAt={workingStartedAt ?? ""} />
+					) : null}
+					{showThinking ? <ThinkingLine /> : null}
+					{showStandaloneStream ? (
+						<div className="justify-self-start whitespace-pre-wrap rounded-md border border-border bg-surface-panel px-3 py-2 font-mono text-xs text-zinc-300">
+							{streamLines.map((line) => (
+								<div
+									className={line.stream === "stderr" ? "text-red-200" : ""}
+									key={line.id}
+								>
+									{line.text}
+								</div>
+							))}
+						</div>
+					) : null}
+				</div>
 			</div>
 			{/* {hasSessionActivity ? (
 				<ChatEnvironmentPanel

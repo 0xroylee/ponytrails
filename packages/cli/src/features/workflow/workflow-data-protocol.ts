@@ -98,6 +98,20 @@ export interface WorkflowTaskExecutionFinishInput {
 	executionLogId: string;
 	status: Exclude<WorkflowExecutionStatus, "running">;
 	finishedAt?: string;
+	usage?: WorkflowTaskExecutionUsageInput[];
+}
+
+export interface WorkflowTaskExecutionUsageInput {
+	id: string;
+	runId: string;
+	stage: string;
+	agentBackend?: string;
+	model?: string;
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+	estimatedCostMicrousd?: number;
+	recordedAt: string;
 }
 
 export interface WorkflowProgressEventRecord {

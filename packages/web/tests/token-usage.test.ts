@@ -16,9 +16,12 @@ describe("token usage", () => {
 				taskId: "task-1",
 				taskExecutionLogId: "execution-1",
 				stage: "planning",
+				agentBackend: "codex",
+				model: "gpt-5",
 				inputTokens: 1200,
 				outputTokens: 300,
 				totalTokens: 1500,
+				estimatedCostMicrousd: 19500,
 				recordedAt: "2026-05-26T00:00:00.000Z",
 			}),
 		).toEqual({
@@ -27,9 +30,12 @@ describe("token usage", () => {
 			taskId: "task-1",
 			taskExecutionLogId: "execution-1",
 			stage: "planning",
+			agentBackend: "codex",
+			model: "gpt-5",
 			inputTokens: 1200,
 			outputTokens: 300,
 			totalTokens: 1500,
+			estimatedCostMicrousd: 19500,
 			recordedAt: "2026-05-26T00:00:00.000Z",
 		});
 	});
@@ -57,6 +63,7 @@ describe("token usage", () => {
 			inputTokens: 1550,
 			outputTokens: 325,
 			totalTokens: 1875,
+			estimatedCostMicrousd: null,
 			runs: 2,
 		});
 		expect(formatTokenCount(1550)).toBe("1.6K");
@@ -72,9 +79,12 @@ function usageRecord(
 		taskId: "task-1",
 		taskExecutionLogId: "execution-1",
 		stage: "planning",
+		agentBackend: null,
+		model: null,
 		inputTokens: 0,
 		outputTokens: 0,
 		totalTokens: 0,
+		estimatedCostMicrousd: null,
 		recordedAt: "2026-05-26T00:00:00.000Z",
 		...overrides,
 	};

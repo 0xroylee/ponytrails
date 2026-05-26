@@ -63,9 +63,12 @@ describe("server drizzle schema", () => {
 			taskId: null,
 			taskExecutionLogId: null,
 			stage: "planning",
+			agentBackend: "codex",
+			model: "gpt-5",
 			inputTokens: 10,
 			outputTokens: 5,
 			totalTokens: 15,
+			estimatedCostMicrousd: 200,
 			recordedAt: "2026-05-12 00:00:00",
 		};
 		const job: NewJobRow = {
@@ -157,9 +160,12 @@ describe("server drizzle schema", () => {
 		expect(tokenUsageRow?.taskId).toBeNull();
 		expect(tokenUsageRow?.taskExecutionLogId).toBeNull();
 		expect(tokenUsageRow?.stage).toBe(tokenUsage.stage);
+		expect(tokenUsageRow?.agentBackend).toBe("codex");
+		expect(tokenUsageRow?.model).toBe("gpt-5");
 		expect(tokenUsageRow?.inputTokens).toBe(tokenUsage.inputTokens);
 		expect(tokenUsageRow?.outputTokens).toBe(tokenUsage.outputTokens);
 		expect(tokenUsageRow?.totalTokens).toBe(tokenUsage.totalTokens);
+		expect(tokenUsageRow?.estimatedCostMicrousd).toBe(200);
 		expect(tokenUsageRow?.recordedAt).toBe(tokenUsage.recordedAt);
 		expect(jobRow).toEqual(job);
 		expect(agentRow).toEqual(agent);
@@ -275,9 +281,12 @@ describe("server drizzle schema", () => {
 			taskId: task.id,
 			taskExecutionLogId: executionLog.id,
 			stage: "implement",
+			agentBackend: "codex",
+			model: "gpt-5",
 			inputTokens: 100,
 			outputTokens: 200,
 			totalTokens: 300,
+			estimatedCostMicrousd: 5000,
 			recordedAt: "2026-05-12 01:08:00",
 		};
 
@@ -384,6 +393,9 @@ describe("server drizzle schema", () => {
 		expect(tokenUsageRow?.taskExecutionLogId).toBe(
 			taskTokenUsage.taskExecutionLogId ?? null,
 		);
+		expect(tokenUsageRow?.agentBackend).toBe("codex");
+		expect(tokenUsageRow?.model).toBe("gpt-5");
+		expect(tokenUsageRow?.estimatedCostMicrousd).toBe(5000);
 	});
 
 	it("stores and reads project cron job definitions per project", async () => {
@@ -493,6 +505,9 @@ describe("server drizzle schema", () => {
 
 			expect(existingRow?.taskId).toBeNull();
 			expect(existingRow?.taskExecutionLogId).toBeNull();
+			expect(existingRow?.agentBackend).toBeNull();
+			expect(existingRow?.model).toBeNull();
+			expect(existingRow?.estimatedCostMicrousd).toBeNull();
 
 			await migrated.db.insert(tokenUsageTable).values({
 				id: "tu-old-2",
@@ -500,9 +515,12 @@ describe("server drizzle schema", () => {
 				taskId: null,
 				taskExecutionLogId: null,
 				stage: "implement",
+				agentBackend: "codex",
+				model: "gpt-5",
 				inputTokens: 7,
 				outputTokens: 8,
 				totalTokens: 15,
+				estimatedCostMicrousd: 123,
 				recordedAt: "2026-05-12 03:10:00",
 			});
 
@@ -512,6 +530,9 @@ describe("server drizzle schema", () => {
 				.where(eq(tokenUsageTable.id, "tu-old-2"));
 			expect(insertedRow?.taskId).toBeNull();
 			expect(insertedRow?.taskExecutionLogId).toBeNull();
+			expect(insertedRow?.agentBackend).toBe("codex");
+			expect(insertedRow?.model).toBe("gpt-5");
+			expect(insertedRow?.estimatedCostMicrousd).toBe(123);
 
 			await migrated.close();
 		} finally {

@@ -10,8 +10,11 @@ export const tokenUsageTable = pgTable("token_usage", {
 		() => taskExecutionLogsTable.id,
 	),
 	stage: text("stage").notNull(),
+	agentBackend: text("agent_backend"),
+	model: text("model"),
 	inputTokens: integer("input_tokens").notNull(),
 	outputTokens: integer("output_tokens").notNull(),
 	totalTokens: integer("total_tokens").notNull(),
+	estimatedCostMicrousd: integer("estimated_cost_microusd"),
 	recordedAt: timestamp("recorded_at", { mode: "string" }).notNull(),
 });

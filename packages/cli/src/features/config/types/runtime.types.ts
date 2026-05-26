@@ -46,6 +46,11 @@ export interface McpServerRuntimeConfig {
 	env?: Record<string, string>;
 }
 
+export interface ModelTokenPricingConfig {
+	inputUsdPerMillion: number;
+	outputUsdPerMillion: number;
+}
+
 export type DeepPartial<T> = {
 	[K in keyof T]?: T[K] extends Array<infer U>
 		? Array<DeepPartial<U>>
@@ -78,6 +83,11 @@ export interface ProjectRuntimeConfig {
 		defaultBugLabel: string;
 	};
 	server: ServerRuntimeConfig;
+	usage?: {
+		pricing: {
+			models: Record<string, ModelTokenPricingConfig>;
+		};
+	};
 	codex: {
 		binary: string;
 		streamLogs: boolean;

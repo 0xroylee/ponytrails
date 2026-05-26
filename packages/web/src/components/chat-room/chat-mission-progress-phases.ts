@@ -8,12 +8,13 @@ import type {
 	ChatMissionResult,
 } from "./types/chat-mission-progress.types";
 
-const PHASES: Array<{ id: ChatMissionPhaseId; label: string }> = [
-	{ id: "plan", label: "Plan" },
-	{ id: "implement", label: "Implement" },
-	{ id: "testing", label: "Testing" },
-	{ id: "qa", label: "QA" },
-];
+export const MISSION_PHASES: Array<{ id: ChatMissionPhaseId; label: string }> =
+	[
+		{ id: "plan", label: "Plan" },
+		{ id: "implement", label: "Implement" },
+		{ id: "testing", label: "Testing" },
+		{ id: "qa", label: "QA" },
+	];
 
 export function createMissionPhases({
 	executions,
@@ -27,14 +28,16 @@ export function createMissionPhases({
 	const statusByPhase = new Map<ChatMissionPhaseId, ChatMissionPhaseStatus>();
 	for (const execution of executions) {
 		for (const step of execution.steps) {
-			const phase = resolveStepPhase(step.action, step.detail);
-			if (phase) statusByPhase.set(phase, normalizePhaseStatus(step.status));
+			const phase = resolveMissionPhaseForStep(step.action, step.detail);
+			if (phase) {
+				statusByPhase.set(phase, normalizeMissionPhaseStatus(step.status));
+			}
 		}
 	}
 	applyTaskStatusFallback(statusByPhase, taskStatus);
 	applyLatestResult(statusByPhase, latestResult);
 	completePreviousPhases(statusByPhase);
-	return PHASES.map((phase) => ({
+	return MISSION_PHASES.map((phase) => ({
 		...phase,
 		status: statusByPhase.get(phase.id) ?? "pending",
 	}));
@@ -68,7 +71,7 @@ function applyLatestResult(
 function completePreviousPhases(
 	statusByPhase: Map<ChatMissionPhaseId, ChatMissionPhaseStatus>,
 ): void {
-	const ordered = PHASES.map((phase) => phase.id);
+	const ordered = MISSION_PHASES.map((phase) => phase.id);
 	let latestIndex = -1;
 	for (let index = ordered.length - 1; index >= 0; index -= 1) {
 		const id = ordered[index];
@@ -83,7 +86,7 @@ function completePreviousPhases(
 	}
 }
 
-function resolveStepPhase(
+export function resolveMissionPhaseForStep(
 	action: string,
 	detail: string | null,
 ): ChatMissionPhaseId | null {
@@ -108,7 +111,9 @@ function resolveStepPhase(
 	return null;
 }
 
-function normalizePhaseStatus(status: string): ChatMissionPhaseStatus {
+export function normalizeMissionPhaseStatus(
+	status: string,
+): ChatMissionPhaseStatus {
 	const normalized = status.toLowerCase();
 	if (["started", "queued", "running"].includes(normalized)) return "running";
 	if (["succeeded", "success", "completed", "done"].includes(normalized)) {

@@ -47,7 +47,7 @@ describe("database scripts", () => {
 				);
 				expect(migrations.rows.length).toBeGreaterThan(0);
 				expect(migrations.rows.at(-1)?.id).toBe(
-					"0017_canonical_workflow_statuses",
+					"0018_token_usage_cost_metadata",
 				);
 				const columns = await database.client.query<{ column_name: string }>(
 					`

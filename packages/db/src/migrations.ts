@@ -65,6 +65,10 @@ const MIGRATIONS: Migration[] = [
 		id: "0017_canonical_workflow_statuses",
 		fileName: "0017_canonical_workflow_statuses.sql",
 	},
+	{
+		id: "0018_token_usage_cost_metadata",
+		fileName: "0018_token_usage_cost_metadata.sql",
+	},
 ];
 
 async function ensureMigrationsTable(

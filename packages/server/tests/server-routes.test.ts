@@ -48,9 +48,12 @@ describe("server routes", () => {
 				taskId: null,
 				taskExecutionLogId: null,
 				stage: "planning",
+				agentBackend: null,
+				model: null,
 				inputTokens: 10,
 				outputTokens: 5,
 				totalTokens: 15,
+				estimatedCostMicrousd: null,
 				recordedAt: "2026-05-12T00:00:00.000Z",
 			},
 		]);

@@ -4,10 +4,20 @@ import type {
 	ProjectBoardTaskRecord,
 	TaskActivityRecord,
 	TaskActivityResponse,
+	TokenUsageRecord,
 } from "@/lib/api";
-import { useBoardTaskQuery } from "@/lib/api/queries";
+import { useBoardTaskQuery, useTokenUsageQuery } from "@/lib/api/queries";
 import { useTaskActivityQuery } from "@/lib/api/task-activity-query";
 
+import { summarizeTokenUsage } from "../issues-board/issue-task-detail-panel-utils";
+import {
+	createEmptyPhaseCheckpoints,
+	createPhaseCheckpoints,
+} from "./chat-mission-progress-checkpoints";
+import {
+	createEmptyPhaseLogLines,
+	createPhaseLogLines,
+} from "./chat-mission-progress-logs";
 import { createMissionPhases } from "./chat-mission-progress-phases";
 import type {
 	ChatMissionExecution,
@@ -17,6 +27,7 @@ import type {
 } from "./types/chat-mission-progress.types";
 
 const ACTIVE_MISSION_STATUSES = new Set(["in_progress", "in_review"]);
+const TERMINAL_MISSION_STATUSES = new Set(["done", "failed", "canceled"]);
 const MAX_LATEST_LOG_LINES = 8;
 
 export function useChatMissionProgress(
@@ -27,10 +38,11 @@ export function useChatMissionProgress(
 	});
 	const shouldLoadActivity =
 		Boolean(taskId) &&
-		Boolean(taskQuery.data && isActiveMissionStatus(taskQuery.data.status));
+		Boolean(taskQuery.data && isMissionVisibleStatus(taskQuery.data.status));
 	const activityQuery = useTaskActivityQuery(taskId ?? "", {
 		enabled: shouldLoadActivity,
 	});
+	const usageQuery = useTokenUsageQuery({ enabled: Boolean(taskId) });
 	if (!taskId) return null;
 	if (taskQuery.error) {
 		return createMissionState(taskId, "error", {
@@ -38,7 +50,7 @@ export function useChatMissionProgress(
 		});
 	}
 	if (taskQuery.isLoading || !taskQuery.data) return null;
-	if (!isActiveMissionStatus(taskQuery.data.status)) return null;
+	if (!isMissionVisibleStatus(taskQuery.data.status)) return null;
 	if (activityQuery.error) {
 		return createMissionState(taskId, "error", {
 			errorMessage:
@@ -48,9 +60,13 @@ export function useChatMissionProgress(
 	if (activityQuery.isLoading) {
 		return createMissionState(taskId, "loading");
 	}
+	const usageRecords = (usageQuery.data ?? []).filter(
+		(record) => record.taskId === taskId,
+	);
 	return createChatMissionProgressModel({
 		activity: activityQuery.data,
 		task: taskQuery.data,
+		usageRecords,
 	});
 }
 
@@ -58,12 +74,22 @@ export function isActiveMissionStatus(status: string): boolean {
 	return ACTIVE_MISSION_STATUSES.has(status.toLowerCase());
 }
 
+export function isMissionVisibleStatus(status: string): boolean {
+	const normalized = status.toLowerCase();
+	return (
+		ACTIVE_MISSION_STATUSES.has(normalized) ||
+		TERMINAL_MISSION_STATUSES.has(normalized)
+	);
+}
+
 export function createChatMissionProgressModel({
 	activity,
 	task,
+	usageRecords = [],
 }: {
 	activity?: TaskActivityResponse;
 	task: ProjectBoardTaskRecord;
+	usageRecords?: TokenUsageRecord[];
 }): ChatMissionProgressViewModel {
 	const activities = activity?.activities ?? [];
 	const notes = activities
@@ -79,6 +105,11 @@ export function createChatMissionProgressModel({
 		.filter((item) => item.kind === "execution")
 		.map(createMissionExecution);
 	const latestResult = createLatestResult(executions);
+	const phases = createMissionPhases({
+		executions,
+		latestResult,
+		taskStatus: task.status,
+	});
 	return {
 		state: "ready",
 		taskId: task.id,
@@ -91,11 +122,11 @@ export function createChatMissionProgressModel({
 		executions,
 		latestLogLines: createLatestLogLines(executions),
 		latestResult,
-		phases: createMissionPhases({
-			executions,
-			latestResult,
-			taskStatus: task.status,
-		}),
+		usageSummary:
+			usageRecords.length > 0 ? summarizeTokenUsage(usageRecords) : null,
+		phaseCheckpoints: createPhaseCheckpoints(executions),
+		phaseLogLines: createPhaseLogLines({ executions, phases }),
+		phases,
 	};
 }
 
@@ -116,6 +147,9 @@ function createMissionState(
 		executions: [],
 		latestLogLines: [],
 		latestResult: null,
+		usageSummary: null,
+		phaseCheckpoints: createEmptyPhaseCheckpoints(),
+		phaseLogLines: createEmptyPhaseLogLines(),
 		phases: createMissionPhases({
 			executions: [],
 			latestResult: null,
@@ -154,14 +188,15 @@ function parseLogLine(
 	line: string,
 	index: number,
 ): ChatMissionLogLine {
-	const match = line.match(/^\[[^\]]+\s+(stdout|stderr)\]\s?(.*)$/);
+	const match = line.match(/^\[([^\]\s]+)\s+(stdout|stderr)\]\s?(.*)$/);
 	if (!match) {
 		return { id: `${executionId}:${index}`, stream: "system", text: line };
 	}
 	return {
+		emittedAt: match[1],
 		id: `${executionId}:${index}`,
-		stream: match[1] === "stderr" ? "stderr" : "stdout",
-		text: match[2] ?? "",
+		stream: match[2] === "stderr" ? "stderr" : "stdout",
+		text: match[3] ?? "",
 	};
 }
 

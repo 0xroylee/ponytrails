@@ -85,9 +85,12 @@ export interface SplitTaskRef {
 
 export interface CodexUsageRecord {
 	stage: "planning" | "implementing" | "testing";
+	agentBackend?: string;
+	model?: string;
 	inputTokens?: number;
 	outputTokens?: number;
 	totalTokens?: number;
+	estimatedCostMicrousd?: number;
 	recordedAt: string;
 }
 

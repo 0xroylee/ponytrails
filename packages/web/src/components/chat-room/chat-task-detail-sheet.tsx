@@ -54,7 +54,7 @@ export function ChatTaskDetailPanel({
 				aria-label="Task details"
 				className="grid min-h-0 w-[26rem] min-w-0 shrink-0 grid-rows-[auto_minmax(0,1fr)] overflow-x-hidden border-l border-border bg-surface-inset text-zinc-100"
 			>
-				<div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+				{/* <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
 					<Typography variant="dialogTitle">Task details</Typography>
 					<Button
 						aria-label="Close task details"
@@ -65,7 +65,7 @@ export function ChatTaskDetailPanel({
 					>
 						<X size={16} />
 					</Button>
-				</div>
+				</div> */}
 				<div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto px-5 py-5">
 					{renderDetailContent(taskQuery, taskId)}
 				</div>

@@ -32,7 +32,7 @@ const defaultElementByVariant: Record<TypographyVariant, React.ElementType> = {
 const typographyVariants = cva("m-0", {
 	variants: {
 		variant: {
-			pageTitle: "text-xl font-medium text-zinc-100",
+			pageTitle: "text-lg font-medium text-zinc-100",
 			sectionTitle: "text-base text-zinc-100",
 			cardTitle: "text-sm font-medium text-zinc-100",
 			dialogTitle:

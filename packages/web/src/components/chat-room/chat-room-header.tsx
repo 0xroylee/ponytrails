@@ -16,7 +16,7 @@ export function ChatRoomHeader({
 	onToggleTaskDetails,
 }: ChatRoomHeaderProps): ReactElement {
 	return (
-		<header className="flex items-center justify-between gap-3 bg-surface-inset px-4 py-3">
+		<header className="flex items-center justify-between gap-3 px-4 py-2">
 			<div className="flex min-w-0 flex-1 items-center gap-3">
 				<Button
 					asChild
@@ -29,12 +29,10 @@ export function ChatRoomHeader({
 					</label>
 				</Button>
 				<div className="min-w-0">
-					<Typography className="truncate text-zinc-300" variant="sectionTitle">
-						{title}
-					</Typography>
-					<Typography className="mt-1 truncate" variant="muted">
+					<Typography className="truncate text-zinc-300">{title}</Typography>
+					{/* <Typography className="mt-1 truncate" variant="muted">
 						{projectId}
-					</Typography>
+					</Typography> */}
 				</div>
 			</div>
 			{activeTaskId ? (
@@ -43,15 +41,11 @@ export function ChatRoomHeader({
 					className="shrink-0"
 					onClick={onToggleTaskDetails}
 					type="button"
-					variant="secondary"
+					variant="outline"
+					size="sm"
 				>
 					<FileText size={16} />
-					<Typography as="span" className="hidden sm:inline">
-						Task details
-					</Typography>
-					<Typography as="span" className="sm:hidden">
-						Details
-					</Typography>
+					Details
 				</Button>
 			) : null}
 		</header>

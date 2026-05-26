@@ -13,8 +13,9 @@ import type {
 } from "./types/workflow-data.types";
 import type { WorkflowDataContext } from "./workflow-data-actions";
 import { workflowError } from "./workflow-data-error";
+import { appendMarkedStream, streamEventMarker } from "./workflow-stream-log";
+import { recordTaskExecutionUsage } from "./workflow-token-usage-actions";
 
-const STREAM_EVENT_PREFIX = "[devos-event:";
 type ExecutionRealtimeEvent = Extract<
 	Parameters<RealtimeEventPublisher["publish"]>[0],
 	{ type: "task.execution.event" }
@@ -112,6 +113,11 @@ export async function finishTaskExecution(
 	const existing = await readExecutionLog(context, input.executionLogId);
 	const finishedAt =
 		existing.finishedAt ?? input.finishedAt ?? new Date().toISOString();
+	await recordTaskExecutionUsage(context, {
+		executionLogId: input.executionLogId,
+		taskId: existing.taskId,
+		usage: input.usage,
+	});
 	await context.db
 		.update(taskExecutionLogsTable)
 		.set({ status: input.status, finishedAt })
@@ -189,21 +195,6 @@ async function readExecutionLog(
 		.where(eq(taskExecutionLogsTable.id, executionLogId));
 	if (!log) throw workflowError("not_found", "Execution log not found");
 	return log;
-}
-
-function appendMarkedStream(
-	currentLog: string,
-	marker: string,
-	input: WorkflowTaskExecutionStreamInput,
-): string {
-	const linePrefix = `[${input.emittedAt ?? new Date().toISOString()} ${input.stream}] `;
-	const chunk = input.text.endsWith("\n") ? input.text : `${input.text}\n`;
-	const separator = currentLog && !currentLog.endsWith("\n") ? "\n" : "";
-	return `${currentLog}${separator}${marker}\n${linePrefix}${chunk}`;
-}
-
-function streamEventMarker(eventId: string): string {
-	return `${STREAM_EVENT_PREFIX}${eventId}]`;
 }
 
 function progressAction(event: WorkflowTaskExecutionProgressInput["event"]) {

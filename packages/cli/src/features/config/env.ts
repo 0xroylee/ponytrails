@@ -103,6 +103,11 @@ export function buildEnvBase(
 				port: instanceServerDatabase?.port ?? DEFAULT_EMBEDDED_POSTGRES_PORT,
 			},
 		},
+		usage: {
+			pricing: {
+				models: {},
+			},
+		},
 		codex: {
 			binary: env.CODEX_BINARY ?? "codex",
 			streamLogs: env.PIV_DEV_MODE === "1" || env.PIV_PRINT_CODEX_LOGS === "1",

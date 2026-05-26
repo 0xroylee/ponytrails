@@ -5,7 +5,11 @@ import {
 } from "../server";
 import type { ResolvedProjectConfig, RunState } from "../types";
 import { createReliableWorkflowDataClient } from "./reliable-workflow-data-client";
-import type { WorkflowDataAction } from "./workflow-data-protocol";
+import { enrichUsageRecord } from "./usage-cost";
+import type {
+	WorkflowDataAction,
+	WorkflowTaskExecutionUsageInput,
+} from "./workflow-data-protocol";
 
 type ExecutionFinishStatus = "succeeded" | "failed";
 
@@ -27,6 +31,7 @@ export function createWorkflowExecutionRecorder(
 	let tail = Promise.resolve();
 	let unsubscribe: (() => void) | undefined;
 	let disabled = false;
+	let usageStartIndex = state.codexUsage?.length ?? 0;
 
 	const enqueue = (action: WorkflowDataAction, payload: unknown): void => {
 		tail = tail
@@ -40,6 +45,7 @@ export function createWorkflowExecutionRecorder(
 	return {
 		executionLogId,
 		async start() {
+			usageStartIndex = state.codexUsage?.length ?? 0;
 			try {
 				await client.request("taskExecutions.start", {
 					executionLogId,
@@ -97,9 +103,45 @@ export function createWorkflowExecutionRecorder(
 				executionLogId,
 				status,
 				finishedAt: new Date().toISOString(),
+				usage: buildExecutionUsage(
+					config,
+					state,
+					executionLogId,
+					usageStartIndex,
+				),
 			});
 		},
 	};
+}
+
+function buildExecutionUsage(
+	config: ResolvedProjectConfig,
+	state: RunState,
+	executionLogId: string,
+	startIndex: number,
+): WorkflowTaskExecutionUsageInput[] {
+	return (state.codexUsage ?? []).slice(startIndex).map((usage, index) => {
+		const enriched = enrichUsageRecord(
+			config,
+			usage.stage,
+			usage,
+			usage.recordedAt,
+		);
+		return {
+			id: `${executionLogId}:usage:${String(index + 1).padStart(4, "0")}`,
+			runId: `${state.projectId}:${state.issue.key}:${state.startedAt}`,
+			stage: enriched.stage,
+			agentBackend: enriched.agentBackend,
+			model: enriched.model,
+			inputTokens: enriched.inputTokens ?? 0,
+			outputTokens: enriched.outputTokens ?? 0,
+			totalTokens:
+				enriched.totalTokens ??
+				(enriched.inputTokens ?? 0) + (enriched.outputTokens ?? 0),
+			estimatedCostMicrousd: enriched.estimatedCostMicrousd,
+			recordedAt: enriched.recordedAt,
+		};
+	});
 }
 
 function matchesRunState(

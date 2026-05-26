@@ -40,7 +40,7 @@ export function ChatRoomSessionRow({
 	return (
 		<div
 			className={cn(
-				"group grid min-w-0 grid-cols-[minmax(0,1fr)_2rem_2rem] gap-1 rounded-md hover:bg-surface-active hover:text-zinc-200",
+				"group grid min-w-0 grid-cols-[minmax(0,1fr)_2rem_2rem] gap-0.5 rounded-md hover:bg-surface-active hover:text-zinc-200",
 				session.id === activeSessionId
 					? "bg-[#111110] text-zinc-100"
 					: "text-zinc-400",

@@ -11,7 +11,9 @@ export interface ChatMissionNote {
 }
 
 export interface ChatMissionLogLine {
+	emittedAt?: string;
 	id: string;
+	phaseId?: ChatMissionPhaseId;
 	stream: "stdout" | "stderr" | "system";
 	text: string;
 }
@@ -31,6 +33,14 @@ export interface ChatMissionPhase {
 	status: ChatMissionPhaseStatus;
 }
 
+export interface ChatMissionCheckpoint {
+	id: string;
+	detail?: string;
+	label: string;
+	recordedAt: string;
+	status: ChatMissionPhaseStatus;
+}
+
 export interface ChatMissionExecution {
 	id: string;
 	body: string;
@@ -46,6 +56,14 @@ export interface ChatMissionResult {
 	tone: "success" | "error" | "running" | "warning" | "neutral";
 }
 
+export interface ChatMissionUsageSummary {
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+	estimatedCostMicrousd: number | null;
+	runs: number;
+}
+
 export interface ChatMissionProgressViewModel {
 	state: ChatMissionProgressState;
 	taskId: string;
@@ -58,6 +76,9 @@ export interface ChatMissionProgressViewModel {
 	executions: ChatMissionExecution[];
 	latestLogLines: ChatMissionLogLine[];
 	latestResult: ChatMissionResult | null;
+	usageSummary: ChatMissionUsageSummary | null;
+	phaseCheckpoints: Record<ChatMissionPhaseId, ChatMissionCheckpoint[]>;
+	phaseLogLines: Record<ChatMissionPhaseId, ChatMissionLogLine[]>;
 	phases: ChatMissionPhase[];
 	errorMessage?: string;
 }

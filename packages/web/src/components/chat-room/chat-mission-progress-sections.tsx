@@ -1,20 +1,23 @@
 "use client";
 
-import {
-	CheckCircle2,
-	Circle,
-	CircleAlert,
-	Loader2,
-	Terminal,
-} from "lucide-react";
+import { Terminal } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
+import { MissionCheckpointPanel } from "./chat-mission-checkpoint-panel";
+import {
+	selectedPhaseCheckpoints,
+	selectedPhaseLogLines,
+	useMissionPhaseSelection,
+} from "./chat-mission-progress-log-selection";
+import { MissionStatusIcon } from "./chat-mission-progress-status-icon";
+import { MissionUsageSummary } from "./chat-mission-usage-summary";
 import type {
 	ChatMissionLogLine,
 	ChatMissionPhase,
+	ChatMissionPhaseId,
 	ChatMissionProgressViewModel,
 } from "./types/chat-mission-progress.types";
 
@@ -25,13 +28,28 @@ export function MissionBody({
 	liveLogLines: ChatMissionLogLine[];
 	mission: ChatMissionProgressViewModel;
 }): ReactElement {
-	const logLines =
-		liveLogLines.length > 0 ? liveLogLines.slice(-8) : mission.latestLogLines;
+	const { selectedPhase, selectedPhaseId, selectPhase } =
+		useMissionPhaseSelection(mission);
+	const logLines = selectedPhaseLogLines({
+		liveLogLines,
+		mission,
+		selectedPhase,
+	});
+	const checkpoints = selectedPhaseCheckpoints({ mission, selectedPhase });
 	return (
 		<div className="grid gap-3">
 			<MissionHeader mission={mission} />
-			<LatestLogPanel lines={logLines} />
-			<WorkflowPhases phases={mission.phases} />
+			<MissionUsageSummary mission={mission} />
+			<WorkflowPhases
+				phases={mission.phases}
+				selectedPhaseId={selectedPhaseId}
+				onSelectPhase={selectPhase}
+			/>
+			<MissionCheckpointPanel
+				checkpoints={checkpoints}
+				phaseLabel={selectedPhase.label}
+			/>
+			<LatestLogPanel lines={logLines} phaseLabel={selectedPhase.label} />
 		</div>
 	);
 }
@@ -73,8 +91,10 @@ function MissionHeader({
 
 function LatestLogPanel({
 	lines,
+	phaseLabel,
 }: {
 	lines: ChatMissionLogLine[];
+	phaseLabel: string;
 }): ReactElement {
 	return (
 		<section
@@ -83,14 +103,14 @@ function LatestLogPanel({
 		>
 			<div className="flex items-center gap-2 text-muted-foreground">
 				<Terminal size={14} />
-				<Typography variant="eyebrow">Latest output</Typography>
+				<Typography variant="eyebrow">{phaseLabel} output</Typography>
 			</div>
 			<div className="grid max-h-36 min-h-12 gap-1 overflow-auto font-mono text-xs text-zinc-300">
 				{lines.length > 0 ? (
 					lines.map((line) => <MissionLogLine key={line.id} line={line} />)
 				) : (
 					<Typography className="text-muted-foreground" variant="mono">
-						Waiting for output...
+						No output recorded for this stage.
 					</Typography>
 				)}
 			</div>
@@ -99,9 +119,13 @@ function LatestLogPanel({
 }
 
 function WorkflowPhases({
+	onSelectPhase,
 	phases,
+	selectedPhaseId,
 }: {
+	onSelectPhase: (phaseId: ChatMissionPhaseId) => void;
 	phases: ChatMissionPhase[];
+	selectedPhaseId: ChatMissionPhaseId;
 }): ReactElement {
 	return (
 		<div
@@ -109,7 +133,13 @@ function WorkflowPhases({
 			data-mission-workflow="true"
 		>
 			{phases.map((phase, index) => (
-				<PhaseNode isFirst={index === 0} key={phase.id} phase={phase} />
+				<PhaseNode
+					isFirst={index === 0}
+					isSelected={phase.id === selectedPhaseId}
+					key={phase.id}
+					phase={phase}
+					onSelectPhase={onSelectPhase}
+				/>
 			))}
 		</div>
 	);
@@ -117,28 +147,38 @@ function WorkflowPhases({
 
 function PhaseNode({
 	isFirst,
+	isSelected,
+	onSelectPhase,
 	phase,
 }: {
 	isFirst: boolean;
+	isSelected: boolean;
+	onSelectPhase: (phaseId: ChatMissionPhaseId) => void;
 	phase: ChatMissionPhase;
 }): ReactElement {
 	return (
-		<div
+		<button
+			aria-label={`Show ${phase.label} output`}
+			aria-pressed={isSelected}
 			className={cn(
-				"relative grid min-h-20 gap-2 rounded-md border bg-surface-panel px-3 py-2",
+				"relative grid min-h-20 gap-2 rounded-md border bg-surface-panel px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-zinc-500",
 				phase.status === "success" && "border-emerald-900/70",
 				phase.status === "failed" && "border-red-900/70 bg-red-950/20",
 				phase.status === "running" && "border-sky-900/70",
 				phase.status === "warning" && "border-amber-900/70",
 				phase.status === "pending" && "border-border",
+				isSelected && "bg-surface-active ring-1 ring-zinc-500",
 				!isFirst &&
 					"before:absolute before:-left-2 before:top-1/2 before:hidden before:h-px before:w-2 before:bg-border sm:before:block",
 			)}
 			data-mission-phase={phase.id}
+			data-mission-phase-selected={isSelected ? "true" : "false"}
 			data-mission-phase-status={phase.status}
+			onClick={() => onSelectPhase(phase.id)}
+			type="button"
 		>
 			<div className="flex items-center gap-2">
-				<PhaseIcon phase={phase} />
+				<MissionStatusIcon status={phase.status} />
 				<Typography className="min-w-0 truncate" variant="cardTitle">
 					{phase.label}
 				</Typography>
@@ -146,7 +186,7 @@ function PhaseNode({
 			<Typography className="capitalize text-muted-foreground" variant="muted">
 				{phase.status}
 			</Typography>
-		</div>
+		</button>
 	);
 }
 
@@ -167,20 +207,4 @@ function MissionLogLine({
 			{line.text}
 		</Typography>
 	);
-}
-
-function PhaseIcon({ phase }: { phase: ChatMissionPhase }): ReactElement {
-	if (phase.status === "running") {
-		return <Loader2 className="animate-spin text-sky-300" size={16} />;
-	}
-	if (phase.status === "success") {
-		return <CheckCircle2 className="text-emerald-300" size={16} />;
-	}
-	if (phase.status === "failed") {
-		return <CircleAlert className="text-red-300" size={16} />;
-	}
-	if (phase.status === "warning") {
-		return <CircleAlert className="text-amber-300" size={16} />;
-	}
-	return <Circle className="text-zinc-500" size={16} />;
 }

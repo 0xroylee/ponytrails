@@ -23,6 +23,10 @@ import {
 	transitionStage,
 } from "../src/features/workflow/state";
 import {
+	enrichUsageRecord,
+	estimateUsageCostMicrousd,
+} from "../src/features/workflow/usage-cost";
+import {
 	appendCodexUsage,
 	buildIssueJobLogFields,
 	buildPrioritizedIssueQueue,
@@ -1602,6 +1606,47 @@ describe("appendCodexUsage", () => {
 
 		appendCodexUsage(state, "planning", undefined);
 		expect(state.codexUsage).toHaveLength(0);
+	});
+});
+
+describe("usage cost estimation", () => {
+	it("estimates configured model cost in micro USD", () => {
+		const config = createProject("default");
+		config.codex.models = { implement: "gpt-5" };
+		config.usage = {
+			pricing: {
+				models: {
+					"gpt-5": {
+						inputUsdPerMillion: 1.25,
+						outputUsdPerMillion: 10,
+					},
+				},
+			},
+		};
+
+		const usage = enrichUsageRecord(
+			config,
+			"implementing",
+			{ inputTokens: 1000, outputTokens: 200, totalTokens: 1200 },
+			"2026-05-26T00:00:00.000Z",
+		);
+
+		expect(usage).toMatchObject({
+			agentBackend: "codex",
+			model: "gpt-5",
+			estimatedCostMicrousd: 3250,
+		});
+	});
+
+	it("leaves cost unknown without pricing or token split", () => {
+		const config = createProject("default");
+
+		expect(
+			estimateUsageCostMicrousd(config, "gpt-5", 1000, 200),
+		).toBeUndefined();
+		expect(
+			estimateUsageCostMicrousd(config, "gpt-5", undefined, 200),
+		).toBeUndefined();
 	});
 });
 

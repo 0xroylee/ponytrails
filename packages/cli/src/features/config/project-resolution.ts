@@ -122,6 +122,15 @@ function mergeRuntime(
 					base.server.database.port,
 			},
 		},
+		usage: {
+			pricing: {
+				models: {
+					...(base.usage?.pricing?.models ?? {}),
+					...(rootDefaults.usage?.pricing?.models ?? {}),
+					...(project.usage?.pricing?.models ?? {}),
+				},
+			},
+		},
 		codex: {
 			...base.codex,
 			...(rootDefaults.codex ?? {}),
