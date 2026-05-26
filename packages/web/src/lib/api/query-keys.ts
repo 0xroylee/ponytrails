@@ -9,6 +9,7 @@ export const serverStateQueryKeys = {
 	workspaceEnvironment: (projectId: string | null) =>
 		["server-state", "workspace-environment", projectId ?? "local"] as const,
 	commandHistory: ["server-state", "command-history"] as const,
+	workflowComputers: ["server-state", "workflow-computers"] as const,
 	chatSessions: (workspaceId: string) =>
 		["server-state", "chat-sessions", workspaceId] as const,
 	chatMessages: (sessionId: string) =>

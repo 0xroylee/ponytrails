@@ -37,6 +37,7 @@ export type {
 	WorkspaceProjectRecord,
 	WorkspaceProjectsResponse,
 } from "./types/client.types";
+export type { WorkflowComputerRecord } from "./types/workflow-computer.types";
 export type {
 	WorkspaceEnvironmentGitStatus,
 	WorkspaceEnvironmentMcpSource,

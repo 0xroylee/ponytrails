@@ -16,6 +16,7 @@ import type {
 	ApiClientOptions,
 	HealthRequestOptions,
 } from "./types/client.types";
+import { createWorkflowComputerApiMethods } from "./workflow-computer-client";
 import { createWorkspaceApiMethods } from "./workspace-client";
 import { createWorkspaceEnvironmentApiMethods } from "./workspace-environment-client";
 
@@ -41,6 +42,8 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 	);
 	const inboxApiMethods = createInboxApiMethods(requestWithBase);
 	const taskApiMethods = createTaskApiMethods(requestWithBase);
+	const workflowComputerApiMethods =
+		createWorkflowComputerApiMethods(requestWithBase);
 	const workspaceApiMethods = createWorkspaceApiMethods(requestWithBase);
 	const workspaceEnvironmentApiMethods =
 		createWorkspaceEnvironmentApiMethods(requestWithBase);
@@ -49,6 +52,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 		...boardApiMethods,
 		...chatApiMethods,
 		...commandStreamApiMethods,
+		...workflowComputerApiMethods,
 		...workspaceApiMethods,
 		...workspaceEnvironmentApiMethods,
 		async getHealth(requestOptions) {

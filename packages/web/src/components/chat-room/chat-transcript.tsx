@@ -6,20 +6,12 @@ import { TextShimmer } from "@/components/loading/text-shimmer";
 import type { ChatMessageRecord } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+import { ChatEmptyTranscript } from "./chat-empty-transcript";
 import { ChatEnvironmentPanel } from "./chat-environment-panel";
 import { resolveChatMessageDisplay } from "./chat-message-display";
 import { ChatMissionProgress } from "./chat-mission-progress";
 import type { ChatTranscriptProps } from "./types/chat-room.types";
 
-const DEVOS_ING_LOGO = [
-	"█████████   █████████   ███     ███   ████████    █████████          ███   ███    ███    ████████",
-	"███    ███  ███         ███     ███  ███    ███  ███    ███         ███   ████   ███   ███    ███",
-	"███    ███  ███          ███   ███   ███    ███  ███                ███   █████  ███   ███",
-	"███    ███  ████████      ███ ███    ███    ███  ████████           ███   ███ ██ ███   ███  █████",
-	"███    ███  ███            █████     ███    ███         ███         ███   ███  █████   ███    ███",
-	"███    ███  ███             ███      ███    ███  ███    ███   ███   ███   ███   ████   ███    ███",
-	"█████████   █████████       ███       ████████    █████████    ███   ███   ███    ███    ████████",
-].join("\n");
 
 export function ChatTranscript({
 	error,
@@ -76,7 +68,7 @@ export function ChatTranscript({
 			<div className="mx-auto grid min-w-0 max-w-4xl gap-4 xl:mr-[22rem]">
 				{isLoading ? <StatusLine text="Loading session..." /> : null}
 				{error ? <ErrorLine text={error.message} /> : null}
-				{!isLoading && messages.length === 0 ? <EmptyTranscriptLogo /> : null}
+				{!isLoading && messages.length === 0 ? <ChatEmptyTranscript /> : null}
 				{messages.map((message) => (
 					<ChatMessageBubble key={message.id} message={message} />
 				))}
@@ -103,20 +95,6 @@ export function ChatTranscript({
 				projectId={session?.projectId ?? null}
 				onDraftCommand={onDraftCommand}
 			/>
-		</div>
-	);
-}
-
-function EmptyTranscriptLogo(): ReactElement {
-	return (
-		<div className="grid justify-items-center pt-[26dvh] text-center">
-			<pre
-				aria-hidden="true"
-				className="m-0 select-none whitespace-pre font-mono text-[5px] font-black leading-[1.08] text-[#5a5350] sm:text-[8px] md:text-[10px] lg:text-xs"
-			>
-				{DEVOS_ING_LOGO}
-			</pre>
-			<h1 className="sr-only">DEVOS.ING</h1>
 		</div>
 	);
 }

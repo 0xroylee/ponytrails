@@ -14,6 +14,7 @@ import type {
 	TaskMutationRequest,
 	WorkspaceProjectRecord,
 } from "./types/client.types";
+import type { WorkflowComputerRecord } from "./types/workflow-computer.types";
 import { createWebApiClient } from "./web-client";
 import { buildIssueRunCommand } from "./workflow-run-command";
 
@@ -64,6 +65,8 @@ const boardTasksPromise: Promise<ProjectBoardTaskRecord[]> =
 	webClient.listBoardTasks();
 const pollingStatusPromise: Promise<PollingStatusResponse> =
 	webClient.listPollingStatus();
+const workflowComputersPromise: Promise<WorkflowComputerRecord[]> =
+	webClient.listWorkflowComputers();
 const taskMutationRequest: TaskMutationRequest = {
 	projectId: "project-1",
 	title: "Add issue board",
@@ -103,6 +106,7 @@ void projectBoardPromise;
 void inboxMessagesPromise;
 void boardTasksPromise;
 void pollingStatusPromise;
+void workflowComputersPromise;
 void createdBoardTaskPromise;
 void updatedBoardTaskPromise;
 void deletedBoardTaskPromise;

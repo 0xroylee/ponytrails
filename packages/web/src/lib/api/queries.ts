@@ -25,6 +25,7 @@ import type {
 	ServerStateQueryOptions,
 	TaskCreateMutationInput,
 } from "./types/queries.types";
+import type { WorkflowComputerRecord } from "./types/workflow-computer.types";
 import { createWebApiClient } from "./web-client";
 
 export {
@@ -143,6 +144,17 @@ export function useCommandHistoryQuery(
 	return useQuery({
 		queryKey: serverStateQueryKeys.commandHistory,
 		queryFn: () => apiClient.listCommandHistory(),
+		enabled: options?.enabled,
+		refetchInterval: resolveRefetchInterval(options),
+	});
+}
+
+export function useWorkflowComputersQuery(
+	options?: ServerStateQueryOptions,
+): UseQueryResult<WorkflowComputerRecord[], Error> {
+	return useQuery({
+		queryKey: serverStateQueryKeys.workflowComputers,
+		queryFn: () => apiClient.listWorkflowComputers(),
 		enabled: options?.enabled,
 		refetchInterval: resolveRefetchInterval(options),
 	});

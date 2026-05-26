@@ -30,6 +30,7 @@ import type {
 	TaskCreateResponse,
 	TaskMutationRequest,
 } from "./task.types";
+import type { WorkflowComputerApiMethods } from "./workflow-computer.types";
 import type { WorkspaceEnvironmentResponse } from "./workspace-environment.types";
 
 export type {
@@ -69,9 +70,7 @@ export type {
 	ChatSessionUpdateRequest,
 } from "./chat.types";
 
-export interface HealthResponse {
-	status: "ok";
-}
+export type HealthResponse = { status: "ok" };
 
 export interface HealthRequestOptions {
 	signal?: AbortSignal;
@@ -145,7 +144,7 @@ export interface ApiClientOptions {
 	WebSocketImpl?: typeof WebSocket;
 }
 
-export interface ApiClient {
+export interface ApiClient extends WorkflowComputerApiMethods {
 	getHealth(options?: HealthRequestOptions): Promise<HealthResponse>;
 	getCurrentWorkspace(
 		options?: HealthRequestOptions,
