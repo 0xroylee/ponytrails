@@ -1,8 +1,6 @@
 import { createChatMissionProgressModel } from "../src/components/chat-room/chat-mission-progress-state";
 import type { ChatMissionProgressViewModel } from "../src/components/chat-room/types/chat-mission-progress.types";
 import type {
-	ChatMessageRecord,
-	ChatSessionRecord,
 	ProjectBoardTaskRecord,
 	TaskActivityRecord,
 	TaskActivityStepRecord,
@@ -60,42 +58,6 @@ export function tokenUsageRecord(
 		recordedAt: "2026-05-20T00:05:00.000Z",
 		...overrides,
 	};
-}
-
-export function chatMessage(
-	overrides: Partial<ChatMessageRecord> = {},
-): ChatMessageRecord {
-	return {
-		id: "message-1",
-		sessionId: "session-1",
-		role: "user",
-		kind: "message",
-		content: "Message",
-		taskId: "task-42",
-		commandAction: null,
-		metadata: null,
-		createdAt: "2026-05-20T00:00:00.000Z",
-		...overrides,
-	};
-}
-
-export function chatSession(): ChatSessionRecord {
-	return {
-		id: "session-1",
-		workspaceId: "owner-1",
-		projectId: "default",
-		taskId: "task-42",
-		title: "Untitled",
-		pendingRequest: null,
-		pendingQuestions: [],
-		archived: false,
-		createdAt: "2026-05-20T00:00:00.000Z",
-		updatedAt: "2026-05-20T00:00:00.000Z",
-	};
-}
-
-export function textContent(html: string): string {
-	return html.replace(/<[^>]*>/g, "");
 }
 
 function statusComment(): TaskActivityRecord {

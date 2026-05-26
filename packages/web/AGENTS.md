@@ -65,13 +65,19 @@ the repository's server/API and realtime contracts.
 
 ## Tests And Checks
 
-1. Add tests for new UI data contracts or behavior when a test harness exists.
-2. Otherwise, run the relevant package checks for visible or data-flow changes:
+1. Keep web tests focused on service/API clients, realtime/data-flow behavior,
+   and pure utilities or state helpers.
+2. Do not add or keep React component rendering tests, markup assertions,
+   class-name assertions, UI copy assertions, skeleton/layout tests, or
+   component interaction tests.
+3. For visible UI changes, use typecheck/build and browser verification instead
+   of component tests.
+4. Run the relevant package checks for visible or data-flow changes:
    - `bun run --filter web typecheck`
    - `bun run --filter web build`
-3. After meaningful visible UI changes, run the local web app and verify the
+5. After meaningful visible UI changes, run the local web app and verify the
    affected viewport in a browser.
-4. For repo-wide changes, still run the root quality gates from the root
+6. For repo-wide changes, still run the root quality gates from the root
    `AGENTS.md`.
 
 ## Workflow Checkpoints

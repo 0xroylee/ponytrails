@@ -19,10 +19,17 @@ into this package.
 
 ## Tests And Checks
 
-1. Run package-level validation for landing changes:
+1. Do not add or keep React component rendering tests, markup assertions,
+   class-name assertions, UI copy assertions, skeleton/layout tests, or
+   component interaction tests.
+2. Keep any future landing tests focused on service/data helpers and pure
+   utilities only.
+3. For visible UI changes, use typecheck/build and browser verification instead
+   of component tests.
+4. Run package-level validation for landing changes:
    - `bun run --filter landing typecheck`
    - `bun run --filter landing build`
-2. After meaningful visible changes, run the landing site locally and verify the
+5. After meaningful visible changes, run the landing site locally and verify the
    affected viewport in a browser.
-3. For repo-wide changes, run the repository quality gates from the root
+6. For repo-wide changes, run the repository quality gates from the root
    `AGENTS.md`.
