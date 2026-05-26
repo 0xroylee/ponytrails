@@ -13,7 +13,7 @@ import { missionModel } from "./chat-mission-progress-fixtures";
 
 describe("chat mission progress selection", () => {
 	it("selects stored output and checkpoints for each clicked phase", () => {
-		const mission = missionModel();
+		const mission = missionModel("succeeded", "done");
 		const liveLogLines: ChatStreamLine[] = [
 			{ id: "live-1", stream: "stdout", text: "Live output" },
 		];
@@ -48,9 +48,10 @@ describe("chat mission progress selection", () => {
 			{ id: "live-1", stream: "stdout", text: "Live output" },
 		];
 
-		expect(selectedLogText(mission, "qa", liveLogLines)).toEqual([
+		expect(selectedLogText(mission, "testing", liveLogLines)).toEqual([
 			"Live output",
 		]);
+		expect(selectedLogText(mission, "qa", liveLogLines)).toEqual([]);
 		expect(selectedLogText(mission, "plan", liveLogLines)).toEqual([
 			"Plan output",
 		]);

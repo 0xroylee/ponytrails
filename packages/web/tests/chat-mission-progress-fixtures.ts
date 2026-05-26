@@ -14,11 +14,29 @@ export function missionModel(
 	taskStatus = "in_progress",
 	usageRecords: TokenUsageRecord[] = [],
 ): ChatMissionProgressViewModel {
+	return missionModelWithSteps({
+		executionStatus: status,
+		taskStatus,
+		usageRecords,
+	});
+}
+
+export function missionModelWithSteps({
+	executionStatus = "succeeded",
+	steps = defaultActivitySteps(),
+	taskStatus = "in_progress",
+	usageRecords = [],
+}: {
+	executionStatus?: string;
+	steps?: TaskActivityStepRecord[];
+	taskStatus?: string;
+	usageRecords?: TokenUsageRecord[];
+}): ChatMissionProgressViewModel {
 	return createChatMissionProgressModel({
 		task: boardTask(taskStatus),
 		activity: {
 			taskId: "task-42",
-			activities: [statusComment(), executionActivity(status)],
+			activities: [statusComment(), executionActivity(executionStatus, steps)],
 		},
 		usageRecords,
 	});
@@ -93,7 +111,10 @@ function statusComment(): TaskActivityRecord {
 	};
 }
 
-function executionActivity(status: string): TaskActivityRecord {
+function executionActivity(
+	status: string,
+	steps: TaskActivityStepRecord[],
+): TaskActivityRecord {
 	return {
 		id: "exec-1",
 		kind: "execution",
@@ -107,29 +128,34 @@ function executionActivity(status: string): TaskActivityRecord {
 		].join("\n"),
 		status,
 		createdAt: "2026-05-20T00:02:00.000Z",
-		steps: [
-			activityStep(1, "plan", "plan"),
-			activityStep(2, "split-tasks", "plan"),
-			activityStep(3, "implementation", "in_progress"),
-			activityStep(4, "prepare-pr", "in_progress"),
-			activityStep(5, "review-testing", "in_review"),
-		],
+		steps,
 	};
 }
 
-function activityStep(
+export function activityStep(
 	stepNumber: number,
 	action: string,
 	stage: string,
+	status = "succeeded",
 ): TaskActivityStepRecord {
 	return {
 		id: `step-${stepNumber}`,
 		stepNumber,
 		action,
-		status: "succeeded",
+		status,
 		detail: JSON.stringify({ stage, action }),
 		recordedAt: `2026-05-20T00:0${stepNumber + 1}:30.000Z`,
 	};
+}
+
+function defaultActivitySteps(): TaskActivityStepRecord[] {
+	return [
+		activityStep(1, "plan", "plan"),
+		activityStep(2, "split-tasks", "plan"),
+		activityStep(3, "implementation", "in_progress"),
+		activityStep(4, "prepare-pr", "in_progress"),
+		activityStep(5, "review-testing", "in_review"),
+	];
 }
 
 function boardTask(status = "in_progress"): ProjectBoardTaskRecord {

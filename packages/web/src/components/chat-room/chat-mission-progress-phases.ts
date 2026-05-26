@@ -34,26 +34,89 @@ export function createMissionPhases({
 			}
 		}
 	}
-	applyTaskStatusFallback(statusByPhase, taskStatus);
 	applyLatestResult(statusByPhase, latestResult);
-	completePreviousPhases(statusByPhase);
 	return MISSION_PHASES.map((phase) => ({
 		...phase,
-		status: statusByPhase.get(phase.id) ?? "pending",
+		status: clampMissionPhaseStatus(phase.id, statusByPhase, taskStatus),
 	}));
 }
 
-function applyTaskStatusFallback(
+function missionPhaseIndex(phaseId: ChatMissionPhaseId): number {
+	return MISSION_PHASES.findIndex((phase) => phase.id === phaseId);
+}
+
+function clampMissionPhaseStatus(
+	phaseId: ChatMissionPhaseId,
 	statusByPhase: Map<ChatMissionPhaseId, ChatMissionPhaseStatus>,
 	taskStatus: string,
-): void {
+): ChatMissionPhaseStatus {
 	const normalized = taskStatus.toLowerCase();
-	if (normalized === "in_progress" && !statusByPhase.has("implement")) {
-		statusByPhase.set("implement", "running");
+	const activePhase = activePhaseForTaskStatus(normalized);
+	if (activePhase) {
+		return clampActivePhaseStatus(phaseId, activePhase, statusByPhase);
 	}
-	if (normalized === "in_review" && !statusByPhase.has("testing")) {
-		statusByPhase.set("testing", "running");
+	if (normalized === "done") {
+		return "success";
 	}
+	if (normalized === "failed" || normalized === "canceled") {
+		return clampTerminalPhaseStatus(phaseId, statusByPhase, normalized);
+	}
+	return statusByPhase.get(phaseId) ?? "pending";
+}
+
+function activePhaseForTaskStatus(
+	normalizedTaskStatus: string,
+): ChatMissionPhaseId | null {
+	if (normalizedTaskStatus === "plan") return "plan";
+	if (normalizedTaskStatus === "in_progress") return "implement";
+	if (normalizedTaskStatus === "in_review") return "testing";
+	return null;
+}
+
+function clampActivePhaseStatus(
+	phaseId: ChatMissionPhaseId,
+	activePhase: ChatMissionPhaseId,
+	statusByPhase: Map<ChatMissionPhaseId, ChatMissionPhaseStatus>,
+): ChatMissionPhaseStatus {
+	const phaseIndex = missionPhaseIndex(phaseId);
+	const activeIndex = missionPhaseIndex(activePhase);
+	const rawStatus = statusByPhase.get(phaseId);
+	if (phaseIndex < activeIndex) return "success";
+	if (phaseIndex > activeIndex) return "pending";
+	return rawStatus === "failed" || rawStatus === "warning"
+		? rawStatus
+		: "running";
+}
+
+function clampTerminalPhaseStatus(
+	phaseId: ChatMissionPhaseId,
+	statusByPhase: Map<ChatMissionPhaseId, ChatMissionPhaseStatus>,
+	normalizedTaskStatus: "failed" | "canceled",
+): ChatMissionPhaseStatus {
+	const terminalPhase = latestTerminalPhase(statusByPhase);
+	const phaseIndex = missionPhaseIndex(phaseId);
+	const terminalIndex = missionPhaseIndex(terminalPhase);
+	if (phaseIndex < terminalIndex) return "success";
+	if (phaseIndex > terminalIndex) return "pending";
+	const rawStatus = statusByPhase.get(phaseId);
+	if (rawStatus === "failed" || rawStatus === "warning") return rawStatus;
+	return normalizedTaskStatus === "failed" ? "failed" : "warning";
+}
+
+function latestTerminalPhase(
+	statusByPhase: Map<ChatMissionPhaseId, ChatMissionPhaseStatus>,
+): ChatMissionPhaseId {
+	for (let index = MISSION_PHASES.length - 1; index >= 0; index -= 1) {
+		const phase = MISSION_PHASES[index];
+		if (!phase) continue;
+		const status = statusByPhase.get(phase.id);
+		if (status === "failed" || status === "warning") return phase.id;
+	}
+	for (let index = MISSION_PHASES.length - 1; index >= 0; index -= 1) {
+		const phase = MISSION_PHASES[index];
+		if (phase && statusByPhase.has(phase.id)) return phase.id;
+	}
+	return "qa";
 }
 
 function applyLatestResult(
@@ -65,24 +128,6 @@ function applyLatestResult(
 	statusByPhase.set("qa", qaStatus);
 	if (!statusByPhase.has("testing")) {
 		statusByPhase.set("testing", qaStatus === "success" ? "success" : qaStatus);
-	}
-}
-
-function completePreviousPhases(
-	statusByPhase: Map<ChatMissionPhaseId, ChatMissionPhaseStatus>,
-): void {
-	const ordered = MISSION_PHASES.map((phase) => phase.id);
-	let latestIndex = -1;
-	for (let index = ordered.length - 1; index >= 0; index -= 1) {
-		const id = ordered[index];
-		if (id && statusByPhase.has(id)) {
-			latestIndex = index;
-			break;
-		}
-	}
-	for (let index = 0; index < latestIndex; index += 1) {
-		const id = ordered[index];
-		if (id && !statusByPhase.has(id)) statusByPhase.set(id, "success");
 	}
 }
 

@@ -124,7 +124,7 @@ export function createChatMissionProgressModel({
 		latestResult,
 		usageSummary:
 			usageRecords.length > 0 ? summarizeTokenUsage(usageRecords) : null,
-		phaseCheckpoints: createPhaseCheckpoints(executions),
+		phaseCheckpoints: createPhaseCheckpoints({ executions, phases }),
 		phaseLogLines: createPhaseLogLines({ executions, phases }),
 		phases,
 	};

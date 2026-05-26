@@ -91,9 +91,9 @@ describe("chat mission progress", () => {
 		]);
 		expect(mission.phases.map((phase) => phase.status)).toEqual([
 			"success",
-			"success",
-			"success",
-			"success",
+			"running",
+			"pending",
+			"pending",
 		]);
 
 		expect(mission.phaseLogLines.plan).toEqual([
@@ -134,10 +134,10 @@ describe("chat mission progress", () => {
 		expect(html).toContain('data-mission-phase="testing"');
 		expect(html).toContain('data-mission-phase="qa"');
 		expect(html).toContain('aria-pressed="true"');
-		expect(text).toContain("QA checkpoints");
-		expect(text).toContain("No checkpoints recorded for this stage.");
-		expect(text).toContain("QA output");
-		expect(text).toContain("No output recorded for this stage.");
+		expect(text).toContain("Implement checkpoints");
+		expect(text).toContain("Implementation");
+		expect(text).toContain("Prepare pr");
+		expect(text).toContain("Implement output");
 		expect(text).not.toContain("Plan output");
 		expect(text).not.toContain("Split tasks");
 		expect(text).not.toContain("Review testing");
@@ -188,11 +188,12 @@ describe("chat mission progress", () => {
 
 		expect(text).toContain("Live output");
 		expect(text).toContain("Live failure");
-		expect(text).not.toContain("Testing output");
+		expect(text).not.toContain("Plan output");
+		expect(text).not.toContain("Implement output");
 	});
 
 	it("derives QA status from the latest result without QA events", () => {
-		const mission = missionModel("failed");
+		const mission = missionModel("failed", "failed");
 
 		expect(mission.latestResult).toEqual({
 			label: "failed",
