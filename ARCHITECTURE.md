@@ -2,12 +2,12 @@
 
 ## System Purpose
 
-devos.ing is a multi-project orchestration hub that pulls eligible Linear issues and executes a staged agent loop: planning, implementation, and review/testing.
+devos.ing is a multi-project orchestration hub that turns eligible tasks into a copyable PIV workflow: plan, implement, and review.
 
 ## Ownership Boundaries
 
 1. `packages/cli/src/features/config/` owns runtime config resolution from env vars, home-scoped onboarding state, and server-owned project metadata.
-2. `packages/cli/src/features/workflow/` owns stage transitions, retries, and orchestration order.
+2. `packages/cli/src/features/workflow/` owns the Workflow Orchestrator role: loading workflow scripts, selecting tasks, running phases, updating run state, handling retries, and pausing for human review.
 3. Integration modules stay isolated under `packages/cli/src/integrations/`, while agent runtime adapters live in `packages/agent-adapters/`:
    - `packages/cli/src/integrations/linear/linear.ts`
    - `packages/cli/src/integrations/github/github.ts`
@@ -18,9 +18,17 @@ devos.ing is a multi-project orchestration hub that pulls eligible Linear issues
 5. `packages/cli/src/features/workflow/state.ts` owns run-state paths and legacy fallback behavior.
 6. `packages/cli/src/args.ts` and `packages/cli/src/index.ts` own CLI parsing and command dispatch with command handlers in `packages/cli/src/commands/`.
 
-## Stage Model
+## PIV Phase Model
 
-The workflow advances through planning -> implementing -> review/testing and synchronizes Linear status and comments at each boundary. Review output must preserve the parsing contract:
+The default workflow has three phases:
+
+1. `plan`: one planning agent turns task context into an implementation goal.
+2. `implement`: one implementation agent applies the plan and prepares PR context.
+3. `review`: two review agents validate the result:
+   - `testing` checks commands, test output, and executable evidence.
+   - `qa` checks product fit, acceptance criteria, regressions, and handoff quality.
+
+The Workflow Orchestrator owns phase order and retries; task source adapters, PR providers, agent adapters, MCP tools, connector integrations, state storage, and notifications own their respective side effects. Review output must preserve the parsing contract:
 
 - `RESULT: PASS|FAIL`
 - `SUMMARY: ...`
@@ -30,39 +38,75 @@ The workflow advances through planning -> implementing -> review/testing and syn
 
 ```mermaid
 flowchart TD
-    operator[Operator] --> linearIssue[Linear Issue Intake]
-    linearIssue --> config[packages/cli/src/features/config<br/>project + runtime resolution]
-    config --> workflow[packages/cli/src/features/workflow<br/>stage orchestration]
+    trigger[Trigger<br/>Operator / Poller / Cron / API] --> config[Config Resolver<br/>project + runtime settings]
+    config --> script[Workflow Script<br/>.mjs phases, skills, MCPs, connectors]
+    script --> orchestrator[Workflow Orchestrator<br/>interpret script and run phases]
 
-    workflow --> planning[Planning Agent]
-    planning --> complexity{Complexity Score < 5?}
+    orchestrator <--> taskSource[Task Source Adapter<br/>manual task / board / API / scheduled job]
+    orchestrator <--> state[Run State Manager<br/>phase, lease, retries, sessions, logs]
 
-    complexity -->|Yes| implementing[Implementation Agent]
-    complexity -->|No| humanReview[Human Review Pause]
+    orchestrator --> plan[Plan Phase<br/>Planning Agent]
+    plan --> planDecision{Ready?}
+    planDecision -->|Needs info| humanReview[Human Review<br/>clarification or approval]
+    planDecision -->|Split task| childTasks[Create child tasks<br/>finish parent task]
+    planDecision -->|Ready| implement[Implement Phase<br/>Implementation Agent]
 
-    implementing --> github[packages/cli/src/integrations/github/github.ts<br/>branch + draft PR updates]
-    github --> reviewTesting[Review/Testing Agent]
+    implement --> prProvider[PR Provider<br/>branch, draft PR, PR updates]
+    prProvider --> testing
+    prProvider --> qa
 
-    reviewTesting --> reviewPass{RESULT: PASS?}
-    reviewPass -->|No| implementing
-    reviewPass -->|Yes| done[Done]
+    subgraph reviewPhase [Review Phase]
+        testing[Testing Agent]
+        qa[QA Agent]
+    end
 
-    workflow --> blocked[Blocked]
-    humanReview --> reviewingStage[Reviewing Stage in Linear]
+    testing --> reviewDecision{Review passed?}
+    qa --> reviewDecision
 
-    workflow --> linearSvc[packages/cli/src/integrations/linear/linear.ts<br/>status + comments + child tasks]
-    workflow --> notify[packages/cli/src/integrations/notifications/notifications.ts<br/>human review and outcome email]
-    workflow --> state[packages/cli/src/features/workflow/state.ts<br/>run state + leases]
+    reviewDecision -->|No, retryable| implement
+    reviewDecision -->|No, blocked| humanReview
+    reviewDecision -->|Yes| done[Mark run done<br/>PR ready or merged]
 
+    orchestrator --> notify[Notification Integration<br/>human review and outcome messages]
+    plan --> agentAdapter[Agent Adapter<br/>Codex / Claude / other]
+    implement --> agentAdapter
+    testing --> agentAdapter
+    qa --> agentAdapter
+    script --> capabilities[Capability Bindings<br/>skills / MCPs / connectors]
     state --> runFiles[.devos/projects/<project-id>/runs/*.json]
     state --> chatLogs[.devos/projects/<project-id>/chat-logs/*.json]
+```
 
-    planning --> codexAdapter[packages/agent-adapters/src/codex/index.ts]
-    planning --> claudeAdapter[packages/agent-adapters/src/claude/index.ts]
-    implementing --> codexAdapter
-    implementing --> claudeAdapter
-    reviewTesting --> codexAdapter
-    reviewTesting --> claudeAdapter
+## Workflow Script Model
+
+Workflow definitions should be copyable `.mjs` modules. The orchestrator reads the script to learn the phases, which agents run in each phase, and which skills, MCP tools, and connectors are available.
+
+```javascript
+export default {
+  id: "piv-default",
+  phases: [
+    {
+      id: "plan",
+      agents: [{ id: "planner", skill: "skills/plan.md" }],
+      connectors: ["task-source"],
+    },
+    {
+      id: "implement",
+      agents: [{ id: "implementer", skill: "skills/implement.md" }],
+      mcps: ["github", "filesystem"],
+      connectors: ["pr-provider"],
+    },
+    {
+      id: "review",
+      agents: [
+        { id: "testing", skill: "skills/testing.md" },
+        { id: "qa", skill: "skills/qa.md" },
+      ],
+      mcps: ["github", "filesystem"],
+      gates: ["RESULT: PASS|FAIL", "SUMMARY", "BUGS_JSON"],
+    },
+  ],
+};
 ```
 
 ## Multi-Project Runtime Rules
@@ -75,9 +119,9 @@ flowchart TD
 
 ## Integration Flow
 
-1. Linear issues are fetched and routed by project config and optional `linear.projectId`.
-2. Planning prompt is built from issue context and skill input.
-3. Optional planning skill auto-selection can append supplemental skills from `skills.root` and/or a SQLite skills catalog when `skills.autoSelect.enabled` is true.
-4. Implementation session applies code changes and creates/updates PR context.
-5. Review/testing session emits structured pass/fail output and bug payload.
+1. Task source adapters provide eligible tasks and route them by project config.
+2. The Workflow Orchestrator loads the `.mjs` workflow script and resolves phase capabilities.
+3. The plan phase builds the task goal from task context, skills, and optional connector data.
+4. The implement phase applies code changes and creates or updates PR context.
+5. The review phase runs testing and QA agents, then emits structured pass/fail output and bug payload.
 6. Failed verification feeds back into implementation until pass or blocked.
