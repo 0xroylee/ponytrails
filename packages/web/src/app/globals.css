@@ -43,6 +43,7 @@ body {
 	margin: 0;
 	height: 100dvh;
 	max-height: 100dvh;
+	font-size: 14px;
 	font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 		"Segoe UI", sans-serif;
 	background: hsl(var(--background));

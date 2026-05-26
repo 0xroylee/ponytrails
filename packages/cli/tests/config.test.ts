@@ -8,69 +8,88 @@ import {
 	sqliteEnvDbPath,
 } from "../src/features/config";
 
-const envKeys = [
-	"GITHUB_REPO_OWNER",
-	"GITHUB_REPO_NAME",
-	"GITHUB_BASE_BRANCH",
-	"LINEAR_API_KEY",
-	"LINEAR_PROJECT_ID",
-	"LINEAR_TEAM_ID",
-	"LINEAR_STATUS_BACKLOG",
-	"LINEAR_STATUS_ASSIGNED",
-	"LINEAR_STATUS_PLANNING",
-	"LINEAR_STATUS_IMPLEMENTING",
-	"LINEAR_STATUS_PR_CREATED",
-	"LINEAR_STATUS_REVIEWING",
-	"LINEAR_STATUS_TESTING",
-	"LINEAR_STATUS_BLOCKED",
-	"LINEAR_STATUS_DONE",
-	"PIV_WORKSPACE_PATH",
-	"PIV_EXECUTION_PATH",
-	"CODEX_SANDBOX",
-	"CODEX_HOME",
-	"CODEX_REASONING_EFFORT",
-	"CODEX_REASONING_EFFORT_PLAN",
-	"CODEX_REASONING_EFFORT_IMPLEMENT",
-	"CODEX_REASONING_EFFORT_REVIEW_TEST",
-	"CODEX_REASONING_EFFORT_GITHUB_COMMENT",
-	"CODEX_FAST_MODE_PLAN",
-	"CODEX_FAST_MODE_IMPLEMENT",
-	"CODEX_FAST_MODE_REVIEW_TEST",
-	"CODEX_FAST_MODE_GITHUB_COMMENT",
-	"CODEX_MODEL_PLAN",
-	"CODEX_MODEL_IMPLEMENT",
-	"CODEX_MODEL_REVIEW_TEST",
-	"CODEX_MODEL_GITHUB_COMMENT",
-	"CODEX_PLUGINS",
-	"CODEX_DOCKER_ENABLED",
-	"CODEX_DOCKER_IMAGE",
-	"CODEX_DOCKER_BINARY",
-	"CODEX_DOCKER_WORKSPACE_PATH",
-	"CODEX_DOCKER_EXECUTION_PATH",
-	"CODEX_DOCKER_CODEX_HOME_PATH",
-	"PIV_DEV_MODE",
-	"PIV_PRINT_CODEX_LOGS",
-	"PIV_POLL_INTERVAL_MS",
-	"PIV_MAX_POLL_CYCLES",
-	"PIV_EXIT_WHEN_IDLE",
-	"PIV_STALE_RUN_TIMEOUT_MS",
-	"PIV_ISSUE_CONCURRENCY",
-	"PIV_ISOLATED_WORKTREES",
-	"RESEND_API_KEY",
-	"RESEND_FROM",
-	"RESEND_TO",
-	"AGENT_BACKEND",
-	"CLAUDE_CODE_MODEL",
-	"CLAUDE_CODE_MAX_TURNS",
-	"CLAUDE_CODE_ALLOWED_TOOLS",
-	"CLAUDE_CODE_PERMISSION_MODE",
-	"CURSOR_AGENT_BINARY",
-	"CURSOR_AGENT_MODEL",
-	"CURSOR_AGENT_FORCE",
-	"CURSOR_API_KEY",
-	"PIV_SERVER_DATABASE_PATH",
-	"DEVOS_SERVER_BASE_URL",
-] as const;
+const envDefaults: Record<string, string | undefined> = {
+	GITHUB_REPO_OWNER: "github_repo_owner",
+	GITHUB_REPO_NAME: "github_repo_name",
+	GITHUB_BASE_BRANCH: "github_base_branch",
+	GITHUB_BUG_LABEL: undefined,
+	LINEAR_API_KEY: "linear_api_key",
+	LINEAR_API_URL: undefined,
+	LINEAR_PROJECT_ID: "linear_project_id",
+	LINEAR_TEAM_ID: "linear_team_id",
+	LINEAR_REQUIRED_LABEL: undefined,
+	LINEAR_AUTO_CREATE_LABELS: undefined,
+	PIV_POLL_LIMIT: undefined,
+	LINEAR_STATUS_BACKLOG: "linear_status_backlog",
+	LINEAR_STATUS_ASSIGNED: "linear_status_assigned",
+	LINEAR_STATUS_PLAN: undefined,
+	LINEAR_STATUS_PLANNING: undefined,
+	LINEAR_STATUS_IN_PROGRESS: undefined,
+	LINEAR_STATUS_IMPLEMENTING: undefined,
+	LINEAR_STATUS_IN_REVIEW: undefined,
+	LINEAR_STATUS_PR_CREATED: undefined,
+	LINEAR_STATUS_REVIEWING: undefined,
+	LINEAR_STATUS_TESTING: undefined,
+	LINEAR_STATUS_CANCELED: undefined,
+	LINEAR_STATUS_BLOCKED: undefined,
+	LINEAR_STATUS_FAILED: undefined,
+	LINEAR_STATUS_DONE: undefined,
+	LINEAR_LABEL_PR_CREATED: undefined,
+	LINEAR_LABEL_REVIEWING: undefined,
+	LINEAR_LABEL_TESTING: undefined,
+	PIV_WORKSPACE_PATH: undefined,
+	PIV_EXECUTION_PATH: "piv_execution_path",
+	CODEX_BINARY: undefined,
+	CODEX_SANDBOX: "workspace-write",
+	CODEX_HOME: undefined,
+	CODEX_MODEL: undefined,
+	CODEX_REASONING_EFFORT: undefined,
+	CODEX_REASONING_EFFORT_PLAN: undefined,
+	CODEX_REASONING_EFFORT_IMPLEMENT: undefined,
+	CODEX_REASONING_EFFORT_REVIEW_TEST: undefined,
+	CODEX_REASONING_EFFORT_GITHUB_COMMENT: undefined,
+	CODEX_FAST_MODE_PLAN: undefined,
+	CODEX_FAST_MODE_IMPLEMENT: undefined,
+	CODEX_FAST_MODE_REVIEW_TEST: undefined,
+	CODEX_FAST_MODE_GITHUB_COMMENT: undefined,
+	CODEX_MODEL_PLAN: undefined,
+	CODEX_MODEL_IMPLEMENT: undefined,
+	CODEX_MODEL_REVIEW_TEST: undefined,
+	CODEX_MODEL_GITHUB_COMMENT: undefined,
+	CODEX_PLUGINS: undefined,
+	CODEX_DOCKER_ENABLED: undefined,
+	CODEX_DOCKER_IMAGE: undefined,
+	CODEX_DOCKER_BINARY: undefined,
+	CODEX_DOCKER_WORKSPACE_PATH: undefined,
+	CODEX_DOCKER_EXECUTION_PATH: undefined,
+	CODEX_DOCKER_CODEX_HOME_PATH: undefined,
+	PIV_DEV_MODE: "0",
+	PIV_PRINT_CODEX_LOGS: "0",
+	PIV_POLL_INTERVAL_MS: "30000",
+	PIV_MAX_POLL_CYCLES: undefined,
+	PIV_EXIT_WHEN_IDLE: "1",
+	PIV_STALE_RUN_TIMEOUT_MS: "3600000",
+	PIV_ISSUE_CONCURRENCY: "1",
+	PIV_ISOLATED_WORKTREES: "0",
+	PIV_ISOLATED_WORKTREES_ROOT: undefined,
+	PIV_DRY_RUN: undefined,
+	RESEND_API_KEY: "",
+	RESEND_FROM: "",
+	RESEND_TO: "",
+	AGENT_BACKEND: undefined,
+	CLAUDE_CODE_MODEL: undefined,
+	CLAUDE_CODE_MAX_TURNS: undefined,
+	CLAUDE_CODE_ALLOWED_TOOLS: undefined,
+	CLAUDE_CODE_PERMISSION_MODE: undefined,
+	CURSOR_AGENT_BINARY: undefined,
+	CURSOR_AGENT_MODEL: undefined,
+	CURSOR_AGENT_FORCE: undefined,
+	CURSOR_API_KEY: undefined,
+	PIV_SERVER_DATABASE_PATH: undefined,
+	DEVOS_SERVER_BASE_URL: undefined,
+};
+
+const envKeys = Object.keys(envDefaults);
 
 const previousEnv: Record<string, string | undefined> = {};
 let previousHome: string | undefined;
@@ -83,57 +102,7 @@ describe("loadConfig", () => {
 		process.env.HOME = testHomeDir;
 		for (const key of envKeys) {
 			previousEnv[key] = process.env[key];
-			process.env[key] =
-				key === "RESEND_API_KEY" || key === "RESEND_FROM" || key === "RESEND_TO"
-					? ""
-					: key === "CODEX_SANDBOX"
-						? "workspace-write"
-						: key === "CODEX_HOME" ||
-								key === "CODEX_REASONING_EFFORT" ||
-								key === "CODEX_REASONING_EFFORT_PLAN" ||
-								key === "CODEX_REASONING_EFFORT_IMPLEMENT" ||
-								key === "CODEX_REASONING_EFFORT_REVIEW_TEST" ||
-								key === "CODEX_REASONING_EFFORT_GITHUB_COMMENT" ||
-								key === "CODEX_FAST_MODE_PLAN" ||
-								key === "CODEX_FAST_MODE_IMPLEMENT" ||
-								key === "CODEX_FAST_MODE_REVIEW_TEST" ||
-								key === "CODEX_FAST_MODE_GITHUB_COMMENT" ||
-								key === "CODEX_PLUGINS" ||
-								key === "CODEX_DOCKER_ENABLED" ||
-								key === "CODEX_DOCKER_IMAGE" ||
-								key === "CODEX_DOCKER_BINARY" ||
-								key === "CODEX_DOCKER_WORKSPACE_PATH" ||
-								key === "CODEX_DOCKER_EXECUTION_PATH" ||
-								key === "CODEX_DOCKER_CODEX_HOME_PATH" ||
-								key === "CLAUDE_CODE_MODEL" ||
-								key === "CLAUDE_CODE_PERMISSION_MODE" ||
-								key === "CLAUDE_CODE_ALLOWED_TOOLS" ||
-								key === "CURSOR_AGENT_MODEL" ||
-								key === "CURSOR_API_KEY" ||
-								key === "PIV_SERVER_DATABASE_PATH"
-							? ""
-							: key === "PIV_POLL_INTERVAL_MS"
-								? "30000"
-								: key === "PIV_MAX_POLL_CYCLES" ||
-										key === "CLAUDE_CODE_MAX_TURNS"
-									? ""
-									: key === "PIV_DEV_MODE" || key === "PIV_PRINT_CODEX_LOGS"
-										? "0"
-										: key === "CURSOR_AGENT_BINARY"
-											? "cursor-agent"
-											: key === "CURSOR_AGENT_FORCE"
-												? ""
-												: key === "PIV_EXIT_WHEN_IDLE"
-													? "1"
-													: key === "PIV_STALE_RUN_TIMEOUT_MS"
-														? "3600000"
-														: key === "PIV_ISSUE_CONCURRENCY"
-															? "1"
-															: key === "PIV_ISOLATED_WORKTREES"
-																? "0"
-																: key === "AGENT_BACKEND"
-																	? ""
-																	: key.toLowerCase();
+			process.env[key] = envDefaults[key];
 		}
 	});
 
@@ -231,6 +200,24 @@ describe("loadConfig", () => {
 			expect(config.server.database.databasePath).toBe(
 				path.resolve(tempDir, "./from-env/server-db"),
 			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("supports isolated worktree root from env", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		process.env.PIV_ISOLATED_WORKTREES = "1";
+		process.env.PIV_ISOLATED_WORKTREES_ROOT = "./global-worktrees";
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.workflow.isolatedWorktrees).toEqual({
+				enabled: true,
+				root: path.resolve(tempDir, "./global-worktrees"),
+			});
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}

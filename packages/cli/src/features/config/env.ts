@@ -17,6 +17,7 @@ import {
 	parseRecipientsFromEnv,
 } from "./env-normalizers";
 import type { InstanceServerDatabaseConfig } from "./instance-database-path";
+import { normalizeOptionalPath } from "./path-resolution";
 import { loadSqliteEnv } from "./sqlite-env";
 
 const DEFAULT_EMBEDDED_POSTGRES_PORT = 54329;
@@ -46,6 +47,10 @@ export function buildEnvBase(
 		normalizeOptionalValue(env.PIV_SERVER_DATABASE_PATH) ??
 		instanceServerDatabase?.databasePath ??
 		path.join(cwd, ".devos", "config", SERVER_DB_DIR);
+	const isolatedWorktreesRoot = normalizeOptionalPath(
+		env.PIV_ISOLATED_WORKTREES_ROOT,
+		cwd,
+	);
 	return {
 		workspacePath,
 		executionPath: env.PIV_EXECUTION_PATH ?? workspacePath,
@@ -207,6 +212,7 @@ export function buildEnvBase(
 			issueConcurrency: Number(env.PIV_ISSUE_CONCURRENCY ?? "1"),
 			isolatedWorktrees: {
 				enabled: env.PIV_ISOLATED_WORKTREES === "1",
+				...(isolatedWorktreesRoot ? { root: isolatedWorktreesRoot } : {}),
 			},
 		},
 		dryRun: env.PIV_DRY_RUN === "1",
