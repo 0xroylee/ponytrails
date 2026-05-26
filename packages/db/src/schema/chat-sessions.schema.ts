@@ -15,6 +15,7 @@ export const chatSessionsTable = pgTable("chat_sessions", {
 	pendingRequest: text("pending_request"),
 	pendingQuestions: text("pending_questions"),
 	archived: boolean("archived").notNull().default(false),
+	pinned: boolean("pinned").notNull().default(false),
 	createdAt: timestamp("created_at", { mode: "string" }).notNull(),
 	updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
 });

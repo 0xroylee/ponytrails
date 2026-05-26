@@ -84,6 +84,7 @@ describe("chat routes", () => {
 		const body = (await response.json()) as {
 			archived: boolean;
 			id: string;
+			pinned: boolean;
 			projectId: string;
 			taskId: string;
 			title: string;
@@ -92,6 +93,7 @@ describe("chat routes", () => {
 		expect(body.taskId).toBeTruthy();
 		expect(body.title).toBe("Untitled");
 		expect(body.archived).toBe(false);
+		expect(body.pinned).toBe(false);
 
 		const [project] = await testDatabase.db
 			.select()

@@ -95,6 +95,7 @@ export interface ChatRoomPanelViewProps {
 	onDraftChange: (value: string) => void;
 	onNewSession: () => void;
 	onOpenTaskDetails: () => void;
+	onPinSession: (sessionId: string, pinned: boolean) => void;
 	onSearch: () => void;
 	onSelectCommand: (value: string) => void;
 	onSelectOption: (index: number, value: string) => void;

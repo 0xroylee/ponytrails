@@ -39,6 +39,7 @@ export function createChatService(
 					pendingRequest: null,
 					pendingQuestions: null,
 					archived: false,
+					pinned: false,
 					createdAt: now,
 					updatedAt: now,
 				}),

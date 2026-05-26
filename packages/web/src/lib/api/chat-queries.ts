@@ -7,6 +7,7 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
+import { compareChatSessions } from "./chat-session-order";
 import { serverStateQueryKeys } from "./query-keys";
 import type {
 	ChatMessageCreateRequest,
@@ -165,7 +166,7 @@ function mergeSessions(
 ): ChatSessionRecord[] {
 	return mergeById(current, next)
 		.filter((session) => !session.archived)
-		.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+		.sort(compareChatSessions);
 }
 
 function mergeMessages(

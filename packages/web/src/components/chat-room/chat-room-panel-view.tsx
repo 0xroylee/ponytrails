@@ -39,6 +39,7 @@ export function ChatRoomPanelView({
 	onDraftChange,
 	onNewSession,
 	onOpenTaskDetails,
+	onPinSession,
 	onSearch,
 	onSelectCommand,
 	onSelectOption,
@@ -73,6 +74,7 @@ export function ChatRoomPanelView({
 				onArchiveSession={onArchiveSession}
 				onCloseSidebar={onCloseSidebar}
 				onNewSession={onNewSession}
+				onPinSession={onPinSession}
 				onSearch={onSearch}
 				onSelectSession={onSelectSession}
 			/>

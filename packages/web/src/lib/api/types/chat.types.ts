@@ -21,6 +21,7 @@ export interface ChatSessionRecord {
 	pendingRequest: string | null;
 	pendingQuestions: TaskClarificationQuestion[];
 	archived: boolean;
+	pinned: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -45,6 +46,7 @@ export interface ChatSessionCreateRequest {
 
 export interface ChatSessionUpdateRequest {
 	archived?: boolean;
+	pinned?: boolean;
 	projectId?: string | null;
 	title?: string;
 	pendingRequest?: string | null;

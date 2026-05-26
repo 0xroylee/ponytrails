@@ -22,6 +22,7 @@ import { useChatRoomMission } from "./chat-room-mission";
 import { useChatRoomDraftState } from "./chat-room-panel-draft-state";
 import { ChatRoomPanelView } from "./chat-room-panel-view";
 import { selectChatSession } from "./chat-room-selection";
+import { updateChatRoomSessionState } from "./chat-room-session-updates";
 import { chatStreamLinesForSession } from "./chat-room-stream-utils";
 import { shouldShowChatThinkingIndicator } from "./chat-thinking-state";
 import { useWorkingSectionState } from "./chat-working-section-state";
@@ -49,7 +50,6 @@ export function ChatRoomPanel({
 		setDraft,
 		setErrorMessage,
 	});
-
 	const currentWorkspaceQuery = useCurrentWorkspaceQuery(NO_REFETCH);
 	const workspaceId = currentWorkspaceQuery.data?.workspaceId ?? "";
 	const sessionsQuery = useChatSessionsQuery(workspaceId, NO_REFETCH);
@@ -58,7 +58,6 @@ export function ChatRoomPanel({
 	const updateSession = useUpdateChatSessionMutation();
 	const appendMessage = useAppendChatMessageMutation();
 	const sendMessage = useSendChatMessageMutation();
-
 	const sessions = sessionsQuery.data ?? [];
 	const { selectedSession, selectedSessionId } = selectChatSession(
 		sessions,
@@ -113,7 +112,6 @@ export function ChatRoomPanel({
 		handledNewSessionRequest.current = newSessionRequest;
 		void startNewSession();
 	}, [newSessionRequest, workspaceId]);
-
 	async function startNewSession(closeSidebar = false): Promise<void> {
 		setErrorMessage(null);
 		if (!workspaceId) {
@@ -125,7 +123,6 @@ export function ChatRoomPanel({
 		setDraft("");
 		if (closeSidebar) closeMobileSidebar();
 	}
-
 	function closeMobileSidebar(): void {
 		if (sidebarToggleRef.current) sidebarToggleRef.current.checked = false;
 	}
@@ -155,7 +152,6 @@ export function ChatRoomPanel({
 			setErrorMessage(error instanceof Error ? error.message : "Send failed");
 		}
 	}
-
 	async function executeInput(
 		sessionId: string,
 		content: string,
@@ -181,20 +177,20 @@ export function ChatRoomPanel({
 			command,
 		);
 	}
-
-	async function archiveSession(sessionId: string): Promise<void> {
-		setErrorMessage(null);
-		try {
-			await updateSession.mutateAsync({
-				sessionId,
-				session: { archived: true },
-			});
-			if (sessionId === selectedSessionId) setActiveSessionId("");
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error ? error.message : "Archive failed",
-			);
-		}
+	async function updateSessionState(
+		sessionId: string,
+		session: { archived?: boolean; pinned?: boolean },
+		failureMessage: string,
+	): Promise<void> {
+		return updateChatRoomSessionState({
+			failureMessage,
+			mutateSession: updateSession.mutateAsync,
+			selectedSessionId,
+			session,
+			sessionId,
+			setActiveSessionId,
+			setErrorMessage,
+		});
 	}
 	return (
 		<ChatRoomPanelView
@@ -223,12 +219,17 @@ export function ChatRoomPanel({
 			onAnswerChange={(index, value) =>
 				clarificationState.updateAnswerDraft(selectedSessionId, index, value)
 			}
-			onArchiveSession={(sessionId) => void archiveSession(sessionId)}
+			onArchiveSession={(sessionId) =>
+				void updateSessionState(sessionId, { archived: true }, "Archive failed")
+			}
 			onCloseSidebar={closeMobileSidebar}
 			onCloseTaskDetails={() => setIsTaskDetailSheetOpen(false)}
 			onDraftChange={handleDraftChange}
 			onNewSession={() => void startNewSession(true)}
 			onOpenTaskDetails={() => setIsTaskDetailSheetOpen(true)}
+			onPinSession={(sessionId, pinned) =>
+				void updateSessionState(sessionId, { pinned }, "Pin update failed")
+			}
 			onSearch={() => {
 				closeMobileSidebar();
 				onSearchRequest();

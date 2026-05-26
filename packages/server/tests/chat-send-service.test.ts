@@ -140,6 +140,7 @@ function chatSession(): ChatSessionRow {
 		pendingRequest: null,
 		pendingQuestions: null,
 		archived: false,
+		pinned: false,
 		createdAt: "2026-05-16T00:00:00.000Z",
 		updatedAt: "2026-05-16T00:00:00.000Z",
 	};

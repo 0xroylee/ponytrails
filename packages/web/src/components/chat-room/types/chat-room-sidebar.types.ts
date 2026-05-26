@@ -9,6 +9,7 @@ export interface ChatRoomSidebarProps {
 	onNewSession: () => void;
 	onCloseSidebar: () => void;
 	onArchiveSession: (sessionId: string) => void;
+	onPinSession: (sessionId: string, pinned: boolean) => void;
 	onSearch: () => void;
 	onSelectSession: (sessionId: string) => void;
 }

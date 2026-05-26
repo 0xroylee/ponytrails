@@ -16,7 +16,10 @@ export function createChatRepository(db: ServerDatabase["db"]): ChatRepository {
 						eq(chatSessionsTable.archived, false),
 					),
 				)
-				.orderBy(desc(chatSessionsTable.updatedAt));
+				.orderBy(
+					desc(chatSessionsTable.pinned),
+					desc(chatSessionsTable.updatedAt),
+				);
 		},
 		async getSession(id) {
 			const [session] = await db

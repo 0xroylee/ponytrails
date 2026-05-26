@@ -225,6 +225,7 @@ function chatSession(): ChatSessionRecord {
 		pendingRequest: null,
 		pendingQuestions: [],
 		archived: false,
+		pinned: false,
 		createdAt: "2026-05-20T00:00:00.000Z",
 		updatedAt: "2026-05-20T00:00:00.000Z",
 	};

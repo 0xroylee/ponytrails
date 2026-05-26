@@ -60,6 +60,7 @@ const sessionCreateSchema = z.object({
 
 const sessionUpdateSchema = z.object({
 	archived: z.boolean().optional(),
+	pinned: z.boolean().optional(),
 	projectId: z.string().trim().min(1).nullable().optional(),
 	title: z.string().trim().min(1).optional(),
 	pendingRequest: z.string().nullable().optional(),

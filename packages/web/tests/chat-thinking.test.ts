@@ -6,6 +6,7 @@ import { shouldShowChatThinkingIndicator } from "../src/components/chat-room/cha
 import { ChatTranscript } from "../src/components/chat-room/chat-transcript";
 import { TextShimmer } from "../src/components/loading/text-shimmer";
 import type { ChatMessageRecord, ChatSessionRecord } from "../src/lib/api";
+import { chatMessage, chatSession } from "./helpers/chat-records";
 
 describe("chat thinking indicator", () => {
 	it("shows only for a pending send on the active session without output", () => {
@@ -226,39 +227,4 @@ function activeStartedAt(): string {
 
 function textContent(html: string): string {
 	return html.replace(/<[^>]*>/g, "");
-}
-
-function chatMessage(
-	overrides: Partial<ChatMessageRecord> = {},
-): ChatMessageRecord {
-	return {
-		id: "message-1",
-		sessionId: "session-1",
-		role: "assistant",
-		kind: "message",
-		content: "Message",
-		taskId: null,
-		commandAction: null,
-		metadata: null,
-		createdAt: "2026-05-20T00:00:00.000Z",
-		...overrides,
-	};
-}
-
-function chatSession(
-	overrides: Partial<ChatSessionRecord> = {},
-): ChatSessionRecord {
-	return {
-		id: "session-1",
-		workspaceId: "owner-1",
-		projectId: "default",
-		taskId: "task-1",
-		title: "Untitled",
-		pendingRequest: null,
-		pendingQuestions: [],
-		archived: false,
-		createdAt: "2026-05-20T00:00:00.000Z",
-		updatedAt: "2026-05-20T00:00:00.000Z",
-		...overrides,
-	};
 }

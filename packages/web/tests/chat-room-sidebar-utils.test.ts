@@ -31,6 +31,34 @@ describe("chat room sidebar utilities", () => {
 		]);
 	});
 
+	it("orders pinned sessions before unpinned sessions within project groups", () => {
+		const groups = buildChatSessionProjectGroups({
+			activeSessionId: "session-1",
+			projects: [buildProject({ id: "project-a", name: "Project A" })],
+			sessions: [
+				buildSession({
+					id: "new-session",
+					updatedAt: "2026-05-25T00:10:00.000Z",
+				}),
+				buildSession({
+					id: "pinned-session",
+					pinned: true,
+					updatedAt: "2026-05-25T00:00:00.000Z",
+				}),
+				buildSession({
+					id: "old-session",
+					updatedAt: "2026-05-25T00:00:00.000Z",
+				}),
+			],
+		});
+
+		expect(groups[0]?.sessions.map((session) => session.id)).toEqual([
+			"pinned-session",
+			"new-session",
+			"old-session",
+		]);
+	});
+
 	it("marks the group containing the active session", () => {
 		const groups = buildChatSessionProjectGroups({
 			activeSessionId: "session-3",
@@ -100,6 +128,7 @@ function buildSession(
 		pendingRequest: null,
 		pendingQuestions: [],
 		archived: false,
+		pinned: false,
 		createdAt: "2026-05-25T00:00:00.000Z",
 		updatedAt: "2026-05-25T00:00:00.000Z",
 		...overrides,

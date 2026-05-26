@@ -30,9 +30,7 @@ export async function updateChatSessionRow(
 	sessionId: string,
 	input: ChatSessionUpdateInput,
 ): Promise<ChatSessionRow | null> {
-	const update: Partial<ChatSessionRow> = {
-		updatedAt: new Date().toISOString(),
-	};
+	const update: Partial<ChatSessionRow> = {};
 	if (input.title !== undefined) {
 		update.title = input.title.trim() || UNTITLED_SESSION;
 	}
@@ -53,5 +51,25 @@ export async function updateChatSessionRow(
 	if (input.archived !== undefined) {
 		update.archived = input.archived;
 	}
+	if (input.pinned !== undefined) {
+		update.pinned = input.pinned;
+	}
+	if (shouldTouchUpdatedAt(input)) {
+		update.updatedAt = new Date().toISOString();
+	}
+	if (Object.keys(update).length === 0) {
+		update.updatedAt = new Date().toISOString();
+	}
 	return repository.updateSession(sessionId, update);
+}
+
+function shouldTouchUpdatedAt(input: ChatSessionUpdateInput): boolean {
+	return Boolean(
+		input.archived !== undefined ||
+			input.projectId !== undefined ||
+			input.taskId !== undefined ||
+			input.title !== undefined ||
+			input.pendingRequest !== undefined ||
+			input.pendingQuestions !== undefined,
+	);
 }

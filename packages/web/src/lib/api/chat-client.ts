@@ -1,8 +1,8 @@
+import { parseChatSessionRecord } from "./chat-session-parser";
 import {
 	assertObjectRecord,
 	encodePathSegment,
 	parseListResponse,
-	readBoolean,
 	readNullableString,
 	readString,
 } from "./response-utils";
@@ -19,10 +19,8 @@ import type {
 	ChatSessionUpdateRequest,
 } from "./types/chat.types";
 import type { HealthRequestOptions } from "./types/client.types";
-import type {
-	TaskClarificationOption,
-	TaskClarificationQuestion,
-} from "./types/task.types";
+
+export { parseChatSessionRecord } from "./chat-session-parser";
 
 const CHAT_SESSIONS_PATH = "/api/chat/sessions";
 type RequestWithBase = (
@@ -124,29 +122,6 @@ export function createChatApiMethods(
 	};
 }
 
-export function parseChatSessionRecord(payload: unknown): ChatSessionRecord {
-	const row = assertObjectRecord(payload, CHAT_SESSIONS_PATH);
-	return {
-		id: readString(row, "id", CHAT_SESSIONS_PATH),
-		workspaceId: readString(row, "workspaceId", CHAT_SESSIONS_PATH),
-		projectId: readNullableString(row, "projectId", CHAT_SESSIONS_PATH),
-		taskId: readNullableString(row, "taskId", CHAT_SESSIONS_PATH),
-		title: readString(row, "title", CHAT_SESSIONS_PATH),
-		pendingRequest: readNullableString(
-			row,
-			"pendingRequest",
-			CHAT_SESSIONS_PATH,
-		),
-		pendingQuestions: readQuestionList(row.pendingQuestions),
-		archived:
-			"archived" in row
-				? readBoolean(row, "archived", CHAT_SESSIONS_PATH)
-				: false,
-		createdAt: readString(row, "createdAt", CHAT_SESSIONS_PATH),
-		updatedAt: readString(row, "updatedAt", CHAT_SESSIONS_PATH),
-	};
-}
-
 export function parseChatMessageRecord(payload: unknown): ChatMessageRecord {
 	const row = assertObjectRecord(payload, chatMessagesPath(":sessionId"));
 	return {
@@ -185,49 +160,6 @@ function chatSessionPath(sessionId: string): string {
 
 function chatMessagesPath(sessionId: string): string {
 	return `${chatSessionPath(sessionId)}/messages`;
-}
-
-function readQuestionList(value: unknown): TaskClarificationQuestion[] {
-	if (!Array.isArray(value)) {
-		throw new Error("Invalid chat session field 'pendingQuestions'");
-	}
-	return value.map(readQuestion);
-}
-
-function readQuestion(value: unknown): TaskClarificationQuestion {
-	if (typeof value === "string" && value.trim()) {
-		return { question: value.trim() };
-	}
-	const row = assertObjectRecord(value, `${CHAT_SESSIONS_PATH}:question`);
-	const options =
-		"options" in row ? readQuestionOptions(row.options) : undefined;
-	return {
-		question: readString(row, "question", CHAT_SESSIONS_PATH),
-		...(options?.length ? { options } : {}),
-	};
-}
-
-function readQuestionOptions(value: unknown): TaskClarificationOption[] {
-	if (!Array.isArray(value)) {
-		throw new Error("Invalid chat session field 'pendingQuestions.options'");
-	}
-	return value.map((item) => {
-		const row = assertObjectRecord(item, `${CHAT_SESSIONS_PATH}:option`);
-		const description =
-			"description" in row
-				? readString(row, "description", CHAT_SESSIONS_PATH)
-				: undefined;
-		const recommended =
-			"recommended" in row
-				? readBoolean(row, "recommended", CHAT_SESSIONS_PATH)
-				: undefined;
-		return {
-			label: readString(row, "label", CHAT_SESSIONS_PATH),
-			value: readString(row, "value", CHAT_SESSIONS_PATH),
-			...(description ? { description } : {}),
-			...(recommended ? { recommended } : {}),
-		};
-	});
 }
 
 function readMetadata(value: unknown): Record<string, unknown> | null {

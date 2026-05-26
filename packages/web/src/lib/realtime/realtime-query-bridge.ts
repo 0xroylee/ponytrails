@@ -8,6 +8,7 @@ import type {
 	ProjectBoardTaskRecord,
 	WorkspaceProjectRecord,
 } from "../api";
+import { compareChatSessions } from "../api/chat-session-order";
 import { serverStateQueryKeys } from "../api/query-keys";
 import type {
 	RealtimeEvent,
@@ -145,7 +146,7 @@ function upsertChatSession(
 		(current = []) =>
 			upsertById(current, session)
 				.filter((item) => !item.archived)
-				.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+				.sort(compareChatSessions),
 	);
 }
 

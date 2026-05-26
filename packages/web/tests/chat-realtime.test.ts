@@ -83,6 +83,11 @@ describe("chat realtime events", () => {
 			id: "session-new",
 			updatedAt: "2026-05-16T00:01:00.000Z",
 		});
+		const pinnedOlder = chatSession({
+			id: "session-pinned",
+			pinned: true,
+			updatedAt: "2026-05-16T00:00:30.000Z",
+		});
 		const archivedOlder = chatSession({
 			...older,
 			archived: true,
@@ -99,6 +104,10 @@ describe("chat realtime events", () => {
 
 		applyRealtimeEventToQueryClient(queryClient as never, sessionEvent(older));
 		applyRealtimeEventToQueryClient(queryClient as never, sessionEvent(newer));
+		applyRealtimeEventToQueryClient(
+			queryClient as never,
+			sessionEvent(pinnedOlder),
+		);
 		applyRealtimeEventToQueryClient(queryClient as never, sessionEvent(newer));
 		applyRealtimeEventToQueryClient(
 			queryClient as never,
@@ -112,7 +121,7 @@ describe("chat realtime events", () => {
 			queryClient.getQueryData<ChatSessionRecord[]>(
 				serverStateQueryKeys.chatSessions("owner-1"),
 			),
-		).toEqual([newer]);
+		).toEqual([pinnedOlder, newer]);
 		expect(
 			queryClient.getQueryData<ChatMessageRecord[]>(
 				serverStateQueryKeys.chatMessages("session-1"),
@@ -173,6 +182,7 @@ function chatSession(
 		pendingRequest: null,
 		pendingQuestions: [],
 		archived: false,
+		pinned: false,
 		createdAt: "2026-05-16T00:00:00.000Z",
 		updatedAt: "2026-05-16T00:00:00.000Z",
 		...overrides,

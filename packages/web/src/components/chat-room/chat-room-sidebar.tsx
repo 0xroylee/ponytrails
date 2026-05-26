@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	Archive,
 	ChevronDown,
 	ChevronRight,
 	Folder,
@@ -14,6 +13,7 @@ import { type ReactElement, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ChatRoomSessionRow } from "./chat-room-session-row";
 import { ChatRoomSettingsSidebar } from "./chat-room-settings-sidebar";
 import { buildChatSessionProjectGroups } from "./chat-room-sidebar-utils";
 import type { ChatRoomSidebarProps } from "./types/chat-room-sidebar.types";
@@ -27,6 +27,7 @@ export function ChatRoomSidebar({
 	onNewSession,
 	onArchiveSession,
 	onCloseSidebar,
+	onPinSession,
 	onSearch,
 	onSelectSession,
 }: ChatRoomSidebarProps): ReactElement {
@@ -174,39 +175,14 @@ export function ChatRoomSidebar({
 										{isExpanded ? (
 											<div className="grid gap-1 pl-6">
 												{group.sessions.map((session) => (
-													<div
-														className={cn(
-															"rounded-md group grid min-w-0 grid-cols-[minmax(0,1fr)_2rem] gap-1 hover:bg-surface-hover hover:text-zinc-200",
-															session.id === activeSessionId
-																? "bg-surface-active text-zinc-100"
-																: "text-zinc-400",
-														)}
+													<ChatRoomSessionRow
+														activeSessionId={activeSessionId}
 														key={session.id}
-													>
-														<Button
-															className="h-auto min-w-0 justify-start px-2 py-2 text-left text-sm"
-															onClick={() => onSelectSession(session.id)}
-															type="button"
-															variant="ghost"
-														>
-															<span className="min-w-0 flex-1">
-																<span className="block truncate">
-																	{session.title}
-																</span>
-															</span>
-														</Button>
-														<Button
-															aria-label={`Archive ${session.title}`}
-															className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-															onClick={() => onArchiveSession(session.id)}
-															size="icon"
-															title="Archive session"
-															type="button"
-															variant="ghost"
-														>
-															<Archive size={14} />
-														</Button>
-													</div>
+														session={session}
+														onArchiveSession={onArchiveSession}
+														onPinSession={onPinSession}
+														onSelectSession={onSelectSession}
+													/>
 												))}
 											</div>
 										) : null}

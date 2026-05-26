@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
-import os from "node:os";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
 	boardProjectsTable,
@@ -14,16 +12,16 @@ import { migrateDatabase } from "../scripts/migrate";
 import { seedDatabase } from "../scripts/seed";
 import { initializeServerDatabase } from "../src";
 import { projectBoardsTable } from "../src/schema";
-
-const tempDirs: string[] = [];
-const EMBEDDED_POSTGRES_TEST_TIMEOUT_MS = 20_000;
+import {
+	EMBEDDED_POSTGRES_TEST_TIMEOUT_MS,
+	cleanupDatabaseTempDirs,
+	createDatabasePath,
+	createDatabasePort,
+	readMigrationCount,
+} from "./database-test-helpers";
 
 afterEach(async () => {
-	await Promise.all(
-		tempDirs
-			.splice(0)
-			.map((directory) => rm(directory, { recursive: true, force: true })),
-	);
+	await cleanupDatabaseTempDirs();
 });
 
 describe("database scripts", () => {
@@ -46,16 +44,16 @@ describe("database scripts", () => {
 					"SELECT id FROM schema_migrations ORDER BY id",
 				);
 				expect(migrations.rows.length).toBeGreaterThan(0);
-				expect(migrations.rows.at(-1)?.id).toBe("0016_chat_session_archive");
+				expect(migrations.rows.at(-1)?.id).toBe("0017_chat_session_pin");
 				const columns = await database.client.query<{ column_name: string }>(
 					`
 						SELECT column_name
 						FROM information_schema.columns
 						WHERE table_name = 'chat_sessions'
-							AND column_name IN ('task_id', 'archived')
+							AND column_name IN ('task_id', 'archived', 'pinned')
 					`,
 				);
-				expect(columns.rows).toHaveLength(2);
+				expect(columns.rows).toHaveLength(3);
 			} finally {
 				await database.close();
 			}
@@ -217,46 +215,3 @@ describe("database scripts", () => {
 		expect(chatSessionsTable.taskId).toBeDefined();
 	});
 });
-
-async function createDatabasePath(): Promise<string> {
-	const tempDir = await mkdtemp(path.join(os.tmpdir(), "devos-db-test-"));
-	tempDirs.push(tempDir);
-	return path.join(tempDir, "server-db");
-}
-
-async function createDatabasePort(): Promise<number> {
-	if (
-		process.env.CODEX_SANDBOX === "seatbelt" ||
-		process.env.CODEX_SANDBOX_NETWORK_DISABLED === "1"
-	) {
-		return 54329;
-	}
-	return new Promise((resolve) => {
-		const server = createServer();
-		server.once("error", () => resolve(54329));
-		server.listen(0, "127.0.0.1", () => {
-			const address = server.address();
-			server.close(() => {
-				if (typeof address === "object" && address?.port) {
-					resolve(address.port);
-					return;
-				}
-				resolve(54329);
-			});
-		});
-	});
-}
-
-async function readMigrationCount(dbPath: string): Promise<number> {
-	const database = await initializeServerDatabase(dbPath, {
-		runMigrations: false,
-	});
-	try {
-		const result = await database.client.query<{ count: string }>(
-			"SELECT COUNT(*) AS count FROM schema_migrations",
-		);
-		return Number(result.rows[0]?.count ?? 0);
-	} finally {
-		await database.close();
-	}
-}

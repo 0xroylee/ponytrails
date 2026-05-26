@@ -1,3 +1,4 @@
+import { compareChatSessions } from "@/lib/api/chat-session-order";
 import type {
 	BuildChatSessionProjectGroupsInput,
 	ChatSessionProjectGroup,
@@ -33,7 +34,10 @@ export function buildChatSessionProjectGroups({
 		groups.set(groupId, group);
 	}
 
-	return [...groups.values()];
+	return [...groups.values()].map((group) => ({
+		...group,
+		sessions: [...group.sessions].sort(compareChatSessions),
+	}));
 }
 
 function createSessionProjectGroup(
