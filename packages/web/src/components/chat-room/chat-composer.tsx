@@ -54,6 +54,9 @@ export function ChatComposer({
 			setIsCommandMenuDismissed(true);
 			return;
 		}
+		if (event.key === "Enter" && event.nativeEvent.isComposing) {
+			return;
+		}
 		if (showCommands && commandSuggestions.length > 0) {
 			if (event.key === "ArrowDown") {
 				event.preventDefault();
