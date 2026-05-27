@@ -6,6 +6,10 @@ import { createEntityCrudService } from "../src/routes/entity-crud-service";
 import type { EntityCrudRepository } from "../src/routes/types/entity-crud-service.types";
 import { createTaskService, parseTaskIntakeOutput } from "../src/tasks";
 import type { BoardTaskApiRecord, TaskRepository } from "../src/tasks";
+import {
+	NoCliWorkerAvailableError,
+	toTaskRequirementIntakeError,
+} from "../src/tasks/task-requirement-errors";
 
 describe("server services", () => {
 	it("keeps project business rules out of controllers", async () => {
@@ -231,6 +235,18 @@ describe("server services", () => {
 				'{"status":"linear_error","error":"legacy parser failed"}\n',
 			),
 		).toThrow("legacy Linear error output");
+	});
+
+	it("classifies no-worker task requirement intake failures", () => {
+		const noWorkerError = toTaskRequirementIntakeError(
+			"No CLI worker connected to /api/workflow",
+		);
+		const fallbackError = toTaskRequirementIntakeError("Task intake failed");
+
+		expect(noWorkerError).toBeInstanceOf(NoCliWorkerAvailableError);
+		expect(noWorkerError.message).toContain("No CLI worker is connected");
+		expect(fallbackError).toBeInstanceOf(Error);
+		expect(fallbackError.message).toBe("Task intake failed");
 	});
 });
 

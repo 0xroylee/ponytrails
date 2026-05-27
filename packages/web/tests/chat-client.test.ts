@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createApiClient } from "../src/lib/api/client";
+import type { ApiRequestError } from "../src/lib/api/response-utils";
 
 function okJsonResponse(payload: unknown): Response {
 	return new Response(JSON.stringify(payload), {
@@ -135,5 +136,29 @@ describe("chat API client", () => {
 		expect(response.issue.id).toBe("task-1");
 		expect(response.messages[0]?.taskId).toBe("task-1");
 		expect(response.session.taskId).toBe("task-1");
+	});
+
+	it("surfaces server error details for non-2xx chat send responses", async () => {
+		const fetchFn = (async () =>
+			new Response(
+				JSON.stringify({
+					error:
+						"No CLI worker is connected. Start or reconnect a CLI worker, then try again.",
+				}),
+				{
+					status: 503,
+					headers: { "content-type": "application/json" },
+				},
+			)) as typeof fetch;
+		const client = createApiClient({ fetchFn });
+
+		await expect(
+			client.sendChatMessage("session-1", { content: "Build it" }),
+		).rejects.toMatchObject({
+			name: "ApiRequestError",
+			status: 503,
+			detail:
+				"No CLI worker is connected. Start or reconnect a CLI worker, then try again.",
+		} satisfies Partial<ApiRequestError>);
 	});
 });

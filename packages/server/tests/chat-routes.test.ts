@@ -231,4 +231,36 @@ describe("chat routes", () => {
 			"chat.session.updated",
 		]);
 	});
+
+	it("returns 503 with actionable message when no CLI worker is connected", async () => {
+		testDatabase = await createDrizzleServerTestDatabase();
+		const app = createServerTestApp(testDatabase.db, {
+			cliExecutor: {
+				execute: async (request) => ({
+					status: "failed",
+					request,
+					error: "No CLI worker connected to /api/workflow",
+				}),
+				executeStream: async (request) => ({ status: "succeeded", request }),
+				getHistory: () => [],
+			},
+			workspacePath: testDatabase.path,
+		});
+		const created = await app(
+			createJsonRequest("POST", "/api/chat/sessions", {}),
+		);
+		const session = (await created.json()) as { id: string };
+
+		const response = await app(
+			createJsonRequest("POST", `/api/chat/sessions/${session.id}/send`, {
+				content: "Build it",
+			}),
+		);
+
+		expect(response.status).toBe(503);
+		expect(await response.json()).toEqual({
+			error:
+				"No CLI worker is connected. Start or reconnect a CLI worker, then try again.",
+		});
+	});
 });

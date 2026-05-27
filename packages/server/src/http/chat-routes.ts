@@ -10,14 +10,14 @@ import {
 } from "./chat-route-realtime";
 import { createChatRouteService } from "./chat-route-service";
 import { publishChatSendCompletion } from "./chat-send-background";
+import { handleChatSend } from "./chat-send-route";
 import {
 	badRequest,
 	methodNotAllowed,
-	notFound,
 	parseObjectJsonBody,
 } from "./http-utils";
 import { jsonSuccess } from "./response";
-
+import type { ChatSendRouteService } from "./types/chat-send-route.types";
 const SESSIONS_PATH = "/api/chat/sessions";
 const SESSION_PATH = /^\/api\/chat\/sessions\/([^/]+)\/?$/;
 const MESSAGES_PATH = /^\/api\/chat\/sessions\/([^/]+)\/messages\/?$/;
@@ -208,7 +208,7 @@ async function handleMessagesRoute(
 
 async function handleSendRoute(
 	request: Request,
-	service: ReturnType<typeof createChatRouteService>,
+	service: ChatSendRouteService,
 	sessionId: string,
 	realtimeEvents?: RealtimeEventPublisher,
 ): Promise<Response> {
@@ -219,14 +219,16 @@ async function handleSendRoute(
 	if (!parsed.ok) {
 		return badRequest(parsed.error);
 	}
-	const result = await service.queueMessage(
+	const sendResult = await handleChatSend(
+		service,
 		sessionId,
 		parsed.value,
-		createChatSendRealtimeCallbacks(realtimeEvents),
+		realtimeEvents,
 	);
-	if (!result) {
-		return notFound("Chat session not found");
+	if (sendResult.status === "error") {
+		return sendResult.response;
 	}
+	const result = sendResult.result;
 	publishChatSendCompletion(realtimeEvents, result.completion);
 	return jsonSuccess(result.accepted, { status: 202 });
 }

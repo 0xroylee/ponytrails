@@ -1,11 +1,17 @@
 import type { HealthRequestOptions } from "./types/client.types";
+import type { ApiErrorBody } from "./types/response-error.types";
 
 export class ApiRequestError extends Error {
 	constructor(
 		readonly path: string,
 		readonly status: number,
+		readonly detail?: string,
 	) {
-		super(`${path} request failed with status ${status}`);
+		super(
+			detail?.trim()
+				? `${path} request failed with status ${status}: ${detail}`
+				: `${path} request failed with status ${status}`,
+		);
 		this.name = "ApiRequestError";
 	}
 }
@@ -130,11 +136,39 @@ export async function requestJson(
 		body: body === undefined ? undefined : JSON.stringify(body),
 	});
 	if (!response.ok) {
-		throw new ApiRequestError(path, response.status);
+		throw new ApiRequestError(
+			path,
+			response.status,
+			await readErrorResponseDetail(response),
+		);
 	}
 	return (await response.json()) as unknown;
 }
 
 export function encodePathSegment(value: string): string {
 	return encodeURIComponent(value);
+}
+
+async function readErrorResponseDetail(
+	response: Response,
+): Promise<string | undefined> {
+	const contentType = response.headers.get("content-type") ?? "";
+	if (contentType.includes("application/json")) {
+		const payload = (await response.json()) as unknown;
+		const record = asObjectRecord(payload);
+		if (!record) {
+			return undefined;
+		}
+		const error = (record as ApiErrorBody).error;
+		return typeof error === "string" ? error : undefined;
+	}
+	const text = (await response.text()).trim();
+	return text || undefined;
+}
+
+function asObjectRecord(value: unknown): Record<string, unknown> | null {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return null;
+	}
+	return value as Record<string, unknown>;
 }

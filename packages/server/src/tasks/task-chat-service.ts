@@ -8,6 +8,7 @@ import type {
 	TaskChatCreateResponse,
 } from "../http/types/task-chat-create.types";
 import type { CliExecutor } from "../types/app.types";
+import { toTaskRequirementIntakeError } from "./task-requirement-errors";
 
 export async function composeTaskChatCreate(
 	input: TaskChatCreateRequest,
@@ -72,7 +73,7 @@ export async function runTaskRequirementIntake(
 		json: true,
 	});
 	if (result.status !== "succeeded") {
-		throw new Error(result.error ?? "Task requirement intake failed");
+		throw toTaskRequirementIntakeError(result.error);
 	}
 	return parseTaskRequirementOutput(result.commandResult?.stdout ?? "");
 }
