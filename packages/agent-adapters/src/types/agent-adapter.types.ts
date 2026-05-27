@@ -1,17 +1,43 @@
+import type {
+	AgentDescriptor,
+	AgentSkillReference,
+	AgentStreamEvent,
+	AgentTokenUsage,
+} from "devos-agents";
+
 export type CodexReasoningEffort = "low" | "medium" | "high" | "xhigh";
 
 export interface AgentResult {
 	sessionId?: string;
 	finalMessage: string;
 	stdout: string;
-	usage?: {
-		inputTokens?: number;
-		outputTokens?: number;
-		totalTokens?: number;
-	};
+	stderr?: string;
+	traceId?: string;
+	backend?: AgentBackend;
+	usage?: AgentTokenUsage;
+}
+
+export type AgentAdapterRunRole =
+	| "planning"
+	| "task-intake"
+	| "implementing"
+	| "review-testing"
+	| "github-comment";
+
+export interface AgentAdapterRunRequest {
+	role: AgentAdapterRunRole;
+	prompt: string;
+	sessionId?: string;
+	traceId?: string;
+	agent?: AgentDescriptor;
+	customInstructions?: string;
+	skills?: AgentSkillReference[];
+	skillsets?: string[];
+	onStream?: (event: AgentStreamEvent) => void;
 }
 
 export interface AgentAdapter {
+	runAgent?(request: AgentAdapterRunRequest): Promise<AgentResult>;
 	runPlan(prompt: string): Promise<AgentResult>;
 	runTaskIntake(prompt: string): Promise<AgentResult>;
 	resume(sessionId: string, prompt: string): Promise<AgentResult>;

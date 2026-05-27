@@ -1,9 +1,14 @@
+import { renderAgentPrompt } from "../request-prompt";
 import { runCommand } from "../shell";
+import { emitStreamEvent } from "../streaming";
 import type {
 	AgentAdapter,
+	AgentAdapterRunRequest,
 	AgentAdapterRuntimeConfig,
 	AgentResult,
 } from "../types/agent-adapter.types";
+import { mapClaudeError } from "./errors";
+import { extractFinalMessage, extractSessionId, extractUsage } from "./output";
 import { getClaudeBinaryPath } from "./path";
 
 export class ClaudeCodeAdapter implements AgentAdapter {
@@ -31,6 +36,40 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
 	async runGithubComment(prompt: string): Promise<AgentResult> {
 		return this.runClaude(prompt);
+	}
+
+	async runAgent(request: AgentAdapterRunRequest): Promise<AgentResult> {
+		const prompt = renderAgentPrompt(request);
+		const args = request.sessionId
+			? this.buildResumeArgs(request.sessionId, prompt)
+			: this.buildNewSessionArgs(prompt);
+		return this.executeClaude(args, request);
+	}
+
+	private runClaude(prompt: string): Promise<AgentResult> {
+		return this.executeClaude(this.buildNewSessionArgs(prompt), {
+			role: "planning",
+			prompt,
+		});
+	}
+
+	private runClaudeResume(
+		sessionId: string,
+		prompt: string,
+	): Promise<AgentResult> {
+		return this.executeClaude(this.buildResumeArgs(sessionId, prompt), {
+			role: "implementing",
+			prompt,
+			sessionId,
+		});
+	}
+
+	private buildNewSessionArgs(prompt: string): string[] {
+		return ["-p", prompt, ...this.buildCommonArgs()];
+	}
+
+	private buildResumeArgs(sessionId: string, prompt: string): string[] {
+		return ["--resume", sessionId, "-p", prompt, ...this.buildCommonArgs()];
 	}
 
 	private buildModelArgs(): string[] {
@@ -69,161 +108,38 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		];
 	}
 
-	private async runClaude(prompt: string): Promise<AgentResult> {
-		const args = ["-p", prompt, ...this.buildCommonArgs()];
-
-		const result = await runCommand(this.claudePath, args, {
-			cwd: this.config.executionPath,
-			streamStdout: this.config.codex.streamLogs,
-			streamStderr: this.config.codex.streamLogs,
-			stdinMode: "ignore",
-		});
-
-		if (result.code !== 0) {
-			throw mapClaudeError(this.claudePath, args, result);
-		}
-
-		const finalMessage = extractFinalMessage(result.stdout);
-		const sessionId = extractSessionId(result.stdout);
-		const usage = extractUsage(result.stdout);
-
-		return {
-			sessionId,
-			finalMessage,
-			stdout: result.stdout,
-			usage,
-		};
-	}
-
-	private async runClaudeResume(
-		sessionId: string,
-		prompt: string,
+	private async executeClaude(
+		args: string[],
+		request: AgentAdapterRunRequest,
 	): Promise<AgentResult> {
-		const args = [
-			"--resume",
-			sessionId,
-			"-p",
-			prompt,
-			...this.buildCommonArgs(),
-		];
-
+		const cwd = this.config.executionPath;
 		const result = await runCommand(this.claudePath, args, {
-			cwd: this.config.executionPath,
+			cwd,
 			streamStdout: this.config.codex.streamLogs,
 			streamStderr: this.config.codex.streamLogs,
 			stdinMode: "ignore",
+			onStdout: (text) => emitStreamEvent(request, "stdout", text),
+			onStderr: (text) => emitStreamEvent(request, "stderr", text),
+		}).catch((error) => {
+			throw mapClaudeError(this.claudePath, args, cwd, request, {
+				code: 127,
+				stdout: "",
+				stderr: error instanceof Error ? error.message : String(error),
+			});
 		});
 
 		if (result.code !== 0) {
-			throw mapClaudeError(this.claudePath, args, result);
+			throw mapClaudeError(this.claudePath, args, cwd, request, result);
 		}
 
-		const finalMessage = extractFinalMessage(result.stdout);
-		const resumedSessionId = extractSessionId(result.stdout) ?? sessionId;
-		const usage = extractUsage(result.stdout);
-
 		return {
-			sessionId: resumedSessionId,
-			finalMessage,
+			sessionId: extractSessionId(result.stdout) ?? request.sessionId,
+			finalMessage: extractFinalMessage(result.stdout),
 			stdout: result.stdout,
-			usage,
+			stderr: result.stderr,
+			traceId: request.traceId,
+			backend: "claude-code",
+			usage: extractUsage(result.stdout),
 		};
 	}
-}
-
-function extractFinalMessage(jsonOutput: string): string {
-	try {
-		const parsed = JSON.parse(jsonOutput) as Record<string, unknown>;
-		if (typeof parsed.result === "string") return parsed.result;
-		if (typeof parsed.content === "string") return parsed.content;
-		if (typeof parsed.message === "string") return parsed.message;
-		if (Array.isArray(parsed.messages)) {
-			const last = parsed.messages[parsed.messages.length - 1];
-			if (
-				last &&
-				typeof last === "object" &&
-				typeof last.content === "string"
-			) {
-				return last.content;
-			}
-		}
-	} catch {}
-	return jsonOutput;
-}
-
-export function extractSessionId(jsonOutput: string): string | undefined {
-	try {
-		const parsed = JSON.parse(jsonOutput) as Record<string, unknown>;
-		const id =
-			parsed.session_id ??
-			parsed.sessionId ??
-			parsed.conversation_id ??
-			parsed.conversationId;
-		if (typeof id === "string") {
-			return id;
-		}
-	} catch {}
-	return undefined;
-}
-
-export function extractUsage(
-	jsonOutput: string,
-): AgentResult["usage"] | undefined {
-	try {
-		const parsed = JSON.parse(jsonOutput) as Record<string, unknown>;
-		const usage = parsed.usage as Record<string, unknown> | undefined;
-		if (!usage) {
-			return undefined;
-		}
-		return {
-			inputTokens:
-				typeof usage.input_tokens === "number" ? usage.input_tokens : undefined,
-			outputTokens:
-				typeof usage.output_tokens === "number"
-					? usage.output_tokens
-					: undefined,
-			totalTokens:
-				typeof usage.total_tokens === "number" ? usage.total_tokens : undefined,
-		};
-	} catch {}
-	return undefined;
-}
-
-function mapClaudeError(
-	command: string,
-	args: string[],
-	result: { code: number; stdout: string; stderr: string },
-): Error {
-	const output = result.stderr || result.stdout;
-	const base = `${command} ${args.join(" ")} failed with exit code ${result.code}`;
-
-	if (output.includes("rate limit") || output.includes("429")) {
-		return new Error(
-			`${base}\nClaude API rate limit hit. Wait a moment and retry, or set CLAUDE_CODE_MODEL to a model with higher limits.`,
-		);
-	}
-
-	if (
-		output.includes("authentication") ||
-		output.includes("API key") ||
-		output.includes("ANTHROPIC_API_KEY")
-	) {
-		return new Error(
-			`${base}\nClaude Code authentication failed. Run 'claude' interactively once to log in, or set ANTHROPIC_API_KEY in your environment.`,
-		);
-	}
-
-	if (output.includes("model") && output.includes("not found")) {
-		return new Error(
-			`${base}\nThe specified model was not found. Check CLAUDE_CODE_MODEL in your .env file.`,
-		);
-	}
-
-	if (result.code === 127) {
-		return new Error(
-			`${base}\nClaude Code binary not found. Install with: npm install -g @anthropic-ai/claude-code`,
-		);
-	}
-
-	return new Error(`${base}\n${output}`);
 }

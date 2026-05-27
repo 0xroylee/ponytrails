@@ -30,7 +30,11 @@ export class Agent<TInput = unknown, TOutput = unknown> {
 	async run(input: TInput, options: Omit<AgentRunInput<TInput>, "input"> = {}) {
 		await this.checkGuardrails("input", { input });
 		const result = this.runner
-			? await this.runner.run({ ...options, input })
+			? await this.runner.run({
+					...options,
+					agent: options.agent ?? this.toDescriptor(),
+					input,
+				})
 			: this.defaultRun(input, options);
 		await this.checkGuardrails("output", { output: result.output });
 		return result;
@@ -46,6 +50,18 @@ export class Agent<TInput = unknown, TOutput = unknown> {
 			finalMessage: String(output),
 			sessionId: options.sessionId,
 			traceId: options.traceId,
+		};
+	}
+
+	private toDescriptor() {
+		return {
+			name: this.name,
+			instructions: this.instructions,
+			model: this.model,
+			tools: this.tools.map((tool) => ({
+				name: tool.name,
+				description: tool.description,
+			})),
 		};
 	}
 

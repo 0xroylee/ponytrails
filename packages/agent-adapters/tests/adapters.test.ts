@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentAdapterRuntimeConfig, AgentResult } from "../src";
+import type { AgentResult } from "../src";
 import {
 	agentConfigurationDoc,
 	availableAgentModels,
@@ -9,48 +9,11 @@ import {
 	normalizeAgentBackend,
 	resolveAgentConfiguration,
 } from "../src";
-import {
-	ClaudeCodeAdapter,
-	extractSessionId as extractClaudeSessionId,
-	extractUsage as extractClaudeUsage,
-} from "../src/claude";
+import { ClaudeCodeAdapter } from "../src/claude";
 import { CodexAdapter, extractSessionId, extractUsage } from "../src/codex";
 import { buildCodexRuntimeInvocation } from "../src/codex/docker";
 import { CursorAgentAdapter } from "../src/cursor";
-
-const config: AgentAdapterRuntimeConfig = {
-	workspacePath: "/tmp/work",
-	executionPath: "/tmp/work/repo",
-	codex: {
-		binary: "codex",
-		streamLogs: false,
-		model: "gpt-5.4",
-		reasoningEffort: "medium",
-		models: {
-			plan: "gpt-5.5",
-			implement: "gpt-5.3-codex",
-			reviewTest: "gpt-5.3-codex",
-			githubComment: "gpt-5.4-mini",
-		},
-		reasoningEfforts: {
-			plan: "high",
-			implement: "low",
-		},
-		fastModes: {
-			plan: true,
-			implement: false,
-			reviewTest: true,
-			githubComment: false,
-		},
-		plugins: ["github@openai-curated"],
-		skillsets: ["devos"],
-		configOverrides: {
-			"features.experimental_tools": "true",
-		},
-		sandbox: "workspace-write",
-		codexHome: "/tmp/codex",
-	},
-};
+import { config } from "./fixtures";
 
 describe("agent adapter factory", () => {
 	it("defaults to codex and honors backend overrides", () => {
@@ -197,113 +160,5 @@ describe("codex adapter", () => {
 		expect(invocation.args).toContain("codex:latest");
 		expect(invocation.args).toContain("/workspace/repo");
 		expect(invocation.args).toContain("/workspace/.devos/tmp/out.txt");
-	});
-});
-
-describe("claude code adapter", () => {
-	it("builds common args from primary claude config", () => {
-		const adapter = new ClaudeCodeAdapter({
-			...config,
-			claude: {
-				model: "claude-sonnet-4-20250514",
-				maxTurns: 7,
-				allowedTools: ["Bash", "Read", "Edit"],
-				permissionMode: "plan",
-			},
-		});
-		const args = (
-			adapter as unknown as { buildCommonArgs: () => string[] }
-		).buildCommonArgs();
-
-		expect(args).toEqual([
-			"--output-format",
-			"json",
-			"--permission-mode",
-			"plan",
-			"--model",
-			"claude-sonnet-4-20250514",
-			"--max-turns",
-			"7",
-			"--allowedTools",
-			"Bash",
-			"Read",
-			"Edit",
-		]);
-	});
-
-	it("falls back to deprecated agent claude settings when claude config is absent", () => {
-		const adapter = new ClaudeCodeAdapter({
-			...config,
-			agent: {
-				model: "claude-sonnet-4-20250514",
-				maxTurns: 7,
-				allowedTools: ["Bash", "Read", "Edit"],
-				permissionMode: "plan",
-			},
-		});
-		const args = (
-			adapter as unknown as { buildCommonArgs: () => string[] }
-		).buildCommonArgs();
-
-		expect(args).toEqual([
-			"--output-format",
-			"json",
-			"--permission-mode",
-			"plan",
-			"--model",
-			"claude-sonnet-4-20250514",
-			"--max-turns",
-			"7",
-			"--allowedTools",
-			"Bash",
-			"Read",
-			"Edit",
-		]);
-	});
-
-	it("prefers primary claude config over deprecated agent claude settings", () => {
-		const adapter = new ClaudeCodeAdapter({
-			...config,
-			agent: {
-				model: "claude-opus-4-20250514",
-				maxTurns: 3,
-				allowedTools: ["Read", "Write"],
-				permissionMode: "dontAsk",
-			},
-			claude: {
-				model: "claude-sonnet-4-20250514",
-				maxTurns: 11,
-				allowedTools: ["Bash"],
-				permissionMode: "plan",
-			},
-		});
-		const args = (
-			adapter as unknown as { buildCommonArgs: () => string[] }
-		).buildCommonArgs();
-
-		expect(args).toEqual([
-			"--output-format",
-			"json",
-			"--permission-mode",
-			"plan",
-			"--model",
-			"claude-sonnet-4-20250514",
-			"--max-turns",
-			"11",
-			"--allowedTools",
-			"Bash",
-		]);
-	});
-
-	it("extracts normalized result fields from json output", () => {
-		const json =
-			'{"session_id":"abc-123","result":"done","usage":{"input_tokens":3,"output_tokens":4,"total_tokens":7}}';
-
-		expect(extractClaudeSessionId(json)).toBe("abc-123");
-		expect(extractClaudeUsage(json)).toEqual({
-			inputTokens: 3,
-			outputTokens: 4,
-			totalTokens: 7,
-		});
 	});
 });

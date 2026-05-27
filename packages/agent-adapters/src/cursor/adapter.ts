@@ -1,37 +1,44 @@
+import { renderAgentPrompt } from "../request-prompt";
 import { runCommand } from "../shell";
+import { emitStreamEvent } from "../streaming";
 import type {
 	AgentAdapter,
+	AgentAdapterRunRequest,
 	AgentAdapterRuntimeConfig,
 	AgentResult,
 } from "../types/agent-adapter.types";
 import { mapCursorError } from "./errors";
-import { extractFinalMessage, extractSessionId } from "./output";
+import { extractFinalMessage, extractSessionId, extractUsage } from "./output";
 
 export class CursorAgentAdapter implements AgentAdapter {
 	constructor(private config: AgentAdapterRuntimeConfig) {}
 
 	async runPlan(prompt: string): Promise<AgentResult> {
-		return this.runNewSession(prompt);
+		return this.runAgent({ role: "planning", prompt });
 	}
 
 	async runTaskIntake(prompt: string): Promise<AgentResult> {
-		return this.runNewSession(prompt);
+		return this.runAgent({ role: "task-intake", prompt });
 	}
 
 	async resume(sessionId: string, prompt: string): Promise<AgentResult> {
-		return this.runCursor(this.buildResumeArgs(sessionId, prompt));
+		return this.runAgent({ role: "implementing", prompt, sessionId });
 	}
 
 	async runReview(prompt: string): Promise<AgentResult> {
-		return this.runNewSession(prompt);
+		return this.runAgent({ role: "review-testing", prompt });
 	}
 
 	async runGithubComment(prompt: string): Promise<AgentResult> {
-		return this.runNewSession(prompt);
+		return this.runAgent({ role: "github-comment", prompt });
 	}
 
-	private async runNewSession(prompt: string): Promise<AgentResult> {
-		return this.runCursor(this.buildNewSessionArgs(prompt));
+	async runAgent(request: AgentAdapterRunRequest): Promise<AgentResult> {
+		const prompt = renderAgentPrompt(request);
+		const args = request.sessionId
+			? this.buildResumeArgs(request.sessionId, prompt)
+			: this.buildNewSessionArgs(prompt);
+		return this.runCursor(args, request);
 	}
 
 	private buildNewSessionArgs(prompt: string): string[] {
@@ -60,32 +67,50 @@ export class CursorAgentAdapter implements AgentAdapter {
 		return args;
 	}
 
-	private async runCursor(args: string[]): Promise<AgentResult> {
+	private async runCursor(
+		args: string[],
+		request: AgentAdapterRunRequest,
+	): Promise<AgentResult> {
 		const binary = this.config.cursor?.binary ?? "cursor-agent";
+		const cwd = this.config.executionPath;
 		const result = await runCommand(binary, args, {
-			cwd: this.config.executionPath,
+			cwd,
 			env: this.buildEnv(),
 			streamStdout:
 				this.config.cursor?.streamLogs ?? this.config.codex.streamLogs,
 			streamStderr:
 				this.config.cursor?.streamLogs ?? this.config.codex.streamLogs,
 			stdinMode: "ignore",
+			onStdout: (text) => emitStreamEvent(request, "stdout", text),
+			onStderr: (text) => emitStreamEvent(request, "stderr", text),
 		}).catch((error) => {
-			throw mapCursorError(binary, args, {
-				code: 127,
-				stdout: "",
-				stderr: error instanceof Error ? error.message : String(error),
-			});
+			throw mapCursorError(
+				binary,
+				args,
+				{
+					code: 127,
+					stdout: "",
+					stderr: error instanceof Error ? error.message : String(error),
+				},
+				{
+					cwd,
+					request,
+				},
+			);
 		});
 
 		if (result.code !== 0) {
-			throw mapCursorError(binary, args, result);
+			throw mapCursorError(binary, args, result, { cwd, request });
 		}
 
 		return {
-			sessionId: extractSessionId(result.stdout),
+			sessionId: extractSessionId(result.stdout) ?? request.sessionId,
 			finalMessage: extractFinalMessage(result.stdout),
 			stdout: result.stdout,
+			stderr: result.stderr,
+			traceId: request.traceId,
+			backend: "cursor-agent",
+			usage: extractUsage(result.stdout),
 		};
 	}
 

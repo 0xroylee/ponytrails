@@ -1,8 +1,4 @@
-export {
-	ClaudeCodeAdapter,
-	extractSessionId,
-	extractUsage,
-} from "./adapter";
+export { ClaudeCodeAdapter } from "./adapter";
 export {
 	CLAUDE_AVAILABLE_MODELS,
 	CLAUDE_BACKEND,
@@ -11,4 +7,5 @@ export {
 	CLAUDE_LABEL,
 } from "./constants";
 export { claudeConfigurationDoc } from "./configuration-doc";
+export { extractSessionId, extractUsage } from "./output";
 export { findClaudeBinary, getClaudeBinaryPath } from "./path";

@@ -1,7 +1,12 @@
 export interface AgentRunInput<TInput = unknown> {
 	input: TInput;
+	agent?: AgentDescriptor;
 	sessionId?: string;
 	traceId?: string;
+	customInstructions?: string;
+	skills?: AgentSkillReference[];
+	skillsets?: string[];
+	onStream?: (event: AgentStreamEvent) => void;
 }
 
 export interface AgentRunResult<TOutput = unknown> {
@@ -9,11 +14,7 @@ export interface AgentRunResult<TOutput = unknown> {
 	finalMessage?: string;
 	sessionId?: string;
 	traceId?: string;
-	usage?: {
-		inputTokens?: number;
-		outputTokens?: number;
-		totalTokens?: number;
-	};
+	usage?: AgentTokenUsage;
 }
 
 export interface AgentRunner<TInput = unknown, TOutput = unknown> {
@@ -28,6 +29,33 @@ export interface AgentOptions<TInput = unknown, TOutput = unknown> {
 	guardrails?: Guardrail<TInput, TOutput>[];
 	handoffs?: Handoff[];
 	runner?: AgentRunner<TInput, TOutput>;
+}
+
+export interface AgentDescriptor {
+	name: string;
+	instructions: string;
+	model?: string;
+	tools?: Array<{ name: string; description?: string }>;
+}
+
+export interface AgentSkillReference {
+	name?: string;
+	path?: string;
+	content?: string;
+	source?: string;
+}
+
+export interface AgentTokenUsage {
+	inputTokens?: number;
+	outputTokens?: number;
+	totalTokens?: number;
+}
+
+export interface AgentStreamEvent {
+	stream: "stdout" | "stderr";
+	text: string;
+	traceId?: string;
+	recordedAt: string;
 }
 
 export interface SandboxAgentOptions<TInput = unknown, TOutput = unknown>

@@ -36,6 +36,41 @@ describe("Agent", () => {
 		});
 	});
 
+	it("passes agent metadata and structured run options to custom runners", async () => {
+		const streamEvents: string[] = [];
+		const agent = new Agent<string, string>({
+			name: "Structured",
+			instructions: "Use the structured request",
+			model: "gpt-test",
+			tools: [{ name: "read", invoke: () => "ok" }],
+			runner: {
+				run: async ({ agent, customInstructions, skills, onStream }) => {
+					onStream?.({
+						stream: "stdout",
+						text: "chunk",
+						recordedAt: "now",
+					});
+					streamEvents.push(`${agent?.name}:${customInstructions}`);
+					return {
+						output: skills?.[0]?.path ?? "",
+						finalMessage: agent?.model,
+					};
+				},
+			},
+		});
+
+		const result = await agent.run("hello", {
+			customInstructions: "Be exact",
+			skills: [{ path: "skills/example/SKILL.md" }],
+		});
+
+		expect(result).toMatchObject({
+			output: "skills/example/SKILL.md",
+			finalMessage: "gpt-test",
+		});
+		expect(streamEvents).toEqual(["Structured:Be exact"]);
+	});
+
 	it("fails input guardrails before invoking the runner", async () => {
 		let invoked = false;
 		const agent = new Agent<string, string>({

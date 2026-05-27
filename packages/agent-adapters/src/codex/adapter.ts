@@ -1,16 +1,21 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { assertCommandOk, runCommand } from "../shell";
+import { AgentAdapterError } from "../adapter-error";
+import { renderAgentPrompt } from "../request-prompt";
+import { runCommand } from "../shell";
+import { emitStreamEvent } from "../streaming";
 import type {
 	AgentAdapter,
+	AgentAdapterRunRequest,
 	AgentAdapterRuntimeConfig,
 	AgentResult,
 	CodexReasoningEffort,
 } from "../types/agent-adapter.types";
-import { normalizeList, toTomlStringArray } from "./config";
+import { buildCodexConfigOverrides } from "./config-overrides";
 import { buildCodexRuntimeInvocation } from "./docker";
 import { extractSessionId, extractUsage } from "./output";
 import { readOutputFile } from "./output-file";
+import { resolveCodexStageConfig } from "./stage-config";
 
 export { extractSessionId, extractUsage } from "./output";
 
@@ -18,95 +23,51 @@ export class CodexAdapter implements AgentAdapter {
 	constructor(private config: AgentAdapterRuntimeConfig) {}
 
 	async runPlan(prompt: string): Promise<AgentResult> {
-		const model = this.config.codex.models?.plan ?? this.config.codex.model;
-		const reasoningEffort =
-			this.config.codex.reasoningEfforts?.plan ??
-			this.config.codex.reasoningEffort;
-		const fastModeEnabled = this.config.codex.fastModes?.plan;
-		return this.runCodex(
-			this.buildExecArgs(
-				prompt,
-				await this.nextOutputFile(),
-				model,
-				reasoningEffort,
-				fastModeEnabled,
-			),
-		);
+		return this.runAgent({ role: "planning", prompt });
 	}
 
 	async runTaskIntake(prompt: string): Promise<AgentResult> {
-		return this.runPlan(prompt);
+		return this.runAgent({ role: "task-intake", prompt });
 	}
 
 	async resume(sessionId: string, prompt: string): Promise<AgentResult> {
-		const model =
-			this.config.codex.models?.implement ?? this.config.codex.model;
-		const reasoningEffort =
-			this.config.codex.reasoningEfforts?.implement ??
-			this.config.codex.reasoningEffort;
-		const fastModeEnabled = this.config.codex.fastModes?.implement;
-		return this.runCodex(
-			this.buildResumeArgs(
-				sessionId,
-				prompt,
-				await this.nextOutputFile(),
-				model,
-				reasoningEffort,
-				fastModeEnabled,
-			),
-		);
+		return this.runAgent({ role: "implementing", prompt, sessionId });
 	}
 
 	async runReview(prompt: string): Promise<AgentResult> {
-		const model =
-			this.config.codex.models?.reviewTest ??
-			this.config.codex.models?.implement ??
-			this.config.codex.model;
-		const reasoningEffort =
-			this.config.codex.reasoningEfforts?.reviewTest ??
-			this.config.codex.reasoningEfforts?.implement ??
-			this.config.codex.reasoningEffort;
-		const fastModeEnabled =
-			this.config.codex.fastModes?.reviewTest ??
-			this.config.codex.fastModes?.implement;
-		return this.runCodex(
-			this.buildExecArgs(
-				prompt,
-				await this.nextOutputFile(),
-				model,
-				reasoningEffort,
-				fastModeEnabled,
-			),
-		);
+		return this.runAgent({ role: "review-testing", prompt });
 	}
 
 	async runGithubComment(prompt: string): Promise<AgentResult> {
-		const model =
-			this.config.codex.models?.githubComment ??
-			this.config.codex.models?.reviewTest ??
-			this.config.codex.models?.implement ??
-			this.config.codex.model;
-		const reasoningEffort =
-			this.config.codex.reasoningEfforts?.githubComment ??
-			this.config.codex.reasoningEfforts?.reviewTest ??
-			this.config.codex.reasoningEfforts?.implement ??
-			this.config.codex.reasoningEffort;
-		const fastModeEnabled =
-			this.config.codex.fastModes?.githubComment ??
-			this.config.codex.fastModes?.reviewTest ??
-			this.config.codex.fastModes?.implement;
-		return this.runCodex(
-			this.buildExecArgs(
-				prompt,
-				await this.nextOutputFile(),
-				model,
-				reasoningEffort,
-				fastModeEnabled,
-			),
-		);
+		return this.runAgent({ role: "github-comment", prompt });
+	}
+
+	async runAgent(request: AgentAdapterRunRequest): Promise<AgentResult> {
+		const stage = resolveCodexStageConfig(this.config, request.role);
+		const outputFile = await this.nextOutputFile();
+		const prompt = renderAgentPrompt(request);
+		const args = request.sessionId
+			? this.buildResumeArgs(
+					request,
+					prompt,
+					outputFile,
+					stage.model,
+					stage.reasoningEffort,
+					stage.fastModeEnabled,
+				)
+			: this.buildExecArgs(
+					request,
+					prompt,
+					outputFile,
+					stage.model,
+					stage.reasoningEffort,
+					stage.fastModeEnabled,
+				);
+		return this.runCodex(args, request);
 	}
 
 	private buildExecArgs(
+		request: AgentAdapterRunRequest,
 		prompt: string,
 		outputFile: string,
 		modelOverride?: string,
@@ -129,13 +90,18 @@ export class CodexAdapter implements AgentAdapter {
 		if (this.config.codex.sandbox) {
 			args.push("--sandbox", this.config.codex.sandbox);
 		}
-		this.appendConfigArgs(args, reasoningEffortOverride, fastModeEnabled);
+		this.appendConfigArgs(
+			args,
+			request,
+			reasoningEffortOverride,
+			fastModeEnabled,
+		);
 		args.push(prompt);
 		return args;
 	}
 
 	private buildResumeArgs(
-		sessionId: string,
+		request: AgentAdapterRunRequest,
 		prompt: string,
 		outputFile: string,
 		modelOverride?: string,
@@ -154,12 +120,20 @@ export class CodexAdapter implements AgentAdapter {
 		if (model) {
 			args.push("--model", model);
 		}
-		this.appendConfigArgs(args, reasoningEffortOverride, fastModeEnabled);
-		args.push(sessionId, prompt);
+		this.appendConfigArgs(
+			args,
+			request,
+			reasoningEffortOverride,
+			fastModeEnabled,
+		);
+		args.push(request.sessionId ?? "", prompt);
 		return args;
 	}
 
-	private async runCodex(args: string[]): Promise<AgentResult> {
+	private async runCodex(
+		args: string[],
+		request: AgentAdapterRunRequest,
+	): Promise<AgentResult> {
 		const invocation = buildCodexRuntimeInvocation(this.config, args);
 		const result = await runCommand(invocation.command, invocation.args, {
 			cwd: invocation.cwd,
@@ -167,9 +141,31 @@ export class CodexAdapter implements AgentAdapter {
 			streamStdout: this.config.codex.streamLogs,
 			streamStderr: this.config.codex.streamLogs,
 			stdinMode: "ignore",
+			onStdout: (text) => emitStreamEvent(request, "stdout", text),
+			onStderr: (text) => emitStreamEvent(request, "stderr", text),
+		}).catch((error) => {
+			throw this.toError(
+				invocation.command,
+				invocation.args,
+				invocation.cwd,
+				request,
+				{
+					code: 127,
+					stdout: "",
+					stderr: error instanceof Error ? error.message : String(error),
+				},
+			);
 		});
 
-		assertCommandOk(invocation.command, invocation.args, result);
+		if (result.code !== 0) {
+			throw this.toError(
+				invocation.command,
+				invocation.args,
+				invocation.cwd,
+				request,
+				result,
+			);
+		}
 		const sessionId = extractSessionId(result.stdout);
 		const finalMessage = await readOutputFile(invocation.hostOutputFile);
 		const usage = extractUsage(result.stdout);
@@ -177,6 +173,9 @@ export class CodexAdapter implements AgentAdapter {
 			sessionId,
 			finalMessage,
 			stdout: result.stdout,
+			stderr: result.stderr,
+			traceId: request.traceId,
+			backend: "codex",
 			usage,
 		};
 	}
@@ -192,12 +191,14 @@ export class CodexAdapter implements AgentAdapter {
 
 	private appendConfigArgs(
 		args: string[],
+		request: AgentAdapterRunRequest,
 		reasoningEffortOverride?: CodexReasoningEffort,
 		fastModeEnabled?: boolean,
 	): void {
 		for (const override of this.buildConfigOverrides(
 			reasoningEffortOverride,
 			fastModeEnabled,
+			request,
 		)) {
 			args.push("--config", override);
 		}
@@ -206,54 +207,33 @@ export class CodexAdapter implements AgentAdapter {
 	private buildConfigOverrides(
 		reasoningEffortOverride?: CodexReasoningEffort,
 		fastModeEnabled?: boolean,
+		request: AgentAdapterRunRequest = { role: "planning", prompt: "" },
 	): string[] {
-		const overrides: string[] = [];
-		const plugins = normalizeList(this.config.codex.plugins);
-		const skillsets = normalizeList(this.config.codex.skillsets);
-		const mcpServers = this.config.codex.mcpServers ?? [];
+		return buildCodexConfigOverrides(
+			this.config,
+			request,
+			reasoningEffortOverride,
+			fastModeEnabled,
+		);
+	}
 
-		for (const plugin of plugins) {
-			const pluginKey = JSON.stringify(plugin);
-			overrides.push(`plugins.${pluginKey}.enabled=true`);
-		}
-		if (skillsets.length > 0) {
-			overrides.push(`skillsets=${toTomlStringArray(skillsets)}`);
-		}
-		if (reasoningEffortOverride) {
-			overrides.push(
-				`model_reasoning_effort=${JSON.stringify(reasoningEffortOverride)}`,
-			);
-		}
-		if (fastModeEnabled) {
-			overrides.push('service_tier="fast"');
-			overrides.push("features.fast_mode=true");
-		}
-		for (const server of mcpServers) {
-			const serverKey = JSON.stringify(server.name);
-			overrides.push(
-				`mcp_servers.${serverKey}.command=${JSON.stringify(server.command)}`,
-			);
-			overrides.push(
-				`mcp_servers.${serverKey}.args=${toTomlStringArray(server.args)}`,
-			);
-			overrides.push(`mcp_servers.${serverKey}.type="stdio"`);
-			for (const [envKey, envValue] of Object.entries(server.env ?? {})) {
-				overrides.push(
-					`mcp_servers.${serverKey}.env.${envKey}=${JSON.stringify(envValue)}`,
-				);
-			}
-		}
-		for (const [rawKey, rawValue] of Object.entries(
-			this.config.codex.configOverrides ?? {},
-		)) {
-			const key = rawKey.trim();
-			const value = rawValue.trim();
-			if (!key || !value) {
-				continue;
-			}
-			overrides.push(`${key}=${value}`);
-		}
-
-		return overrides;
+	private toError(
+		command: string,
+		args: string[],
+		cwd: string,
+		request: AgentAdapterRunRequest,
+		result: { code: number; stdout: string; stderr: string },
+	): AgentAdapterError {
+		return new AgentAdapterError({
+			backend: "codex",
+			message: `${command} failed with exit code ${result.code}`,
+			command,
+			args,
+			cwd,
+			code: result.code,
+			stdout: result.stdout,
+			stderr: result.stderr,
+			traceId: request.traceId,
+		});
 	}
 }

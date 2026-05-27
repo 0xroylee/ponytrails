@@ -1,4 +1,5 @@
 import type { AgentResult } from "adapters";
+import type { AgentStreamEvent } from "devos-agents";
 import { logger, normalizeError } from "../../utils/logger";
 import { emitWorkflowProgress } from "../server";
 import type { AgentChatLogEntry, AgentChatLogRole, RunState } from "../types";
@@ -11,7 +12,9 @@ interface RunAgentWithChatLogOptions {
 	agentRole: AgentChatLogRole;
 	skillPath: string;
 	prompt: string;
-	invoke: () => Promise<AgentResult>;
+	invoke: (input?: {
+		onStream: (event: AgentStreamEvent) => void;
+	}) => Promise<AgentResult>;
 }
 
 interface PersistedAgentChatLogResult {
@@ -28,7 +31,9 @@ export async function runAgentWithChatLog(
 ): Promise<AgentResult> {
 	try {
 		emitAgentProgress(options, "started");
-		const result = await options.invoke();
+		const result = await options.invoke({
+			onStream: (event) => emitAgentStreamLog(options, event),
+		});
 		await persistAgentChatLog(options, {
 			finalMessage: result.finalMessage,
 			stdout: result.stdout,
@@ -51,6 +56,24 @@ export async function runAgentWithChatLog(
 		emitAgentProgress(options, "failed", message);
 		throw error;
 	}
+}
+
+function emitAgentStreamLog(
+	options: RunAgentWithChatLogOptions,
+	event: AgentStreamEvent,
+): void {
+	if (!event.text.trim()) {
+		return;
+	}
+	emitWorkflowProgress({
+		kind: "log",
+		projectId: options.projectId,
+		issueKey: options.issue.key,
+		stage: options.agentRole,
+		stream: event.stream,
+		level: event.stream === "stderr" ? "error" : "info",
+		message: event.text,
+	});
 }
 
 function emitAgentProgress(

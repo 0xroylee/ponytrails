@@ -1,4 +1,4 @@
-import type { AgentAdapter } from "adapters";
+import { type AgentAdapter, runAdapterAgent } from "adapters";
 import { selectPlanningSupplementalSkills } from "../../skills/catalog";
 import { buildPlanPrompt } from "../../skills/prompts";
 import {
@@ -61,14 +61,20 @@ export async function handlePlanningStage(
 		agentRole: "planning",
 		skillPath: config.skills.plan,
 		prompt,
-		invoke: () =>
-			parentSessionId
-				? agent.resume(parentSessionId, prompt)
-				: agent.runPlan(prompt),
+		invoke: ({ onStream } = { onStream: () => {} }) =>
+			runAdapterAgent(agent, {
+				role: "planning",
+				prompt,
+				sessionId: parentSessionId,
+				skills: [{ name: "planning", path: config.skills.plan }],
+				onStream,
+			}),
 	});
 	state.codexSessionId = result.sessionId ?? state.codexSessionId;
 	state.planSummary = result.finalMessage || result.stdout;
-	deps.appendCodexUsage(state, "planning", result.usage);
+	deps.appendCodexUsage(state, "planning", result.usage, {
+		agentBackend: result.backend,
+	});
 
 	let parsedPlan: PlannerDecision;
 	try {
@@ -86,14 +92,20 @@ export async function handlePlanningStage(
 			agentRole: "planning",
 			skillPath: config.skills.plan,
 			prompt: repairPrompt,
-			invoke: () =>
-				resumeSessionId
-					? agent.resume(resumeSessionId, repairPrompt)
-					: agent.runPlan(repairPrompt),
+			invoke: ({ onStream } = { onStream: () => {} }) =>
+				runAdapterAgent(agent, {
+					role: "planning",
+					prompt: repairPrompt,
+					sessionId: resumeSessionId,
+					skills: [{ name: "planning", path: config.skills.plan }],
+					onStream,
+				}),
 		});
 		state.codexSessionId = result.sessionId ?? state.codexSessionId;
 		state.planSummary = result.finalMessage || result.stdout;
-		deps.appendCodexUsage(state, "planning", result.usage);
+		deps.appendCodexUsage(state, "planning", result.usage, {
+			agentBackend: result.backend,
+		});
 		try {
 			parsedPlan = parsePlannerDecision(state.planSummary);
 		} catch (retryError) {

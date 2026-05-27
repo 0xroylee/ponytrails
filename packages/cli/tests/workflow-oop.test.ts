@@ -1,12 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentAdapter, AgentResult } from "adapters";
+import type {
+	AgentAdapter,
+	AgentAdapterRunRequest,
+	AgentResult,
+} from "adapters";
 import type { LoadedConfig } from "../src/features/config";
 import type { ResolvedProjectConfig } from "../src/features/types";
 import { AgentAdapterBridge } from "../src/features/workflow/oop/agent-adapter-bridge";
 import { WorkflowOrchestrator } from "../src/features/workflow/oop/workflow-orchestrator";
 
 describe("workflow OOP bridge", () => {
-	it("routes stage agents through the existing adapter contract", async () => {
+	it("routes stage agents through the structured adapter contract", async () => {
 		const calls: string[] = [];
 		const adapter = fakeAgentAdapter(async (method) => {
 			calls.push(method);
@@ -21,7 +25,7 @@ describe("workflow OOP bridge", () => {
 			.createAgent("implementing")
 			.run({ role: "implementing", prompt: "fix", sessionId: "s1" });
 
-		expect(calls).toEqual(["runPlan", "resume"]);
+		expect(calls).toEqual(["runAgent:planning", "runAgent:implementing"]);
 	});
 
 	it("owns project cycle orchestration without changing polling semantics", async () => {
@@ -74,6 +78,8 @@ function fakeAgentAdapter(
 	run: (method: string) => Promise<AgentResult>,
 ): AgentAdapter {
 	return {
+		runAgent: (request: AgentAdapterRunRequest) =>
+			run(`runAgent:${request.role}`),
 		runPlan: () => run("runPlan"),
 		runTaskIntake: () => run("runTaskIntake"),
 		resume: () => run("resume"),

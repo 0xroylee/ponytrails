@@ -1,3 +1,5 @@
+import type { AgentBackend } from "adapters";
+import type { AgentStreamEvent } from "devos-agents";
 import type {
 	CodexUsageRecord,
 	IssueRef,
@@ -39,10 +41,13 @@ export interface HandlePlanningStageDeps {
 		agentRole: "planning";
 		skillPath: string;
 		prompt: string;
-		invoke: () => Promise<{
+		invoke: (input?: {
+			onStream: (event: AgentStreamEvent) => void;
+		}) => Promise<{
 			finalMessage: string;
 			stdout: string;
 			sessionId?: string;
+			backend?: AgentBackend;
 			usage?: {
 				inputTokens?: number;
 				outputTokens?: number;
@@ -53,6 +58,7 @@ export interface HandlePlanningStageDeps {
 		finalMessage: string;
 		stdout: string;
 		sessionId?: string;
+		backend?: AgentBackend;
 		usage?: {
 			inputTokens?: number;
 			outputTokens?: number;
@@ -65,6 +71,7 @@ export interface HandlePlanningStageDeps {
 		usage:
 			| { inputTokens?: number; outputTokens?: number; totalTokens?: number }
 			| undefined,
+		metadata?: Pick<CodexUsageRecord, "agentBackend" | "model">,
 	) => void;
 	saveRunState: (cwd: string, state: RunState) => Promise<void>;
 	transitionStage: (state: RunState, to: RunState["stage"]) => RunState;

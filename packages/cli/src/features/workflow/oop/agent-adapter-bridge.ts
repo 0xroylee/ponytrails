@@ -1,4 +1,10 @@
-import type { AgentAdapter, AgentResult } from "adapters";
+import {
+	type AgentAdapter,
+	type AgentAdapterRunRole,
+	type AgentResult,
+	runAdapterAgent,
+} from "adapters";
+import type { AgentRunInput, AgentSkillReference } from "devos-agents";
 import { Agent, SandboxAgent } from "devos-agents";
 import type { ResolvedProjectConfig } from "../../types";
 
@@ -12,6 +18,9 @@ export interface WorkflowAgentBridgeInput {
 	role: WorkflowAgentRole;
 	prompt: string;
 	sessionId?: string;
+	customInstructions?: string;
+	skills?: AgentSkillReference[];
+	skillsets?: string[];
 }
 
 export class AgentAdapterBridge {
@@ -27,12 +36,13 @@ export class AgentAdapterBridge {
 			name: role,
 			instructions: `Run the ${role} workflow role for devos.ing.`,
 			runner: {
-				run: async ({ input }: { input: WorkflowAgentBridgeInput }) => {
-					const output = await this.runRole(input);
+				run: async (runInput: AgentRunInput<WorkflowAgentBridgeInput>) => {
+					const output = await this.runRole(runInput);
 					return {
 						output,
 						finalMessage: output.finalMessage || output.stdout,
 						sessionId: output.sessionId,
+						traceId: output.traceId,
 						usage: output.usage,
 					};
 				},
@@ -48,21 +58,30 @@ export class AgentAdapterBridge {
 		return new Agent(options);
 	}
 
-	private runRole(input: WorkflowAgentBridgeInput): Promise<AgentResult> {
-		if (input.role === "planning") {
-			return input.sessionId
-				? this.adapter.resume(input.sessionId, input.prompt)
-				: this.adapter.runPlan(input.prompt);
-		}
+	private runRole(
+		runInput: AgentRunInput<WorkflowAgentBridgeInput>,
+	): Promise<AgentResult> {
+		const input = runInput.input;
 		if (input.role === "implementing") {
 			if (!input.sessionId) {
 				throw new Error("Implementing agent requires a session id");
 			}
-			return this.adapter.resume(input.sessionId, input.prompt);
 		}
-		if (input.role === "review-testing") {
-			return this.adapter.runReview(input.prompt);
-		}
-		return this.adapter.runGithubComment(input.prompt);
+		return runAdapterAgent(this.adapter, {
+			role: toAdapterRole(input.role),
+			prompt: input.prompt,
+			sessionId: input.sessionId,
+			traceId: runInput.traceId,
+			agent: runInput.agent,
+			customInstructions:
+				input.customInstructions ?? runInput.customInstructions,
+			skills: input.skills ?? runInput.skills,
+			skillsets: input.skillsets ?? runInput.skillsets,
+			onStream: runInput.onStream,
+		});
 	}
+}
+
+function toAdapterRole(role: WorkflowAgentRole): AgentAdapterRunRole {
+	return role === "review-testing" ? "review-testing" : role;
 }

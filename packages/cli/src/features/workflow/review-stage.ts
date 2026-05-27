@@ -1,4 +1,4 @@
-import type { AgentAdapter } from "adapters";
+import { type AgentAdapter, runAdapterAgent } from "adapters";
 import {
 	buildGithubCommentPrompt,
 	buildReviewPrompt,
@@ -7,11 +7,7 @@ import {
 	buildImplementationFeedbackComment,
 	buildReviewComment,
 } from "../../utils/comments";
-import type {
-	ResolvedNotificationConfig,
-	ResolvedProjectConfig,
-	RunState,
-} from "../types";
+import type { ResolvedProjectConfig, RunState } from "../types";
 import { emitActionProgress, emitStageProgress } from "./progress";
 import { parseReviewOutcome } from "./review";
 import {
@@ -23,10 +19,10 @@ import {
 	reviewFailureHumanReason,
 } from "./review-stage-helpers";
 import type {
-	FinalizeReviewMergeDeps,
 	HandleReviewTestingStageDeps,
 	ReviewLinearClient,
 } from "./types/review-stage.types";
+export { finalizeIssueAfterReviewMerge } from "./review-merge";
 export {
 	MAX_AUTOMATED_REVIEW_FIX_PASSES,
 	incrementAutomatedReviewFixPasses,
@@ -66,11 +62,19 @@ export async function handleReviewTestingStage(
 		agentRole: "review-testing",
 		skillPath: config.skills.reviewTest,
 		prompt,
-		invoke: () => agent.runReview(prompt),
+		invoke: ({ onStream } = { onStream: () => {} }) =>
+			runAdapterAgent(agent, {
+				role: "review-testing",
+				prompt,
+				skills: [{ name: "review-testing", path: config.skills.reviewTest }],
+				onStream,
+			}),
 	});
 	const outcome = parseReviewOutcome(review.finalMessage || review.stdout);
 	const retryBugs = normalizeFailedReviewBugs(outcome);
-	deps.appendCodexUsage(state, "testing", review.usage);
+	deps.appendCodexUsage(state, "testing", review.usage, {
+		agentBackend: review.backend,
+	});
 	state.reviewSessionId = review.sessionId;
 	state.reviewSummary = outcome.summary;
 	state.testingSummary = outcome.summary;
@@ -116,9 +120,19 @@ export async function handleReviewTestingStage(
 				agentRole: "github-comment",
 				skillPath: config.skills.githubComment,
 				prompt: githubCommentPrompt,
-				invoke: () => agent.runGithubComment(githubCommentPrompt),
+				invoke: ({ onStream } = { onStream: () => {} }) =>
+					runAdapterAgent(agent, {
+						role: "github-comment",
+						prompt: githubCommentPrompt,
+						skills: [
+							{ name: "github-comment", path: config.skills.githubComment },
+						],
+						onStream,
+					}),
 			});
-			deps.appendCodexUsage(state, "testing", githubCommentResult.usage);
+			deps.appendCodexUsage(state, "testing", githubCommentResult.usage, {
+				agentBackend: githubCommentResult.backend,
+			});
 			await deps.saveRunState(config.workspacePath, state);
 			const generated =
 				githubCommentResult.finalMessage?.trim() ||
@@ -213,22 +227,4 @@ export async function handleReviewTestingStage(
 		"succeeded",
 		"Review/testing completed",
 	);
-}
-
-export async function finalizeIssueAfterReviewMerge(
-	config: ResolvedProjectConfig,
-	notifications: ResolvedNotificationConfig,
-	linear: ReviewLinearClient,
-	state: RunState,
-	deps: FinalizeReviewMergeDeps,
-): Promise<void> {
-	await linear.markStage(state.issue.id, "done");
-	await linear.clearWorkflowStageLabels(state.issue.id);
-	await linear.comment(
-		state.issue.id,
-		"PR squash-merged after completed review.",
-	);
-	state.pullRequestApprovedAt = new Date().toISOString();
-	await deps.saveRunState(config.workspacePath, state);
-	await deps.safeNotifyTaskOutcome(notifications, state, "done");
 }

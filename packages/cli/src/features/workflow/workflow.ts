@@ -79,7 +79,7 @@ import {
 
 export { buildRunLeaseOwnerId } from "./workflow-lease";
 export { routeProjectsForIssueProjectId } from "./workflow-routing";
-import type { AgentAdapter } from "adapters";
+import { type AgentAdapter, runAdapterAgent } from "adapters";
 import { issueBranchName } from "../../integrations/github";
 import { sortIssuesByPriority } from "../../integrations/linear";
 import { emitWorkflowProgress } from "../server";
@@ -1328,10 +1328,19 @@ async function handleImplementingStage(
 		agentRole: "implementing",
 		skillPath: config.skills.implement,
 		prompt,
-		invoke: () => agent.resume(codexSessionId, prompt),
+		invoke: ({ onStream } = { onStream: () => {} }) =>
+			runAdapterAgent(agent, {
+				role: "implementing",
+				prompt,
+				sessionId: codexSessionId,
+				skills: [{ name: "implementation", path: config.skills.implement }],
+				onStream,
+			}),
 	});
 	state.implementationSummary = result.finalMessage || result.stdout;
-	appendCodexUsage(state, "implementing", result.usage);
+	appendCodexUsage(state, "implementing", result.usage, {
+		agentBackend: result.backend,
+	});
 
 	if (!hasExistingPr) {
 		if (config.dryRun) {
@@ -1486,6 +1495,7 @@ export function appendCodexUsage(
 	usage:
 		| { inputTokens?: number; outputTokens?: number; totalTokens?: number }
 		| undefined,
+	metadata: Pick<CodexUsageRecord, "agentBackend" | "model"> = {},
 ): void {
 	if (!usage) {
 		return;
@@ -1494,6 +1504,7 @@ export function appendCodexUsage(
 		...(state.codexUsage ?? []),
 		{
 			stage,
+			...metadata,
 			inputTokens: usage.inputTokens,
 			outputTokens: usage.outputTokens,
 			totalTokens: usage.totalTokens,

@@ -15,7 +15,7 @@ const DEFAULT_MAX_CLARIFICATION_ROUNDS = 5;
 
 export async function runTaskIntake(
 	config: ResolvedProjectConfig,
-	agent: Pick<AgentAdapter, "runTaskIntake">,
+	agent: Pick<AgentAdapter, "runAgent" | "runTaskIntake">,
 	taskCreator: TaskIntakeTaskCreator,
 	options: RunTaskIntakeOptions,
 ): Promise<TaskIntakeRunResult> {
@@ -29,7 +29,7 @@ export async function runTaskIntake(
 
 export async function resolveTaskIntake(
 	config: ResolvedProjectConfig,
-	agent: Pick<AgentAdapter, "runTaskIntake">,
+	agent: Pick<AgentAdapter, "runAgent" | "runTaskIntake">,
 	options: RunTaskIntakeOptions,
 ): Promise<TaskIntakeResolveResult> {
 	const request = options.request.trim();
@@ -56,7 +56,15 @@ export async function resolveTaskIntake(
 			request,
 			answers,
 		);
-		const result = await agent.runTaskIntake(prompt);
+		const result = agent.runAgent
+			? await agent.runAgent({
+					role: "task-intake",
+					prompt,
+					skills: [
+						{ name: "task-intake", path: resolveCreateTaskSkillPath(config) },
+					],
+				})
+			: await agent.runTaskIntake(prompt);
 		const decision = parseTaskIntakeDecision(
 			result.finalMessage || result.stdout,
 		);

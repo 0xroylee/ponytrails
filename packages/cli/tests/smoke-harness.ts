@@ -1,7 +1,11 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AgentAdapter, AgentResult } from "adapters";
+import type {
+	AgentAdapter,
+	AgentAdapterRunRequest,
+	AgentResult,
+} from "adapters";
 import type { LoadedConfig } from "../src/features/config";
 import type {
 	LinearIssue,
@@ -123,6 +127,14 @@ export class FakeAgent implements AgentAdapter {
 	reviews: Array<AgentResult | Error> = [];
 	githubComments: Array<AgentResult | Error> = [];
 	delayMs = 0;
+
+	async runAgent(request: AgentAdapterRunRequest): Promise<AgentResult> {
+		if (request.sessionId) return this.resume();
+		if (request.role === "task-intake") return this.runTaskIntake();
+		if (request.role === "review-testing") return this.runReview();
+		if (request.role === "github-comment") return this.runGithubComment();
+		return this.runPlan();
+	}
 
 	async runPlan(): Promise<AgentResult> {
 		return this.next(this.plans, "plan-1");

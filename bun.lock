@@ -20,6 +20,9 @@
     "packages/agent-adapters": {
       "name": "adapters",
       "version": "0.0.1",
+      "dependencies": {
+        "devos-agents": "workspace:*",
+      },
       "devDependencies": {
         "@devos/tsconfig": "workspace:*",
         "@types/bun": "^1.3.2",

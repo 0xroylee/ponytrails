@@ -8,4 +8,4 @@ export {
 } from "./constants";
 export { cursorConfigurationDoc } from "./configuration-doc";
 export { mapCursorError } from "./errors";
-export { extractFinalMessage, extractSessionId } from "./output";
+export { extractFinalMessage, extractSessionId, extractUsage } from "./output";

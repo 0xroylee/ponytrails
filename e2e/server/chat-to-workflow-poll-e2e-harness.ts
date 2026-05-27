@@ -2,7 +2,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { type Server, createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import type { AgentAdapter, AgentResult } from "adapters";
 import type { LoadedConfig } from "../../packages/cli/src/features/config/types/config.types";
 import type { ResolvedProjectConfig } from "../../packages/cli/src/features/types";
 import { createBoardTaskWorkflowClient } from "../../packages/cli/src/features/workflow/board-task-workflow-client";
@@ -16,6 +15,7 @@ import {
 	type DrizzleServerTestDatabase,
 	createDrizzleServerTestDatabase,
 } from "../../packages/server/tests/server-db-test-helpers";
+import { createPassingAgent } from "./passing-agent";
 
 export interface ChatWorkflowPollTestSetup {
 	close(): Promise<void>;
@@ -189,29 +189,6 @@ function createProject(
 		},
 		workflow: { issueConcurrency: 1 },
 		dryRun: true,
-	};
-}
-
-function createPassingAgent(): AgentAdapter {
-	const plan = [
-		"PLANNING_RESULT: READY",
-		"SUCCESS_GOAL: Create an agent handoff from chat.",
-		"COMPLEXITY: SIMPLE",
-		"COMPLEXITY_SCORE: 3",
-		"Use the existing chat-to-workflow path.",
-	].join("\n");
-	const result = (finalMessage: string, sessionId?: string): AgentResult => ({
-		finalMessage,
-		stdout: "",
-		sessionId,
-	});
-	return {
-		runPlan: async () => result(plan, "plan-session"),
-		runTaskIntake: async () => result(""),
-		resume: async () => result("Implemented chat handoff.", "plan-session"),
-		runReview: async () =>
-			result("RESULT: PASS\nSUMMARY: clean\nBUGS_JSON: []", "review-session"),
-		runGithubComment: async () => result(""),
 	};
 }
 
