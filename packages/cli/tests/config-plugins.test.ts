@@ -5,7 +5,7 @@ import { instanceConfigPath, loadConfig } from "../src/features/config";
 import {
 	createInstanceConfig,
 	renderInstanceConfigDocument,
-} from "../src/features/setup";
+} from "../src/features/onboard";
 
 let previousHome: string | undefined;
 let previousSandbox: string | undefined;

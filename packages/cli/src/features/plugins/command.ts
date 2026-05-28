@@ -2,11 +2,11 @@ import { scaffoldDevosPlugin } from "create-devos-plugin";
 import type { CommandResult } from "../../utils/shell";
 import { runCommand } from "../../utils/shell";
 import { type LoadedConfig, loadSqliteEnv, saveSqliteEnv } from "../config";
-import { type PromptAdapter, clackPromptAdapter } from "../prompts";
 import type {
 	InstanceConfigLoadResult,
 	OnboardInstanceConfig,
-} from "../setup/types/instance-config.types";
+} from "../onboard/types/instance-config.types";
+import { type PromptAdapter, clackPromptAdapter } from "../prompts";
 import { getPluginTemplate, listPluginTemplates } from "./catalog";
 import { promptForMissingPluginCredentials } from "./credentials";
 import {

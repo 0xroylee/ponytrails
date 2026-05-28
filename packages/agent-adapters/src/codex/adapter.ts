@@ -1,9 +1,9 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { AgentAdapterError } from "../adapter-error";
-import { renderAgentPrompt } from "../request-prompt";
-import { runCommand } from "../shell";
-import { emitStreamEvent } from "../streaming";
+import { runCommand } from "../shared/execute/shell";
+import { renderAgentPrompt } from "../shared/skills/request-prompt";
+import { emitStreamEvent } from "../shared/streaming/events";
 import type {
 	AgentAdapter,
 	AgentAdapterRunRequest,
@@ -15,13 +15,14 @@ import {
 	validateAgentAdapterRunRequest,
 	validateAgentAdapterRuntimeConfig,
 } from "../validation";
-import { buildCodexConfigOverrides } from "./config-overrides";
-import { buildCodexRuntimeInvocation } from "./docker";
-import { extractSessionId, extractUsage } from "./output";
-import { readOutputFile } from "./output-file";
-import { resolveCodexStageConfig } from "./stage-config";
+import { buildCodexExecArgs, buildCodexResumeArgs } from "./cli/execute/args";
+import { buildCodexRuntimeInvocation } from "./cli/execute/runtime";
+import { extractSessionId, extractUsage } from "./cli/parse/output";
+import { readOutputFile } from "./cli/sessions/output-file";
+import { resolveCodexStageConfig } from "./cli/sessions/stage-config";
+import { buildCodexConfigOverrides } from "./cli/skills/config-overrides";
 
-export { extractSessionId, extractUsage } from "./output";
+export { extractSessionId, extractUsage } from "./cli/parse/output";
 
 export class CodexAdapter implements AgentAdapter {
 	constructor(config: AgentAdapterRuntimeConfig) {
@@ -56,87 +57,25 @@ export class CodexAdapter implements AgentAdapter {
 		const outputFile = await this.nextOutputFile();
 		const prompt = renderAgentPrompt(validatedRequest);
 		const args = validatedRequest.sessionId
-			? this.buildResumeArgs(
-					validatedRequest,
+			? buildCodexResumeArgs({
+					config: this.config,
+					request: validatedRequest,
 					prompt,
 					outputFile,
-					stage.model,
-					stage.reasoningEffort,
-					stage.fastModeEnabled,
-				)
-			: this.buildExecArgs(
-					validatedRequest,
+					modelOverride: stage.model,
+					reasoningEffortOverride: stage.reasoningEffort,
+					fastModeEnabled: stage.fastModeEnabled,
+				})
+			: buildCodexExecArgs({
+					config: this.config,
+					request: validatedRequest,
 					prompt,
 					outputFile,
-					stage.model,
-					stage.reasoningEffort,
-					stage.fastModeEnabled,
-				);
+					modelOverride: stage.model,
+					reasoningEffortOverride: stage.reasoningEffort,
+					fastModeEnabled: stage.fastModeEnabled,
+				});
 		return this.runCodex(args, validatedRequest);
-	}
-
-	private buildExecArgs(
-		request: AgentAdapterRunRequest,
-		prompt: string,
-		outputFile: string,
-		modelOverride?: string,
-		reasoningEffortOverride?: CodexReasoningEffort,
-		fastModeEnabled?: boolean,
-	): string[] {
-		const args = [
-			"exec",
-			"--json",
-			"--skip-git-repo-check",
-			"--cd",
-			this.config.executionPath,
-			"--output-last-message",
-			outputFile,
-		];
-		const model = modelOverride ?? this.config.codex.model;
-		if (model) {
-			args.push("--model", model);
-		}
-		if (this.config.codex.sandbox) {
-			args.push("--sandbox", this.config.codex.sandbox);
-		}
-		this.appendConfigArgs(
-			args,
-			request,
-			reasoningEffortOverride,
-			fastModeEnabled,
-		);
-		args.push(prompt);
-		return args;
-	}
-
-	private buildResumeArgs(
-		request: AgentAdapterRunRequest,
-		prompt: string,
-		outputFile: string,
-		modelOverride?: string,
-		reasoningEffortOverride?: CodexReasoningEffort,
-		fastModeEnabled?: boolean,
-	): string[] {
-		const args = [
-			"exec",
-			"resume",
-			"--json",
-			"--skip-git-repo-check",
-			"--output-last-message",
-			outputFile,
-		];
-		const model = modelOverride ?? this.config.codex.model;
-		if (model) {
-			args.push("--model", model);
-		}
-		this.appendConfigArgs(
-			args,
-			request,
-			reasoningEffortOverride,
-			fastModeEnabled,
-		);
-		args.push(request.sessionId ?? "", prompt);
-		return args;
 	}
 
 	private async runCodex(
@@ -196,21 +135,6 @@ export class CodexAdapter implements AgentAdapter {
 			dir,
 			`codex-output-${Date.now()}-${Math.floor(Math.random() * 10000)}.txt`,
 		);
-	}
-
-	private appendConfigArgs(
-		args: string[],
-		request: AgentAdapterRunRequest,
-		reasoningEffortOverride?: CodexReasoningEffort,
-		fastModeEnabled?: boolean,
-	): void {
-		for (const override of this.buildConfigOverrides(
-			reasoningEffortOverride,
-			fastModeEnabled,
-			request,
-		)) {
-			args.push("--config", override);
-		}
 	}
 
 	private buildConfigOverrides(

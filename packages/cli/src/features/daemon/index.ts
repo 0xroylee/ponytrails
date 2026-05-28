@@ -2,6 +2,7 @@ export {
 	buildDaemonCommands,
 	runProductionDaemon,
 } from "./daemon";
+export { DaemonManager } from "./daemon-manager";
 export {
 	cleanupDaemonPorts,
 	findListenerPids,

@@ -158,8 +158,8 @@ docker compose down
 
 ## Configuration Notes
 
-- Guided setup stores local secrets in `~/.devos/config/env.sqlite` (and writes `.env` for compatibility).
-- Guided setup writes the local instance config to `~/.devos/config/instance.config.json`.
+- Guided onboarding stores local secrets in `~/.devos/config/env.sqlite` (and writes `.env` for compatibility).
+- Guided onboarding writes the local instance config to `~/.devos/config/instance.config.json`.
 - Local instance data lives under `~/.devos/instances/default`.
 - Docker-isolated Codex execution status and caveats (ROY-95): [docs/RELIABILITY.md#docker-isolated-codex-execution](docs/RELIABILITY.md#docker-isolated-codex-execution)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildPlannerRepairPrompt } from "../src/features/workflow/plan-repair-prompt";
+import { buildPlannerRepairPrompt } from "../src/features/workflow/planning/plan-repair-prompt";
 
 describe("buildPlannerRepairPrompt", () => {
 	it("preserves routing markers and the READY narrative template", () => {
@@ -13,8 +13,9 @@ describe("buildPlannerRepairPrompt", () => {
 		expect(prompt).toContain("PLANNING_RESULT: NEEDS_INFO");
 		expect(prompt).not.toContain("ISSUE_REFINEMENT_JSON");
 		expect(prompt).toContain(
-			"Title, Summary, Key Changes, Checkpoints (Steps), Test plan, Assumptions",
+			"Title, Summary, Agent Plan, Key Changes, Checkpoints (Steps), Test plan, Assumptions",
 		);
+		expect(prompt).toContain("preserve the Agent Plan section");
 		expect(prompt).toContain("requirement-level progress checkpoints");
 		expect(prompt).toContain(
 			"implementation target and validation/progress signal",

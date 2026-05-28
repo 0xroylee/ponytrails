@@ -1,13 +1,13 @@
 import type { OnboardCommand } from "../../../args";
-import { runSetupCheck, runSetupWizard } from "../../setup";
+import { runOnboardCheck, runOnboardWizard } from "../../onboard";
 
 export async function handleOnboardCommand(
 	command: OnboardCommand,
 	cwd: string,
 ): Promise<void> {
 	if (command.check) {
-		await runSetupCheck(cwd);
+		await runOnboardCheck(cwd);
 		return;
 	}
-	await runSetupWizard(cwd);
+	await runOnboardWizard(cwd);
 }

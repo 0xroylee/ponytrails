@@ -6,6 +6,6 @@ export {
 	CLAUDE_DESCRIPTION,
 	CLAUDE_LABEL,
 } from "./constants";
-export { claudeConfigurationDoc } from "./configuration-doc";
-export { extractSessionId, extractUsage } from "./output";
-export { findClaudeBinary, getClaudeBinaryPath } from "./path";
+export { extractSessionId, extractUsage } from "./cli/parse/output";
+export { findClaudeBinary, getClaudeBinaryPath } from "./cli/utils/path";
+export { claudeConfigurationDoc } from "./web/configuration-doc";

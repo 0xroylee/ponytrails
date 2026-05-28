@@ -3,8 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { scaffoldDevosPlugin } from "create-devos-plugin";
 import type { LoadedConfig } from "../src/features/config";
+import { createInstanceConfig } from "../src/features/onboard";
 import { handlePluginsCommand } from "../src/features/plugins";
-import { createInstanceConfig } from "../src/features/setup";
 
 const config = {} as LoadedConfig;
 

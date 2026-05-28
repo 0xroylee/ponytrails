@@ -1,86 +1,28 @@
 import type { ServerDatabase } from "devos-db";
-import { z } from "zod";
 import type { LocalWorkspaceIdentity } from "../local-workspace";
 import type { RealtimeEventPublisher } from "../realtime";
 import type { CliExecutor } from "../types/app.types";
 import {
 	createChatSendRealtimeCallbacks,
 	publishChatAppendResult,
-	publishChatSendResult,
 	publishChatSessionEvent,
 } from "./chat-route-realtime";
-import { createChatRouteService } from "./chat-route-service";
 import {
-	badRequest,
-	methodNotAllowed,
-	notFound,
-	parseObjectJsonBody,
-} from "./http-utils";
+	messageCreateSchema,
+	parseChatBody,
+	sendMessageSchema,
+	sessionCreateSchema,
+	sessionUpdateSchema,
+} from "./chat-route-schemas";
+import { createChatRouteService } from "./chat-route-service";
+import { publishChatSendCompletion } from "./chat-send-background";
+import { badRequest, methodNotAllowed, notFound } from "./http-utils";
 import { jsonSuccess } from "./response";
 
 const SESSIONS_PATH = "/api/chat/sessions";
 const SESSION_PATH = /^\/api\/chat\/sessions\/([^/]+)\/?$/;
 const MESSAGES_PATH = /^\/api\/chat\/sessions\/([^/]+)\/messages\/?$/;
 const SEND_PATH = /^\/api\/chat\/sessions\/([^/]+)\/send\/?$/;
-
-const answerSchema = z.object({
-	question: z.string().trim().min(1),
-	answer: z.string().trim().min(1),
-});
-
-const clarificationOptionSchema = z
-	.object({
-		label: z.string().trim().min(1),
-		value: z.string().trim().min(1),
-		description: z.string().trim().min(1).optional(),
-		recommended: z.boolean().optional(),
-	})
-	.transform(({ recommended, ...option }) => ({
-		...option,
-		...(recommended === true ? { recommended } : {}),
-	}));
-
-const clarificationQuestionSchema = z.union([
-	z
-		.string()
-		.trim()
-		.min(1)
-		.transform((question) => ({ question })),
-	z.object({
-		question: z.string().trim().min(1),
-		options: z.array(clarificationOptionSchema).min(2).max(4).optional(),
-	}),
-]);
-
-const sessionCreateSchema = z.object({
-	workspaceId: z.string().trim().min(1).optional(),
-	projectId: z.string().trim().min(1).nullable().optional(),
-	title: z.string().trim().min(1).optional(),
-});
-
-const sessionUpdateSchema = z.object({
-	archived: z.boolean().optional(),
-	projectId: z.string().trim().min(1).nullable().optional(),
-	title: z.string().trim().min(1).optional(),
-	pendingRequest: z.string().nullable().optional(),
-	pendingQuestions: z.array(clarificationQuestionSchema).nullable().optional(),
-});
-
-const messageCreateSchema = z.object({
-	role: z.enum(["user", "assistant", "system"]),
-	kind: z
-		.enum(["message", "clarification", "task", "command", "error"])
-		.optional(),
-	content: z.string().trim().min(1),
-	taskId: z.string().trim().min(1).nullable().optional(),
-	commandAction: z.string().trim().min(1).nullable().optional(),
-	metadata: z.record(z.string(), z.unknown()).nullable().optional(),
-});
-
-const sendMessageSchema = z.object({
-	content: z.string().trim().min(1),
-	answers: z.array(answerSchema).optional(),
-});
 
 export async function handleChatRoute(
 	request: Request,
@@ -145,7 +87,7 @@ async function handleSessionsRoute(
 	if (request.method !== "POST") {
 		return methodNotAllowed();
 	}
-	const parsed = await parseBody(request, sessionCreateSchema);
+	const parsed = await parseChatBody(request, sessionCreateSchema);
 	if (!parsed.ok) {
 		return badRequest(parsed.error);
 	}
@@ -171,7 +113,7 @@ async function handleSessionRoute(
 	if (request.method !== "PATCH") {
 		return methodNotAllowed();
 	}
-	const parsed = await parseBody(request, sessionUpdateSchema);
+	const parsed = await parseChatBody(request, sessionUpdateSchema);
 	if (!parsed.ok) {
 		return badRequest(parsed.error);
 	}
@@ -195,7 +137,7 @@ async function handleMessagesRoute(
 	if (request.method !== "POST") {
 		return methodNotAllowed();
 	}
-	const parsed = await parseBody(request, messageCreateSchema);
+	const parsed = await parseChatBody(request, messageCreateSchema);
 	if (!parsed.ok) {
 		return badRequest(parsed.error);
 	}
@@ -215,29 +157,18 @@ async function handleSendRoute(
 	if (request.method !== "POST") {
 		return methodNotAllowed();
 	}
-	const parsed = await parseBody(request, sendMessageSchema);
+	const parsed = await parseChatBody(request, sendMessageSchema);
 	if (!parsed.ok) {
 		return badRequest(parsed.error);
 	}
-	const result = await service.sendMessage(
+	const result = await service.queueMessage(
 		sessionId,
 		parsed.value,
 		createChatSendRealtimeCallbacks(realtimeEvents),
 	);
-	publishChatSendResult(realtimeEvents, result);
-	return result ? jsonSuccess(result) : notFound("Chat session not found");
-}
-
-async function parseBody<T extends z.ZodTypeAny>(
-	request: Request,
-	schema: T,
-): Promise<{ ok: true; value: z.infer<T> } | { ok: false; error: string }> {
-	const body = await parseObjectJsonBody(request);
-	if (!body.ok) {
-		return body;
+	if (!result) {
+		return notFound("Chat session not found");
 	}
-	const parsed = schema.safeParse(body.value);
-	return parsed.success
-		? { ok: true, value: parsed.data }
-		: { ok: false, error: "Invalid chat payload" };
+	publishChatSendCompletion(realtimeEvents, result.completion);
+	return jsonSuccess(result.accepted, { status: 202 });
 }

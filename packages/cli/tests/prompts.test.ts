@@ -119,7 +119,10 @@ describe("buildPlanPrompt", () => {
 				"When including SPLIT_TASKS_JSON, write action-oriented task titles",
 			);
 			expect(prompt).toContain(
-				"Title, Summary, Key Changes, Checkpoints (Steps), Test plan, Assumptions",
+				"Title, Summary, Agent Plan, Key Changes, Checkpoints (Steps), Test plan, Assumptions",
+			);
+			expect(prompt).toContain(
+				"In Agent Plan, list the workflow agents that should act on the plan",
 			);
 			expect(prompt).toContain(
 				"break meaningful requirements into ordered progress checkpoints",
@@ -158,6 +161,7 @@ describe("buildPlanPrompt", () => {
 		expect(prompt).toContain("PLANNING_RESULT: READY");
 		expect(prompt).not.toContain("ISSUE_REFINEMENT_JSON");
 		expect(prompt).toContain("`Checkpoints (Steps)`");
+		expect(prompt).toContain("`Agent Plan`");
 		expect(prompt).toContain("`Assumptions`");
 		expect(prompt).toContain("Do not wrap the full response");
 		expect(prompt).toContain("## Scope Guardrails");

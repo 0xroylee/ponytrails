@@ -1,6 +1,6 @@
-import { renderAgentPrompt } from "../request-prompt";
-import { runCommand } from "../shell";
-import { emitStreamEvent } from "../streaming";
+import { runCommand } from "../shared/execute/shell";
+import { renderAgentPrompt } from "../shared/skills/request-prompt";
+import { emitStreamEvent } from "../shared/streaming/events";
 import type {
 	AgentAdapter,
 	AgentAdapterRunRequest,
@@ -11,8 +11,17 @@ import {
 	validateAgentAdapterRunRequest,
 	validateAgentAdapterRuntimeConfig,
 } from "../validation";
-import { mapCursorError } from "./errors";
-import { extractFinalMessage, extractSessionId, extractUsage } from "./output";
+import {
+	buildCursorEnv,
+	buildCursorNewSessionArgs,
+	buildCursorResumeArgs,
+} from "./cli/execute/args";
+import { mapCursorError } from "./cli/parse/errors";
+import {
+	extractFinalMessage,
+	extractSessionId,
+	extractUsage,
+} from "./cli/parse/output";
 
 export class CursorAgentAdapter implements AgentAdapter {
 	constructor(config: AgentAdapterRuntimeConfig) {
@@ -45,35 +54,9 @@ export class CursorAgentAdapter implements AgentAdapter {
 		const validatedRequest = validateAgentAdapterRunRequest(request);
 		const prompt = renderAgentPrompt(validatedRequest);
 		const args = validatedRequest.sessionId
-			? this.buildResumeArgs(validatedRequest.sessionId, prompt)
-			: this.buildNewSessionArgs(prompt);
+			? buildCursorResumeArgs(this.config, validatedRequest.sessionId, prompt)
+			: buildCursorNewSessionArgs(this.config, prompt);
 		return this.runCursor(args, validatedRequest);
-	}
-
-	private buildNewSessionArgs(prompt: string): string[] {
-		return this.appendOptionalArgs(["-p", prompt, "--output-format", "json"]);
-	}
-
-	private buildResumeArgs(sessionId: string, prompt: string): string[] {
-		return this.appendOptionalArgs([
-			"--resume",
-			sessionId,
-			"-p",
-			prompt,
-			"--output-format",
-			"json",
-		]);
-	}
-
-	private appendOptionalArgs(args: string[]): string[] {
-		const model = this.config.cursor?.model?.trim();
-		if (model && model.toLowerCase() !== "auto") {
-			args.push("--model", model);
-		}
-		if (this.config.cursor?.force) {
-			args.push("--force");
-		}
-		return args;
 	}
 
 	private async runCursor(
@@ -84,7 +67,7 @@ export class CursorAgentAdapter implements AgentAdapter {
 		const cwd = this.config.executionPath;
 		const result = await runCommand(binary, args, {
 			cwd,
-			env: this.buildEnv(),
+			env: buildCursorEnv(this.config),
 			streamStdout:
 				this.config.cursor?.streamLogs ?? this.config.codex.streamLogs,
 			streamStderr:
@@ -121,10 +104,5 @@ export class CursorAgentAdapter implements AgentAdapter {
 			backend: "cursor-agent",
 			usage: extractUsage(result.stdout),
 		};
-	}
-
-	private buildEnv(): Record<string, string> | undefined {
-		const apiKey = this.config.cursor?.apiKey?.trim();
-		return apiKey ? { CURSOR_API_KEY: apiKey } : undefined;
 	}
 }

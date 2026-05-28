@@ -6,7 +6,7 @@ import type {
 	ResolvedProjectConfig,
 	RunState,
 } from "../../types";
-import type { readyPullRequestAfterPassingReview } from "../review-stage-helpers";
+import type { readyPullRequestAfterPassingReview } from "../review/review-stage-helpers";
 
 export interface HandleReviewTestingStageDeps {
 	runAgentWithChatLog: (input: {

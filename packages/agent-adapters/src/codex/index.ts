@@ -7,4 +7,4 @@ export {
 	CODEX_DESCRIPTION,
 	CODEX_LABEL,
 } from "./constants";
-export { codexConfigurationDoc } from "./configuration-doc";
+export { codexConfigurationDoc } from "./web/configuration-doc";

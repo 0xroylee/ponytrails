@@ -49,6 +49,9 @@ describe("workflow progress helpers", () => {
 		const plan = [
 			"Title",
 			"Do the thing",
+			"Agent Plan",
+			"- planner: clarify scope",
+			"- implementer: ship code",
 			"Checkpoints (Steps)",
 			"1. Add daemon progress frames",
 			"2. Persist JSONL logs",
@@ -64,6 +67,26 @@ describe("workflow progress helpers", () => {
 		]);
 		expect(extractPlanSectionItems(plan, "Test plan")).toEqual([
 			"bun test packages/cli/tests/workflow-progress.test.ts",
+		]);
+	});
+
+	it("treats Agent Plan as a planner section boundary", () => {
+		const plan = [
+			"Key Changes",
+			"- Update the planning contract",
+			"Agent Plan",
+			"- planner: produce the agent-scoped plan",
+			"- implementer: apply the scoped change",
+			"Checkpoints (Steps)",
+			"1. Verify prompts include Agent Plan",
+		].join("\n");
+
+		expect(extractPlanSectionItems(plan, "Key Changes")).toEqual([
+			"Update the planning contract",
+		]);
+		expect(extractPlanSectionItems(plan, "Agent Plan")).toEqual([
+			"planner: produce the agent-scoped plan",
+			"implementer: apply the scoped change",
 		]);
 	});
 });

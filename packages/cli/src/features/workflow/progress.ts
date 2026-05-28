@@ -4,6 +4,7 @@ import type { AgentChatLogRole, PlannedSplitTask, RunState } from "../types";
 const PLAN_HEADINGS = [
 	"Title",
 	"Summary",
+	"Agent Plan",
 	"Key Changes",
 	"Checkpoints (Steps)",
 	"Test plan",

@@ -12,9 +12,10 @@ Execution plans and plan artifacts are tracked under `docs/exec-plans/`.
 Planning output should remain concise and implementation-focused, including:
 
 1. scope summary
-2. implementation steps
-3. test plan
-4. known risks
+2. agent-by-agent plan
+3. implementation steps
+4. test plan
+5. known risks
 
 ## Coverage Audits
 

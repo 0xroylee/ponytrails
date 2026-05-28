@@ -13,12 +13,12 @@ import type {
 	RunOptions,
 	RunState,
 } from "../src/features/types";
+import { createWorkflowRuntime } from "../src/features/workflow/runtime/workflow-runtime";
 import { loadRunState, saveRunState } from "../src/features/workflow/state";
-import {
-	type WorkflowLinearClient,
-	type WorkflowRuntime,
-	createWorkflowRuntime,
-} from "../src/features/workflow/workflow-runtime";
+import type {
+	WorkflowLinearClient,
+	WorkflowRuntime,
+} from "../src/features/workflow/types/workflow.types";
 import { pr, project } from "./smoke-fixtures";
 
 export interface SmokeHarness {

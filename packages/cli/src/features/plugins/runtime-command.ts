@@ -2,11 +2,11 @@ import type { CommandResult } from "../../utils/shell";
 import {
 	loadInstanceConfig,
 	saveInstanceConfig,
-} from "../setup/instance-config";
+} from "../onboard/instance-config";
 import type {
 	InstanceConfigLoadResult,
 	OnboardInstanceConfig,
-} from "../setup/types/instance-config.types";
+} from "../onboard/types/instance-config.types";
 import { installRuntimePlugin } from "./instance-registry";
 
 export interface RuntimePluginCommandDeps {

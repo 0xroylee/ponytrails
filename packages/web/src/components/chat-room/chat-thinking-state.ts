@@ -1,8 +1,15 @@
+import { resolvePlanningStatusLabel } from "./chat-mission-phase-labels";
+
 export interface ChatThinkingStateInput {
 	isSending: boolean;
 	selectedSessionId: string;
 	sendingSessionId?: string;
 	streamLineCount: number;
+}
+
+export interface ChatPlanningStateInput {
+	hasMissionProgress: boolean;
+	taskStatus?: string | null;
 }
 
 export function shouldShowChatThinkingIndicator({
@@ -17,4 +24,16 @@ export function shouldShowChatThinkingIndicator({
 		sendingSessionId === selectedSessionId &&
 		streamLineCount === 0
 	);
+}
+
+export function shouldShowChatPlanningIndicator({
+	hasMissionProgress,
+	taskStatus,
+}: ChatPlanningStateInput): boolean {
+	if (hasMissionProgress || !taskStatus) return false;
+	return isPlanningTaskStatus(taskStatus);
+}
+
+function isPlanningTaskStatus(status: string): boolean {
+	return Boolean(resolvePlanningStatusLabel(status));
 }

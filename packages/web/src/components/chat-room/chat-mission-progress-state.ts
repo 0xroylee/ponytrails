@@ -10,6 +10,7 @@ import { useBoardTaskQuery, useTokenUsageQuery } from "@/lib/api/queries";
 import { useTaskActivityQuery } from "@/lib/api/task-activity-query";
 
 import { summarizeTokenUsage } from "../issues-board/issue-task-detail-panel-utils";
+import { resolveMissionStatusLabel } from "./chat-mission-phase-labels";
 import {
 	createEmptyPhaseCheckpoints,
 	createPhaseCheckpoints,
@@ -58,7 +59,15 @@ export function useChatMissionProgress(
 		});
 	}
 	if (activityQuery.isLoading) {
-		return createMissionState(taskId, "loading");
+		return createMissionState(taskId, "loading", {
+			taskKey: taskQuery.data.taskKey,
+			title: taskQuery.data.title,
+			status: taskQuery.data.status,
+			statusLabel: resolveMissionStatusLabel({
+				taskStatus: taskQuery.data.status,
+			}),
+			updatedAt: taskQuery.data.updatedAt,
+		});
 	}
 	const usageRecords = (usageQuery.data ?? []).filter(
 		(record) => record.taskId === taskId,
@@ -116,7 +125,10 @@ export function createChatMissionProgressModel({
 		taskKey: task.taskKey,
 		title: task.title,
 		status: task.status,
-		statusLabel: formatStatusLabel(task.status),
+		statusLabel: resolveMissionStatusLabel({
+			phases,
+			taskStatus: task.status,
+		}),
 		updatedAt: task.updatedAt,
 		notes,
 		executions,
@@ -227,10 +239,4 @@ function createLatestLogLines(
 	return executions
 		.flatMap((execution) => execution.logLines)
 		.slice(-MAX_LATEST_LOG_LINES);
-}
-
-function formatStatusLabel(status: string): string {
-	return status
-		.replace(/[_-]+/g, " ")
-		.replace(/\b\w/g, (character) => character.toUpperCase());
 }

@@ -51,20 +51,15 @@ stays scoped, and ends with evidence the next session can trust.
    Do not add npm, Yarn, or pnpm lockfiles or package-manager-specific config.
 3. Do not construct raw shell command strings in workflow logic; use helper
    modules that pass command arguments as structured arrays.
-4. Keep TypeScript files under 250 lines; split files before they grow beyond
+4. Do not add forwarding or barrel export modules for codebase internals.
+   Avoid `export * from ...` and pass-through `export { ... } from ...`
+   files; import runtime code and types directly from the module that owns the
+   behavior or contract.
+5. Keep TypeScript files under 250 lines; split files before they grow beyond
    that limit.
-5. Keep TypeScript interfaces/type aliases separate from runtime implementation
+6. Keep TypeScript interfaces/type aliases separate from runtime implementation
    when adding or changing contracts, and save all type-related files under a
    `types/` folder.
-6. Keep review parsing contract stable:
-   - `RESULT: PASS|FAIL`
-   - `SUMMARY: ...`
-   - `BUGS_JSON: [...]`
-7. Keep planner parsing markers stable:
-   - `PLANNING_RESULT: READY|NEEDS_INFO`
-   - `SUCCESS_GOAL: ...`
-   - `COMPLEXITY_SCORE: <0..10>`
-
 ## Execution Discipline
 
 - State assumptions and tradeoffs before coding when requirements or existing

@@ -1,19 +1,16 @@
-import { and, eq, inArray, or } from "devos-db";
+import { and, eq, inArray } from "devos-db";
 import type { ServerDatabase } from "devos-db";
 import {
 	boardProjectsTable,
 	boardTasksTable,
 	generateBoardTaskKey,
-	inboxMessagesTable,
 	taskAssigneesTable,
 	taskCommentsTable,
 	taskExecutionLogsTable,
 	taskExecutionStepsTable,
-	taskPullRequestsTable,
-	taskTagsTable,
-	tokenUsageTable,
 } from "devos-db";
 import type { BoardTaskRow, NewBoardTaskRow } from "devos-db";
+import { deleteTaskExecutionRecords, deleteTaskRelations } from "./task-delete";
 import type {
 	BoardTaskApiRecord,
 	TaskRepository,
@@ -107,46 +104,8 @@ export function createTaskRepository(db: ServerDatabase["db"]): TaskRepository {
 				if (!existing) {
 					return null;
 				}
-				await tx
-					.delete(taskAssigneesTable)
-					.where(eq(taskAssigneesTable.taskId, id));
-				await tx
-					.delete(taskCommentsTable)
-					.where(eq(taskCommentsTable.taskId, id));
-				await tx.delete(taskTagsTable).where(eq(taskTagsTable.taskId, id));
-				await tx
-					.delete(taskPullRequestsTable)
-					.where(eq(taskPullRequestsTable.taskId, id));
-				await tx
-					.delete(inboxMessagesTable)
-					.where(eq(inboxMessagesTable.taskId, id));
-				const executionLogs = await tx
-					.select({ id: taskExecutionLogsTable.id })
-					.from(taskExecutionLogsTable)
-					.where(eq(taskExecutionLogsTable.taskId, id));
-				const executionLogIds = executionLogs.map((log) => log.id);
-				if (executionLogIds.length > 0) {
-					await tx
-						.delete(tokenUsageTable)
-						.where(
-							or(
-								eq(tokenUsageTable.taskId, id),
-								inArray(tokenUsageTable.taskExecutionLogId, executionLogIds),
-							),
-						);
-					await tx
-						.delete(taskExecutionStepsTable)
-						.where(
-							inArray(taskExecutionStepsTable.executionLogId, executionLogIds),
-						);
-				} else {
-					await tx
-						.delete(tokenUsageTable)
-						.where(eq(tokenUsageTable.taskId, id));
-				}
-				await tx
-					.delete(taskExecutionLogsTable)
-					.where(eq(taskExecutionLogsTable.taskId, id));
+				await deleteTaskRelations(tx, id);
+				await deleteTaskExecutionRecords(tx, id);
 				await tx.delete(boardTasksTable).where(eq(boardTasksTable.id, id));
 				return existing;
 			});

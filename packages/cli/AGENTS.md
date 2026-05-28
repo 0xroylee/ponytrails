@@ -15,6 +15,9 @@ boundaries. Keep CLI behavior project-agnostic across configured workspaces.
 4. Keep stage transitions, sequencing, retries, planning, implementation,
    review, polling, queues, worktrees, and run state in
    `packages/cli/src/features/workflow/`.
+   `workflow.ts` is the workflow orchestrator entrypoint, not a barrel file:
+   do not re-export helpers, managers, parser utilities, or types from it.
+   Import workflow helpers directly from the module that owns the behavior.
 5. Keep daemon and command-stream behavior in `packages/cli/src/features/daemon/`
    and CLI-facing server helpers in `packages/cli/src/features/server/`.
 6. Keep task intake in `packages/cli/src/features/task-intake/` and skills

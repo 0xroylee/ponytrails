@@ -1,6 +1,6 @@
-import { renderAgentPrompt } from "../request-prompt";
-import { runCommand } from "../shell";
-import { emitStreamEvent } from "../streaming";
+import { runCommand } from "../shared/execute/shell";
+import { renderAgentPrompt } from "../shared/skills/request-prompt";
+import { emitStreamEvent } from "../shared/streaming/events";
 import type {
 	AgentAdapter,
 	AgentAdapterRunRequest,
@@ -12,9 +12,18 @@ import {
 	validateAgentAdapterRunRequest,
 	validateAgentAdapterRuntimeConfig,
 } from "../validation";
-import { mapClaudeError } from "./errors";
-import { extractFinalMessage, extractSessionId, extractUsage } from "./output";
-import { getClaudeBinaryPath } from "./path";
+import {
+	buildClaudeCommonArgs,
+	buildClaudeNewSessionArgs,
+	buildClaudeResumeArgs,
+} from "./cli/execute/args";
+import { mapClaudeError } from "./cli/parse/errors";
+import {
+	extractFinalMessage,
+	extractSessionId,
+	extractUsage,
+} from "./cli/parse/output";
+import { getClaudeBinaryPath } from "./cli/utils/path";
 
 export class ClaudeCodeAdapter implements AgentAdapter {
 	private claudePath: string;
@@ -49,8 +58,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		const validatedRequest = validateAgentAdapterRunRequest(request);
 		const prompt = renderAgentPrompt(validatedRequest);
 		const args = validatedRequest.sessionId
-			? this.buildResumeArgs(validatedRequest.sessionId, prompt)
-			: this.buildNewSessionArgs(prompt);
+			? buildClaudeResumeArgs(this.config, validatedRequest.sessionId, prompt)
+			: buildClaudeNewSessionArgs(this.config, prompt);
 		return this.executeClaude(args, validatedRequest);
 	}
 
@@ -61,7 +70,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		const request = validateAgentAdapterRunRequest({ role, prompt });
 		const renderedPrompt = renderAgentPrompt(request);
 		return this.executeClaude(
-			this.buildNewSessionArgs(renderedPrompt),
+			buildClaudeNewSessionArgs(this.config, renderedPrompt),
 			request,
 		);
 	}
@@ -77,53 +86,13 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 		});
 		const renderedPrompt = renderAgentPrompt(request);
 		return this.executeClaude(
-			this.buildResumeArgs(sessionId, renderedPrompt),
+			buildClaudeResumeArgs(this.config, sessionId, renderedPrompt),
 			request,
 		);
 	}
 
-	private buildNewSessionArgs(prompt: string): string[] {
-		return ["-p", prompt, ...this.buildCommonArgs()];
-	}
-
-	private buildResumeArgs(sessionId: string, prompt: string): string[] {
-		return ["--resume", sessionId, "-p", prompt, ...this.buildCommonArgs()];
-	}
-
-	private buildModelArgs(): string[] {
-		const model = this.config.claude?.model ?? this.config.agent?.model;
-		if (!model) return [];
-		return ["--model", model];
-	}
-
-	private buildMaxTurnsArgs(): string[] {
-		const maxTurns =
-			this.config.claude?.maxTurns ?? this.config.agent?.maxTurns;
-		if (!maxTurns || maxTurns <= 0) return [];
-		return ["--max-turns", String(maxTurns)];
-	}
-
-	private buildAllowedToolsArgs(): string[] {
-		const tools =
-			this.config.claude?.allowedTools ?? this.config.agent?.allowedTools;
-		if (!tools || tools.length === 0) return [];
-		return ["--allowedTools", ...tools];
-	}
-
 	private buildCommonArgs(): string[] {
-		const permissionMode =
-			this.config.claude?.permissionMode ??
-			this.config.agent?.permissionMode ??
-			"bypassPermissions";
-		return [
-			"--output-format",
-			"json",
-			"--permission-mode",
-			permissionMode,
-			...this.buildModelArgs(),
-			...this.buildMaxTurnsArgs(),
-			...this.buildAllowedToolsArgs(),
-		];
+		return buildClaudeCommonArgs(this.config);
 	}
 
 	private async executeClaude(

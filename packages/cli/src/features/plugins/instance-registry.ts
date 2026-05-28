@@ -3,7 +3,7 @@ import { loadDevosPluginManifest } from "create-devos-plugin";
 import type {
 	InstalledDevosPlugin,
 	OnboardInstanceConfig,
-} from "../setup/types/instance-config.types";
+} from "../onboard/types/instance-config.types";
 import type { RuntimePluginInstallResult } from "./types/runtime-plugin.types";
 
 export function resolvePluginPath(input: string, cwd: string): string {

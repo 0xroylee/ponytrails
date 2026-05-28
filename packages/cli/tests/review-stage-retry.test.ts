@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ResolvedProjectConfig, RunState } from "../src/features/types";
-import {
-	MAX_AUTOMATED_REVIEW_FIX_PASSES,
-	handleReviewTestingStage,
-} from "../src/features/workflow/review-stage";
+import { handleReviewTestingStage } from "../src/features/workflow/review/review-stage";
+import { MAX_AUTOMATED_REVIEW_FIX_PASSES } from "../src/features/workflow/review/review-stage-helpers";
 
 function createConfig(): ResolvedProjectConfig {
 	return {

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { parseWorkflowProgressLine } from "../src/features/server";
-import { runAgentWithChatLog } from "../src/features/workflow/workflow";
+import { runAgentWithChatLog } from "../src/features/workflow/agents/agent-chat-log";
 
 describe("runAgentWithChatLog progress", () => {
 	it("emits safe agent role progress without prompt content", async () => {

@@ -5,6 +5,7 @@ import { type ReactElement, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatWorkflowLoadingLabel } from "./chat-mission-phase-labels";
 import { MissionBody } from "./chat-mission-progress-sections";
 import type {
 	ChatMissionLogLine,
@@ -53,7 +54,9 @@ export function ChatMissionProgress({
 					<ExpandIcon aria-hidden="true" size={15} />
 				</Button>
 			</div>
-			{isLoading ? <MissionState label="Loading mission progress..." /> : null}
+			{isLoading ? (
+				<MissionState label={formatWorkflowLoadingLabel(mission.statusLabel)} />
+			) : null}
 			{isError ? (
 				<MissionState
 					label={mission.errorMessage ?? "Mission progress unavailable."}

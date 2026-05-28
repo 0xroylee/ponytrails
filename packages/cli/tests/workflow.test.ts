@@ -11,67 +11,83 @@ import type {
 	ResolvedProjectConfig,
 	RunState,
 } from "../src/features/types";
-import { handlePlanningStage } from "../src/features/workflow/plan";
+import { runAgentWithChatLog } from "../src/features/workflow/agents/agent-chat-log";
 import {
-	agentChatLogPath,
-	applyRunLease,
-	isRunLeaseExpired,
-	normalizeBlockedPlanningFailureForResume,
-	projectErrorLogPath,
-	saveRunState,
-	stateFilePath,
-	transitionStage,
-} from "../src/features/workflow/state";
-import {
-	enrichUsageRecord,
-	estimateUsageCostMicrousd,
-} from "../src/features/workflow/usage-cost";
-import {
-	appendCodexUsage,
-	buildIssueJobLogFields,
-	buildPrioritizedIssueQueue,
-	buildReviewOnlyIssueQueue,
-	buildRunLeaseOwnerId,
-	finalizeIssueAfterReviewMerge,
 	fixedBugsForImplementationComment,
-	handleReviewTestingStage,
-	isReviewOnlyEligibleRunState,
-	isReviewOnlyExecutableStage,
+	prepareImplementationBranchForStage,
+} from "../src/features/workflow/implementation/implement-stage";
+import { buildPrioritizedIssueQueue } from "../src/features/workflow/management/issue-queue-builder";
+import {
+	resolvePollingSettings,
+	shouldStopPolling,
+	sleep,
+} from "../src/features/workflow/management/polling-settings";
+import { resolveEffectiveIssueConcurrency } from "../src/features/workflow/management/project-cycle-runner";
+import { routeProjectsForIssueProjectId } from "../src/features/workflow/management/project-routing";
+import {
 	isRunStateStaleForRetry,
-	normalizeFailedReviewBugs,
+	selectStaleRunIssueKeys,
+} from "../src/features/workflow/management/stale-run-retry";
+import { buildIssueJobLogFields } from "../src/features/workflow/mission/issue-job-log-fields";
+import { resolveReviewOnlyBootstrapStage } from "../src/features/workflow/mission/issue-run-state-resolver";
+import { handlePlanningStage } from "../src/features/workflow/planning/plan";
+import {
+	resolveReviewModeForComplexityScore,
+	shouldSquashMergePullRequestForComplexityScore,
+} from "../src/features/workflow/planning/plan";
+import {
 	parsePlannerComplexityScore,
 	parsePlannerDecision,
 	parsePlannerQuestions,
 	parsePlannerSuccessGoal,
-	prepareImplementationBranchForStage,
+} from "../src/features/workflow/planning/plan-parsing";
+import {
+	finalizeIssueAfterReviewMerge,
+	handleReviewTestingStage,
+} from "../src/features/workflow/review/review-orchestrator";
+import {
+	normalizeFailedReviewBugs,
 	readyPullRequestAfterPassingReview,
-	resolveEffectiveIssueConcurrency,
-	resolvePollingSettings,
 	resolveReviewFailureStage,
-	resolveReviewModeForComplexityScore,
-	resolveReviewOnlyBootstrapStage,
-	routeProjectsForIssueProjectId,
-	runAgentWithChatLog,
-	runWorkflow,
-	selectIssueQueueForCycle,
-	selectReviewOnlyIssueKeys,
-	selectStaleRunIssueKeys,
-	shouldRetryRunStage,
-	shouldSkipReviewOnlyRunState,
-	shouldSquashMergePullRequestForComplexityScore,
-	shouldStopPolling,
-	sleep,
-	withExecutionPathLock,
-} from "../src/features/workflow/workflow";
-import { processIssueQueueBounded } from "../src/features/workflow/workflow-queue";
-import type { WorkflowRuntime } from "../src/features/workflow/workflow-runtime";
+} from "../src/features/workflow/review/review-stage-helpers";
+import { withExecutionPathLock } from "../src/features/workflow/runtime/execution-path-lock";
 import {
 	cleanupTerminalIsolatedWorktree,
 	isolatedWorktreePath,
 	prepareIsolatedExecutionConfig,
 	prepareIsolatedExecutionWorkspace,
 	shouldUseIsolatedWorktree,
-} from "../src/features/workflow/workflow-worktree";
+} from "../src/features/workflow/runtime/workflow-worktree";
+import {
+	normalizeBlockedPlanningFailureForResume,
+	saveRunState,
+	stateFilePath,
+	transitionStage,
+} from "../src/features/workflow/state";
+import { agentChatLogPath } from "../src/features/workflow/state-chat-log";
+import { projectErrorLogPath } from "../src/features/workflow/state-error-log";
+import {
+	applyRunLease,
+	isRunLeaseExpired,
+} from "../src/features/workflow/state-lease";
+import type { WorkflowRuntime } from "../src/features/workflow/types/workflow.types";
+import {
+	enrichUsageRecord,
+	estimateUsageCostMicrousd,
+} from "../src/features/workflow/usage-cost";
+import { appendCodexUsage } from "../src/features/workflow/usage/usage-state";
+import { runWorkflow } from "../src/features/workflow/workflow";
+import { buildRunLeaseOwnerId } from "../src/features/workflow/workflow-lease";
+import {
+	buildReviewOnlyIssueQueue,
+	isReviewOnlyEligibleRunState,
+	isReviewOnlyExecutableStage,
+	selectIssueQueueForCycle,
+	selectReviewOnlyIssueKeys,
+	shouldRetryRunStage,
+	shouldSkipReviewOnlyRunState,
+} from "../src/features/workflow/workflow-queue";
+import { processIssueQueueBounded } from "../src/features/workflow/workflow-queue";
 
 describe("resolvePollingSettings", () => {
 	const polling: PollingConfig = {
@@ -121,7 +137,7 @@ describe("resolvePollingSettings", () => {
 		});
 	});
 
-	it("keeps polling helpers exportable from workflow", () => {
+	it("keeps polling helpers available from their owner module", () => {
 		expect(typeof resolvePollingSettings).toBe("function");
 		expect(typeof shouldStopPolling).toBe("function");
 		expect(typeof sleep).toBe("function");

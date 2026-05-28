@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ResolvedProjectConfig, RunState } from "../src/features/types";
-import { handleReviewTestingStage } from "../src/features/workflow/review-stage";
+import { handleReviewTestingStage } from "../src/features/workflow/review/review-stage";
 
 function createConfig(): ResolvedProjectConfig {
 	return {

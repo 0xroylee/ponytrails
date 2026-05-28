@@ -2,7 +2,7 @@ import type {
 	DevosPluginManifest,
 	DevosPluginMcpServer,
 } from "create-devos-plugin";
-import type { InstalledDevosPlugin } from "../../setup/types/instance-config.types";
+import type { InstalledDevosPlugin } from "../../onboard/types/instance-config.types";
 
 export interface RuntimePluginInstallResult {
 	plugin: InstalledDevosPlugin;

@@ -1,9 +1,9 @@
 import { logger } from "../../../utils/logger";
 import type { LoadedConfig } from "../../config";
 import type { RunOptions } from "../../types";
+import { resolvePollingSettings } from "../../workflow/management/polling-settings";
 import { runWorkflow } from "../../workflow/workflow";
 import { resolveWorkflowDataWsUrl } from "../../workflow/workflow-data-client";
-import { resolvePollingSettings } from "../../workflow/workflow-polling";
 
 export async function handleRunCommand(
 	config: LoadedConfig,

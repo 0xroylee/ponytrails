@@ -3,7 +3,7 @@ import {
 	renderCliRule,
 	renderKeyValueRows,
 } from "../../utils/terminal-format";
-import { renderDevosBanner } from "../setup/banner";
+import { renderDevosBanner } from "../onboard/banner";
 
 export function renderProductionDaemonStartup(input: {
 	cliDaemonUrl: string;

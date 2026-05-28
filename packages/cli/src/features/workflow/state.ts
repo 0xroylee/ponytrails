@@ -1,17 +1,6 @@
-import {
-	appendFile,
-	mkdir,
-	readFile,
-	readdir,
-	writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { RunState, WorkflowStage } from "../types";
-export {
-	AGENT_CHAT_LOG_RETENTION,
-	agentChatLogPath,
-	appendAgentChatLog,
-} from "./state-chat-log";
 
 type MaybeLegacyRunState = Omit<RunState, "stage" | "failedStage"> & {
 	stage: WorkflowStage | string;
@@ -41,36 +30,6 @@ export function stateFilePath(
 		"runs",
 		`${normalizeIssueKey(issueKey)}.json`,
 	);
-}
-
-export function projectErrorLogPath(cwd: string, projectId: string): string {
-	return path.join(cwd, STATE_ROOT_DIR, projectId, "errors.log");
-}
-
-export interface ProjectErrorLogEntryInput {
-	cycle: number;
-	message: string;
-	error: Record<string, unknown>;
-	context?: Record<string, unknown>;
-	recordedAt?: string;
-}
-
-export async function appendProjectErrorLog(
-	cwd: string,
-	projectId: string,
-	entry: ProjectErrorLogEntryInput,
-): Promise<void> {
-	const file = projectErrorLogPath(cwd, projectId);
-	await mkdir(path.dirname(file), { recursive: true });
-	const payload = {
-		recordedAt: entry.recordedAt ?? new Date().toISOString(),
-		projectId,
-		cycle: entry.cycle,
-		message: entry.message,
-		error: entry.error,
-		...(entry.context ? { context: entry.context } : {}),
-	};
-	await appendFile(file, `${JSON.stringify(payload)}\n`, "utf8");
 }
 
 export async function loadRunState(
@@ -240,60 +199,4 @@ function normalizeWorkflowStage(stage: string): WorkflowStage {
 		return stage;
 	}
 	return "failed";
-}
-
-export function applyRunLease(
-	state: RunState,
-	ownerId: string,
-	leaseTimeoutMs: number,
-	nowMs = Date.now(),
-): RunState {
-	const nowIso = new Date(nowMs).toISOString();
-	return {
-		...state,
-		lease: {
-			ownerId,
-			acquiredAt:
-				state.lease?.ownerId === ownerId ? state.lease.acquiredAt : nowIso,
-			heartbeatAt: nowIso,
-			expiresAt: new Date(nowMs + leaseTimeoutMs).toISOString(),
-		},
-		updatedAt: nowIso,
-	};
-}
-
-export function clearRunLease(state: RunState): RunState {
-	return {
-		...state,
-		lease: undefined,
-		updatedAt: new Date().toISOString(),
-	};
-}
-
-export function isRunLeaseExpired(
-	state: RunState,
-	nowMs = Date.now(),
-): boolean {
-	if (!state.lease?.expiresAt) {
-		return true;
-	}
-	const expiresAtMs = Date.parse(state.lease.expiresAt);
-	if (Number.isNaN(expiresAtMs)) {
-		return true;
-	}
-	return nowMs >= expiresAtMs;
-}
-
-export function hasRunLeaseConflict(
-	state: RunState,
-	ownerId: string,
-	nowMs = Date.now(),
-): boolean {
-	if (!state.lease?.ownerId) {
-		return false;
-	}
-	if (state.lease.ownerId === ownerId) {
-		return false;
-	}
-	return !isRunLeaseExpired(state, nowMs);
 }

@@ -4,18 +4,24 @@ import os from "node:os";
 import path from "node:path";
 import type { RunState } from "../src/features/types";
 import {
+	normalizeIssueKey,
+	transitionStage,
+} from "../src/features/workflow/state";
+import {
 	AGENT_CHAT_LOG_RETENTION,
 	agentChatLogPath,
 	appendAgentChatLog,
+} from "../src/features/workflow/state-chat-log";
+import {
 	appendProjectErrorLog,
+	projectErrorLogPath,
+} from "../src/features/workflow/state-error-log";
+import {
 	applyRunLease,
 	clearRunLease,
 	hasRunLeaseConflict,
 	isRunLeaseExpired,
-	normalizeIssueKey,
-	projectErrorLogPath,
-	transitionStage,
-} from "../src/features/workflow/state";
+} from "../src/features/workflow/state-lease";
 
 describe("state helpers", () => {
 	it("normalizes issue key from URL", () => {

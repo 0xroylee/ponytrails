@@ -1,5 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { DEFAULT_WORKSPACE_NAME, LOCAL_WORKSPACE_ID } from "../setup/constants";
+import {
+	DEFAULT_WORKSPACE_NAME,
+	LOCAL_WORKSPACE_ID,
+} from "../onboard/constants";
 import { instanceConfigPath } from "./home-paths";
 import type { WorkspaceRuntimeConfig } from "./types/config.types";
 

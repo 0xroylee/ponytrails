@@ -6,6 +6,10 @@ export {
 	CURSOR_DESCRIPTION,
 	CURSOR_LABEL,
 } from "./constants";
-export { cursorConfigurationDoc } from "./configuration-doc";
-export { mapCursorError } from "./errors";
-export { extractFinalMessage, extractSessionId, extractUsage } from "./output";
+export { mapCursorError } from "./cli/parse/errors";
+export {
+	extractFinalMessage,
+	extractSessionId,
+	extractUsage,
+} from "./cli/parse/output";
+export { cursorConfigurationDoc } from "./web/configuration-doc";
