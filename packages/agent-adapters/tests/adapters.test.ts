@@ -13,7 +13,7 @@ import { ClaudeCodeAdapter } from "../src/claude";
 import { CodexAdapter, extractSessionId, extractUsage } from "../src/codex";
 import { buildCodexRuntimeInvocation } from "../src/codex/docker";
 import { CursorAgentAdapter } from "../src/cursor";
-import { OpenCodeAdapter } from "../src/opencode";
+import { OpenCodeAdapter } from "../src/opencode/adapter";
 import { config } from "./fixtures";
 
 describe("agent adapter factory", () => {

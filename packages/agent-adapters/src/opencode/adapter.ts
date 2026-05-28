@@ -1,6 +1,6 @@
-import { renderAgentPrompt } from "../request-prompt";
-import { runCommand } from "../shell";
-import { emitStreamEvent } from "../streaming";
+import { runCommand } from "../shared/execute/shell";
+import { renderAgentPrompt } from "../shared/skills/request-prompt";
+import { emitStreamEvent } from "../shared/streaming/events";
 import type {
 	AgentAdapter,
 	AgentAdapterRunRequest,

@@ -7,13 +7,13 @@ import {
 	listAgentBackends,
 	normalizeAgentBackend,
 } from "../src";
+import { OpenCodeAdapter } from "../src/opencode/adapter";
+import { mapOpenCodeError } from "../src/opencode/errors";
 import {
-	OpenCodeAdapter,
 	extractFinalMessage,
 	extractSessionId,
 	extractUsage,
-	mapOpenCodeError,
-} from "../src/opencode";
+} from "../src/opencode/output";
 
 const config: AgentAdapterRuntimeConfig = {
 	workspacePath: "/tmp/work",
@@ -183,6 +183,22 @@ describe("opencode adapter", () => {
 			totalTokens: 14,
 		});
 		expect(extractFinalMessage("plain result")).toBe("plain result");
+	});
+
+	it("extracts session and usage from opencode json event fields", () => {
+		const jsonl = [
+			`{"type":"step_start","sessionID":"ses_123","part":{"type":"step-start"}}`,
+			`{"type":"text","sessionID":"ses_123","part":{"type":"text","text":"done"}}`,
+			`{"type":"step_finish","sessionID":"ses_123","part":{"type":"step-finish","tokens":{"input":10,"output":4}}}`,
+		].join("\n");
+
+		expect(extractSessionId(jsonl)).toBe("ses_123");
+		expect(extractFinalMessage(jsonl)).toBe("done");
+		expect(extractUsage(jsonl)).toEqual({
+			inputTokens: 10,
+			outputTokens: 4,
+			totalTokens: 14,
+		});
 	});
 
 	it("maps common opencode failures with actionable hints", () => {

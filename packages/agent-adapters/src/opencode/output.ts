@@ -12,6 +12,7 @@ export function extractSessionId(output: string): string | undefined {
 		const id = readString(event, [
 			"session_id",
 			"sessionId",
+			"sessionID",
 			"conversation_id",
 			"conversationId",
 		]);
@@ -25,14 +26,26 @@ export function extractSessionId(output: string): string | undefined {
 
 export function extractUsage(output: string): AgentResult["usage"] | undefined {
 	const usages = parseEvents(output)
-		.map((event) => readRecord(event, "usage"))
+		.map((event) => readUsage(event))
 		.filter((usage): usage is Record<string, unknown> => Boolean(usage));
 	const usage = usages.at(-1);
 	if (!usage) return undefined;
-	const inputTokens = readNumber(usage, ["inputTokens", "input_tokens"]);
-	const outputTokens = readNumber(usage, ["outputTokens", "output_tokens"]);
+	const inputTokens = readNumber(usage, [
+		"inputTokens",
+		"input_tokens",
+		"promptTokens",
+		"prompt_tokens",
+		"input",
+	]);
+	const outputTokens = readNumber(usage, [
+		"outputTokens",
+		"output_tokens",
+		"completionTokens",
+		"completion_tokens",
+		"output",
+	]);
 	const totalTokens =
-		readNumber(usage, ["totalTokens", "total_tokens"]) ??
+		readNumber(usage, ["totalTokens", "total_tokens", "total"]) ??
 		(inputTokens !== undefined && outputTokens !== undefined
 			? inputTokens + outputTokens
 			: undefined);
@@ -62,6 +75,17 @@ function extractMessageFromEvent(
 	const data = readRecord(event, "data");
 	if (data) return readString(data, ["result", "message", "text", "content"]);
 	return undefined;
+}
+
+function readUsage(
+	event: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+	const usage = readRecord(event, "usage");
+	if (usage) return usage;
+	const tokens = readRecord(event, "tokens");
+	if (tokens) return tokens;
+	const part = readRecord(event, "part");
+	return part ? readRecord(part, "tokens") : undefined;
 }
 
 function parseRecord(value: string): Record<string, unknown> | undefined {

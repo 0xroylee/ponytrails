@@ -22,7 +22,8 @@ import {
 	CURSOR_DESCRIPTION,
 	CURSOR_LABEL,
 } from "./cursor/constants";
-import { OpenCodeAdapter, opencodeConfigurationDoc } from "./opencode";
+import { OpenCodeAdapter } from "./opencode/adapter";
+import { opencodeConfigurationDoc } from "./opencode/configuration-doc";
 import {
 	OPENCODE_AVAILABLE_MODELS,
 	OPENCODE_BACKEND,
