@@ -9,7 +9,7 @@ Add one required brainstorm workflow phase to the built-in PIV flow for chat-cre
 - Run exactly one brainstorm agent before the existing planning agent.
 - Keep new chat session creation behavior intact: create the default chat task as today, then let the runner process it through the new first phase.
 - Store brainstorm output in run state as `brainstormSummary` so subsequent workflow stages can consume it without changing the public chat API contract.
-- When the brainstorm agent needs clarification, surface its question in the chatroom and require the user to answer there before the workflow continues.
+- When the brainstorm agent needs clarification, surface its question and model-provided options in the chatroom, mark the recommended option, and require the user to select an option or enter a custom answer before the workflow continues.
 - Keep the workflow project-agnostic and aligned with existing skill path configuration.
 
 ## Non-Goals
@@ -26,7 +26,7 @@ Extend the built-in workflow metadata from `Plan -> Implement -> Testing` to `Br
 
 The brainstorm phase uses the same adapter bridge and chat-log path conventions as other workflow roles. Its final message is recorded as `RunState.brainstormSummary`, then the runner transitions the local run state to `plan`. Planning includes a concise brainstorm context section when `brainstormSummary` exists. Planning remains responsible for returning the existing READY or NEEDS_INFO contract.
 
-Brainstorming has its own parser contract so it does not collide with planning markers: `BRAINSTORM_RESULT: READY` with a concise summary, or `BRAINSTORM_RESULT: NEEDS_INFO` with `QUESTIONS_JSON`. A NEEDS_INFO result pauses the workflow at local stage `brainstorm`, publishes the question to the chat session linked by `taskId`, and leaves the board task unavailable for normal workflow pickup until the chatroom answer is submitted.
+Brainstorming has its own parser contract so it does not collide with planning markers: `BRAINSTORM_RESULT: READY` with a concise summary, or `BRAINSTORM_RESULT: NEEDS_INFO` with `QUESTIONS_JSON`. Each question can include `options`, and each option can include a `recommended` boolean from the model. A NEEDS_INFO result pauses the workflow at local stage `brainstorm`, publishes the current question to the chat session linked by `taskId`, and leaves the board task unavailable for normal workflow pickup until the chatroom answer is submitted.
 
 ## Components
 
@@ -37,7 +37,8 @@ Brainstorming has its own parser contract so it does not collide with planning m
 - Brainstorm parsing: parse `BRAINSTORM_RESULT: READY|NEEDS_INFO` and `QUESTIONS_JSON` separately from planning output.
 - Stage runner: add a brainstorm handler that runs the brainstorm agent, stores READY output, transitions to `plan`, or parks NEEDS_INFO questions for chatroom clarification.
 - Workflow-data/server boundary: add a narrow task-linked chat clarification action that finds the active chat session by task id, appends an assistant clarification message, and sets `pendingQuestions`.
-- Chat answer handling: preserve submitted brainstorm clarification answers on the task or linked session context, clear `pendingQuestions`, return the board task to `plan`, and let the next workflow cycle resume local stage `brainstorm`.
+- Web clarification UI: reuse the existing option-button and custom-answer composer, preserving model-provided `recommended` flags so the recommended option is visibly marked.
+- Chat answer handling: preserve submitted brainstorm clarification answers on the task or linked session context, clear `pendingQuestions`, return the board task to `plan`, and let the next workflow cycle resume local stage `brainstorm` with the answer included in the prompt.
 - Planning prompt: include `brainstormSummary` context when it exists.
 - Skill pack: add `skills/piv-brainstorm/SKILL.md` with a compact PIV-specific version of the Superpowers brainstorming process.
 
@@ -52,13 +53,15 @@ Brainstorming has its own parser contract so it does not collide with planning m
 7. The runner transitions the local stage to `plan`.
 8. The planning phase receives the brainstorm context and returns the existing planning contract.
 9. If brainstorm returns `BRAINSTORM_RESULT: NEEDS_INFO`, the runner stores `brainstormNeedsInfoQuestions`, marks the board task out of the ready queue, and publishes the first pending question to the linked chat session.
-10. The chatroom renders the existing clarification composer from `pendingQuestions`.
-11. The user answers in the chatroom. The server records the answer, clears `pendingQuestions`, makes the task eligible for workflow pickup again, and keeps the answer available to the resumed brainstorm prompt.
-12. Implementation and review/testing continue unchanged after planning succeeds.
+10. The chatroom renders the existing clarification composer from `pendingQuestions`, including option buttons, a visible `Recommended` marker for model-recommended options, and a custom answer input.
+11. The user either selects one option or enters a custom answer in the chatroom. The server records the answer, clears `pendingQuestions`, makes the task eligible for workflow pickup again, and keeps the answer available to the resumed brainstorm prompt.
+12. The brainstorm agent runs again with prior brainstorm answers. If it asks another question, the same chatroom loop repeats.
+13. When the brainstorm agent returns `BRAINSTORM_RESULT: READY`, the workflow proceeds to planning.
+14. Implementation and review/testing continue unchanged after planning succeeds.
 
 ## Error Handling
 
-The brainstorm phase is required. If the brainstorm agent fails, the pipeline fails the task using the same required-agent failure path used by planning, implementation, and testing. If the brainstorm agent asks for clarification, this is not a failure: the workflow pauses, the chat session receives pending questions, and the board task waits for the chatroom answer. If stored brainstorm context is missing or empty on a resumed run, the planning phase runs with no context section rather than crashing.
+The brainstorm phase is required. If the brainstorm agent fails, the pipeline fails the task using the same required-agent failure path used by planning, implementation, and testing. If the brainstorm agent asks for clarification, this is not a failure: the workflow pauses, the chat session receives pending questions, and the board task waits for the chatroom answer. A selected option and a custom answer are both sent back as clarification answers. The brainstorm loop can repeat until the agent has no more questions and returns READY. If stored brainstorm context is missing or empty on a resumed run, the planning phase runs with no context section rather than crashing.
 
 ## Testing
 
@@ -68,7 +71,9 @@ The brainstorm phase is required. If the brainstorm agent fails, the pipeline fa
 - Add parser tests for brainstorm READY and NEEDS_INFO output.
 - Add stage tests proving READY records output and transitions to `plan`.
 - Add stage or workflow-data tests proving NEEDS_INFO publishes chat pending questions and parks the task.
-- Add chat route tests proving a brainstorm clarification answer clears `pendingQuestions`, records the answer, and makes the task eligible for workflow pickup.
+- Add chat route tests proving model options and `recommended` flags reach the chat session unchanged.
+- Add web utility tests proving option selections and custom answers produce the payload sent back to the brainstorm agent.
+- Add route or workflow tests proving repeated brainstorm NEEDS_INFO rounds stay in `brainstorm` and only transition to `plan` after READY.
 - Keep existing chat session creation tests passing; creation still produces the same default task and session shape.
 
 ## Risks
