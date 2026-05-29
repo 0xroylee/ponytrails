@@ -1,13 +1,14 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Folder } from "lucide-react";
-import type { ReactElement } from "react";
+import { ChevronDown, ChevronRight, ChevronUp, Folder } from "lucide-react";
+import { type ReactElement, useState } from "react";
 
 import { Skeleton } from "@/components/loading/skeleton";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { ChatRoomSessionRow } from "./chat-room-session-row";
+import { buildVisibleProjectSessions } from "./chat-room-sidebar-utils";
 import type { ChatRoomSessionListProps } from "./types/chat-room-sidebar.types";
 
 export function ChatRoomSessionList({
@@ -23,7 +24,22 @@ export function ChatRoomSessionList({
 	onToggleProjectGroup,
 	onUnpinSession,
 }: ChatRoomSessionListProps): ReactElement {
+	const [expandedSessionListIds, setExpandedSessionListIds] = useState<
+		Set<string>
+	>(() => new Set());
 	const hasSessions = pinnedSessions.length > 0 || projectGroups.length > 0;
+
+	function toggleSessionList(groupId: string): void {
+		setExpandedSessionListIds((current) => {
+			const next = new Set(current);
+			if (next.has(groupId)) {
+				next.delete(groupId);
+				return next;
+			}
+			next.add(groupId);
+			return next;
+		});
+	}
 
 	return (
 		<div className="min-h-0 overflow-auto p-3">
@@ -56,12 +72,22 @@ export function ChatRoomSessionList({
 						) : null}
 						{projectGroups.map((group) => {
 							const firstSessionId = group.sessions[0]?.id ?? "";
-							const isExpanded = !collapsedProjectIds.has(group.id);
-							const GroupIcon = isExpanded ? ChevronDown : ChevronRight;
+							const isProjectExpanded = !collapsedProjectIds.has(group.id);
+							const isSessionListExpanded = expandedSessionListIds.has(
+								group.id,
+							);
+							const GroupIcon = isProjectExpanded ? ChevronDown : ChevronRight;
+							const visibleSessions = buildVisibleProjectSessions({
+								isExpanded: isSessionListExpanded,
+								sessions: group.sessions,
+							});
+							const SessionListIcon = isSessionListExpanded
+								? ChevronUp
+								: ChevronDown;
 							return (
 								<div className="grid gap-1" key={group.id}>
 									<Button
-										aria-expanded={isExpanded}
+										aria-expanded={isProjectExpanded}
 										className={cn(
 											"h-9 min-w-0 justify-start gap-2 px-2 text-left text-sm",
 											group.isActive
@@ -69,7 +95,11 @@ export function ChatRoomSessionList({
 												: "text-zinc-400 hover:bg-surface-active hover:text-zinc-200",
 										)}
 										onClick={() =>
-											onToggleProjectGroup(group.id, isExpanded, firstSessionId)
+											onToggleProjectGroup(
+												group.id,
+												isProjectExpanded,
+												firstSessionId,
+											)
 										}
 										size="sm"
 										title={group.label}
@@ -88,9 +118,9 @@ export function ChatRoomSessionList({
 											{group.sessions.length}
 										</Typography>
 									</Button>
-									{isExpanded ? (
+									{isProjectExpanded ? (
 										<div className="grid gap-1 pl-6">
-											{group.sessions.map((session) => (
+											{visibleSessions.sessions.map((session) => (
 												<ChatRoomSessionRow
 													activeSessionId={activeSessionId}
 													isPinned={false}
@@ -102,6 +132,36 @@ export function ChatRoomSessionList({
 													session={session}
 												/>
 											))}
+											{visibleSessions.hasOverflow ? (
+												<Button
+													aria-expanded={isSessionListExpanded}
+													aria-label={
+														isSessionListExpanded
+															? `Show fewer ${group.label} sessions`
+															: `Show ${visibleSessions.hiddenSessionCount} more ${group.label} sessions`
+													}
+													className="h-8 min-w-0 justify-start gap-2 px-2 text-xs text-zinc-400 hover:bg-surface-active hover:text-zinc-200"
+													onClick={() => toggleSessionList(group.id)}
+													size="sm"
+													title={
+														isSessionListExpanded
+															? "Show fewer sessions"
+															: `Show ${visibleSessions.hiddenSessionCount} more sessions`
+													}
+													type="button"
+													variant="ghost"
+												>
+													<SessionListIcon className="shrink-0" size={14} />
+													<Typography
+														as="span"
+														className="min-w-0 flex-1 truncate text-left"
+													>
+														{isSessionListExpanded
+															? "Show fewer"
+															: `Show ${visibleSessions.hiddenSessionCount} more`}
+													</Typography>
+												</Button>
+											) : null}
 										</div>
 									) : null}
 								</div>

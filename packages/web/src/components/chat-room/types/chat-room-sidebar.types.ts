@@ -56,6 +56,17 @@ export interface BuildChatSessionSidebarContentInput
 	pinnedSessionIds: string[];
 }
 
+export interface BuildVisibleProjectSessionsInput {
+	isExpanded: boolean;
+	sessions: ChatSessionRecord[];
+}
+
+export interface VisibleProjectSessions {
+	hasOverflow: boolean;
+	hiddenSessionCount: number;
+	sessions: ChatSessionRecord[];
+}
+
 export interface ChatRoomSessionRowProps {
 	activeSessionId: string;
 	isPinned: boolean;

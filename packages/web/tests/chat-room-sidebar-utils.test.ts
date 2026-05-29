@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	buildChatSessionProjectGroups,
 	buildChatSessionSidebarContent,
+	buildVisibleProjectSessions,
 } from "../src/components/chat-room/chat-room-sidebar-utils";
 import type { ChatSessionRecord, WorkspaceProjectRecord } from "../src/lib/api";
 
@@ -125,6 +126,70 @@ describe("chat room sidebar utilities", () => {
 			content.projectGroups[1]?.sessions.map((session) => session.id),
 		).toEqual(["session-4"]);
 	});
+
+	it("keeps all sessions visible when a project has five sessions", () => {
+		const sessions = buildSessionList(5);
+
+		const result = buildVisibleProjectSessions({
+			isExpanded: false,
+			sessions,
+		});
+
+		expect(result.sessions).toEqual(sessions);
+		expect(result).toMatchObject({
+			hasOverflow: false,
+			hiddenSessionCount: 0,
+		});
+	});
+
+	it("shows the first five sessions by default when a project has more sessions", () => {
+		const sessions = buildSessionList(7);
+
+		const result = buildVisibleProjectSessions({
+			isExpanded: false,
+			sessions,
+		});
+
+		expect(result.sessions).toEqual(sessions.slice(0, 5));
+		expect(result).toMatchObject({
+			hasOverflow: true,
+			hiddenSessionCount: 2,
+		});
+	});
+
+	it("shows all overflow sessions when a project session list is expanded", () => {
+		const sessions = buildSessionList(7);
+
+		const result = buildVisibleProjectSessions({
+			isExpanded: true,
+			sessions,
+		});
+
+		expect(result.sessions).toEqual(sessions);
+		expect(result).toMatchObject({
+			hasOverflow: true,
+			hiddenSessionCount: 0,
+		});
+	});
+
+	it("preserves existing session order when collapsing overflow sessions", () => {
+		const sessions = [
+			buildSession({ id: "session-6" }),
+			buildSession({ id: "session-2" }),
+			buildSession({ id: "session-5" }),
+			buildSession({ id: "session-1" }),
+			buildSession({ id: "session-4" }),
+			buildSession({ id: "session-3" }),
+		];
+
+		const result = buildVisibleProjectSessions({
+			isExpanded: false,
+			sessions,
+		});
+
+		expect(result.sessions).toEqual(sessions.slice(0, 5));
+		expect(result.hiddenSessionCount).toBe(1);
+	});
 });
 
 function buildSession(
@@ -143,6 +208,12 @@ function buildSession(
 		updatedAt: "2026-05-25T00:00:00.000Z",
 		...overrides,
 	};
+}
+
+function buildSessionList(count: number): ChatSessionRecord[] {
+	return Array.from({ length: count }, (_, index) =>
+		buildSession({ id: `session-${index + 1}` }),
+	);
 }
 
 function buildProject(

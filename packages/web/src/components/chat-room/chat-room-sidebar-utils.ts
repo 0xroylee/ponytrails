@@ -1,12 +1,15 @@
 import type {
 	BuildChatSessionProjectGroupsInput,
 	BuildChatSessionSidebarContentInput,
+	BuildVisibleProjectSessionsInput,
 	ChatSessionProjectGroup,
 	ChatSessionSidebarContent,
+	VisibleProjectSessions,
 } from "./types/chat-room-sidebar.types";
 
 const UNASSIGNED_GROUP_ID = "unassigned";
 const UNASSIGNED_GROUP_LABEL = "Unassigned";
+const DEFAULT_VISIBLE_PROJECT_SESSION_COUNT = 5;
 
 export function buildChatSessionSidebarContent({
 	activeSessionId,
@@ -60,6 +63,26 @@ export function buildChatSessionProjectGroups({
 	}
 
 	return [...groups.values()];
+}
+
+export function buildVisibleProjectSessions({
+	isExpanded,
+	sessions,
+}: BuildVisibleProjectSessionsInput): VisibleProjectSessions {
+	const hiddenSessionCount = Math.max(
+		0,
+		sessions.length - DEFAULT_VISIBLE_PROJECT_SESSION_COUNT,
+	);
+	const hasOverflow = hiddenSessionCount > 0;
+
+	return {
+		hasOverflow,
+		hiddenSessionCount: isExpanded ? 0 : hiddenSessionCount,
+		sessions:
+			isExpanded || !hasOverflow
+				? sessions
+				: sessions.slice(0, DEFAULT_VISIBLE_PROJECT_SESSION_COUNT),
+	};
 }
 
 function createSessionProjectGroup(
