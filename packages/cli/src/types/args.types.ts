@@ -68,6 +68,20 @@ export type TaskCreateCommanderOptions = ProjectCommanderOptions & {
 	json?: boolean;
 };
 
+export type ModelsStage = "githubComment" | "implement" | "plan" | "reviewTest";
+
+export type ModelsReasoningEffort = "high" | "low" | "medium" | "xhigh";
+
+export type ModelsSetCommanderOptions = {
+	stage?: string;
+	model?: string;
+	reasoningEffort?: string;
+};
+
+export type ModelsResetCommanderOptions = {
+	stage?: string;
+};
+
 export type SkillsCommand =
 	| { action: "list"; projectId?: string }
 	| {
@@ -104,6 +118,16 @@ export type TaskCommand = {
 
 export type OnboardCommand = { check: boolean };
 
+export type ModelsCommand =
+	| { action: "list" }
+	| {
+			action: "set";
+			stage: ModelsStage;
+			model?: string;
+			reasoningEffort?: ModelsReasoningEffort;
+	  }
+	| { action: "reset"; stage: ModelsStage };
+
 export type DaemonCommand = Record<string, never>;
 
 export type WorkflowWorkerCommand = Record<string, never>;
@@ -133,6 +157,7 @@ export type CliRuntime = {
 		command: PluginsCommand,
 		cwd: string,
 	): Promise<void>;
+	handleModelsCommand(command: ModelsCommand, cwd: string): Promise<void>;
 	handleTaskCommand(config: LoadedConfig, command: TaskCommand): Promise<void>;
 };
 

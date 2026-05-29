@@ -94,6 +94,36 @@ describe("createCliProgram help and core commands", () => {
 		]);
 	});
 
+	it("routes model setting commands without loading project config", async () => {
+		const result = await captureWithRuntime([
+			"bun",
+			"devos",
+			"models",
+			"set",
+			"--stage",
+			"plan",
+			"--model",
+			"gpt-5.5",
+			"--reasoning-effort",
+			"high",
+		]);
+
+		expect(result.calls).toEqual([
+			{
+				name: "models",
+				payload: {
+					command: {
+						action: "set",
+						stage: "plan",
+						model: "gpt-5.5",
+						reasoningEffort: "high",
+					},
+					cwd: "/tmp/devos-test",
+				},
+			},
+		]);
+	});
+
 	it("rejects unknown commands", async () => {
 		const unknown = await expectCommanderError([
 			"bun",

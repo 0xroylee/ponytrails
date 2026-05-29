@@ -14,6 +14,7 @@ import {
 	runProductionDaemon,
 	runWorkflowCommandWorker,
 } from "./features/daemon";
+import { handleModelsCommand } from "./features/models/model-command";
 import { PromptCancelledError } from "./features/prompts";
 import {
 	logger,
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
 		handleStatusCommand,
 		handleSkillsCommand,
 		handlePluginsCommand,
+		handleModelsCommand,
 		handleTaskCommand,
 	};
 	const program = createCliProgram(runtime);

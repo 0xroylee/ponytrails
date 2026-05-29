@@ -10,6 +10,7 @@ import {
 	loadResolvedEnv,
 } from "./env";
 import { normalizeOptionalValue } from "./env-normalizers";
+import { loadInstanceCodexConfig } from "./instance-codex";
 import { loadInstanceServerDatabaseConfig } from "./instance-database-path";
 import { loadInstanceWorkspaceConfig } from "./instance-workspace";
 import { resolveNotifications } from "./notification-resolution";
@@ -55,8 +56,9 @@ async function loadConfigWithOptions(
 	const envPolling = buildEnvPolling(env);
 	const envNotifications = buildEnvNotifications(env);
 	const workspace = await loadInstanceWorkspaceConfig();
-	const root = createRuntimeRootConfig();
-	const defaultProjectRoot = createDefaultProjectRootConfig();
+	const instanceCodex = await loadInstanceCodexConfig();
+	const root = createRuntimeRootConfig(instanceCodex);
+	const defaultProjectRoot = createDefaultProjectRootConfig(instanceCodex);
 
 	const resolvedProjects = resolveProjects(cwd, envBase, root);
 	const metadataProjects = options.applyServerProjectMetadata
@@ -85,12 +87,16 @@ async function loadConfigWithOptions(
 	return { projects, server, polling, notifications, workspace };
 }
 
-function createRuntimeRootConfig(): DevosRootConfig {
-	return { projects: [] };
+function createRuntimeRootConfig(
+	codex: DevosRootConfig["codex"],
+): DevosRootConfig {
+	return { ...(codex ? { codex } : {}), projects: [] };
 }
 
-function createDefaultProjectRootConfig(): DevosRootConfig {
-	return { projects: [{ id: "default" }] };
+function createDefaultProjectRootConfig(
+	codex: DevosRootConfig["codex"],
+): DevosRootConfig {
+	return { ...(codex ? { codex } : {}), projects: [{ id: "default" }] };
 }
 
 export function getProjectById(

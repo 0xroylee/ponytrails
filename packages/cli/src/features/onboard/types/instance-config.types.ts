@@ -28,6 +28,19 @@ export interface OnboardWorkspaceConfig {
 	name: string;
 }
 
+export type OnboardModelStage =
+	| "githubComment"
+	| "implement"
+	| "plan"
+	| "reviewTest";
+
+export type OnboardReasoningEffort = "high" | "low" | "medium" | "xhigh";
+
+export interface OnboardCodexConfig {
+	models?: Partial<Record<OnboardModelStage, string>>;
+	reasoningEfforts?: Partial<Record<OnboardModelStage, OnboardReasoningEffort>>;
+}
+
 export interface OnboardInstanceConfig {
 	$meta: {
 		version: 1;
@@ -85,6 +98,7 @@ export interface OnboardInstanceConfig {
 			keyFilePath: string;
 		};
 	};
+	codex?: OnboardCodexConfig;
 	plugins?: InstancePluginsConfig;
 }
 

@@ -1,12 +1,17 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+	instanceConfigPath,
 	loadConfig,
 	saveSqliteEnv,
 	sqliteEnvDbPath,
 } from "../src/features/config";
+import {
+	createInstanceConfig,
+	renderInstanceConfigDocument,
+} from "../src/features/onboard";
 
 const envDefaults: Record<string, string | undefined> = {
 	GITHUB_REPO_OWNER: "github_repo_owner",
@@ -375,6 +380,48 @@ describe("loadConfig", () => {
 			});
 		} finally {
 			globalThis.fetch = previousFetch;
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("loads Codex model settings from instance config", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		const instanceConfig = {
+			...createInstanceConfig(tempDir, "2026-05-29T00:00:00.000Z"),
+			codex: {
+				models: {
+					plan: "gpt-5.5",
+					implement: "gpt-5.3-codex",
+					reviewTest: "gpt-5.3-codex",
+				},
+				reasoningEfforts: {
+					plan: "high",
+					implement: "medium",
+					reviewTest: "high",
+				},
+			} as const,
+		};
+		await mkdir(path.dirname(instanceConfigPath()), { recursive: true });
+		await writeFile(
+			instanceConfigPath(),
+			renderInstanceConfigDocument(instanceConfig),
+		);
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.codex.models).toMatchObject({
+				plan: "gpt-5.5",
+				implement: "gpt-5.3-codex",
+				reviewTest: "gpt-5.3-codex",
+			});
+			expect(config.projects[0]?.codex.reasoningEfforts).toMatchObject({
+				plan: "high",
+				implement: "medium",
+				reviewTest: "high",
+			});
+		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}
 	});
