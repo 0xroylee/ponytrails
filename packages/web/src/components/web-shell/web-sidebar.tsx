@@ -102,7 +102,7 @@ export function WebSidebar({
 					)}
 					variant="cardTitle"
 				>
-					DEVOS.ING
+					devos.ing
 				</Typography>
 				<Button
 					aria-label={nextSidebarLabel(mode)}
