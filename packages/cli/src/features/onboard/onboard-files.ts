@@ -44,6 +44,12 @@ export async function writeOnboardFiles(
 		},
 		draft.instance,
 	);
+	instanceConfig.codex = {
+		models: { ...draft.codex.models },
+		...(draft.codex.reasoningEfforts
+			? { reasoningEfforts: { ...draft.codex.reasoningEfforts } }
+			: {}),
+	};
 	if (existingInstanceConfig.ok && existingInstanceConfig.config.plugins) {
 		instanceConfig.plugins = existingInstanceConfig.config.plugins;
 	}

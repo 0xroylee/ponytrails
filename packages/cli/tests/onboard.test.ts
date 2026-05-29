@@ -162,6 +162,25 @@ describe("onboard helpers", () => {
 		});
 	});
 
+	it("writes Codex model settings into the instance config during onboard", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-onboard-test-"),
+		);
+
+		try {
+			await writeOnboardFiles(tempDir, draft);
+			const loaded = await loadInstanceConfig(tempDir);
+			expect(loaded.ok).toBe(true);
+			if (!loaded.ok) return;
+			expect(loaded.config.codex?.models).toEqual(draft.codex.models);
+			expect(loaded.config.codex?.reasoningEfforts).toEqual(
+				draft.codex.reasoningEfforts,
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("uses low as default planning reasoning effort", () => {
 		expect(DEFAULT_REASONING_EFFORTS.plan).toBe("low");
 	});
