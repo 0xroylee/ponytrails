@@ -68,6 +68,8 @@ stays scoped, and ends with evidence the next session can trust.
   speculative configurability, abstractions, or adjacent cleanup.
 - Keep edits surgical. Every changed line should trace to the request, and any
   unrelated dead code or risk should be mentioned instead of silently refactored.
+- For complex functions, add one short comment that describes the function's
+  purpose.
 - Define success criteria and verification before or during implementation, then
   loop until the relevant checks pass or a blocker is explicit.
 
