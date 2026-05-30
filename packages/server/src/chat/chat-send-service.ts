@@ -54,9 +54,16 @@ export async function queueChatMessage(
 	}
 	const completion = shouldCompleteWorkflowClarification(accepted)
 		? completeChatMessage(repository, deps, sessionId, accepted, stream)
-		: queueChatSessionCompletion(sessionId, () =>
-				completeChatMessage(repository, deps, sessionId, accepted, stream),
-			);
+		: queueChatSessionCompletion(sessionId, async () => {
+				await deps.waitForWorkflowIdle?.(accepted.issue.id);
+				return completeChatMessage(
+					repository,
+					deps,
+					sessionId,
+					accepted,
+					stream,
+				);
+			});
 	return {
 		accepted: {
 			issue: accepted.issue,

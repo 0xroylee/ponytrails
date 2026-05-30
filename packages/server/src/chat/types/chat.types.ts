@@ -164,6 +164,7 @@ export interface ChatServiceDeps {
 		issueId: string,
 		input: ChatSessionIssueUpdateInput,
 	): Promise<BoardTaskApiRecord>;
+	waitForWorkflowIdle?(issueId: string): Promise<void>;
 }
 
 export interface ChatSessionIssueCreateInput {

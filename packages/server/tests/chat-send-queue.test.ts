@@ -106,6 +106,46 @@ describe("chat send service queue", () => {
 		blockedRequirement.resolve(readyRequirement("Normal follow-up"));
 		await normal?.completion;
 	});
+
+	it("waits to complete normal messages until the linked workflow is idle", async () => {
+		const session = chatSession();
+		const issue = boardTask({ status: "in_progress" });
+		const messages: ChatMessageRow[] = [];
+		const repository = createRepository(session, messages);
+		const workflowIdle = deferred<void>();
+		const waitForWorkflowIdle = mock(async () => workflowIdle.promise);
+		const resolveTaskRequirement = mock(async () =>
+			readyRequirement("Queued follow-up"),
+		);
+		const deps = chatDeps(issue, {
+			resolveTaskRequirement,
+			waitForWorkflowIdle,
+		});
+
+		const queued = await queueChatMessage(repository, deps, session.id, {
+			content: "Queued follow-up",
+		});
+		await flushAsyncWork();
+
+		expect(queued).toBeTruthy();
+		expect(messages.map((message) => message.content)).toEqual([
+			"Queued follow-up",
+		]);
+		expect(waitForWorkflowIdle).toHaveBeenCalledWith("task-1");
+		expect(resolveTaskRequirement).not.toHaveBeenCalled();
+
+		const waitingOutcome = await Promise.race([
+			queued?.completion.then(() => "completed" as const),
+			Bun.sleep(20).then(() => "waiting" as const),
+		]);
+		expect(waitingOutcome).toBe("waiting");
+
+		workflowIdle.resolve();
+		const result = await queued?.completion;
+
+		expect(resolveTaskRequirement).toHaveBeenCalledTimes(1);
+		expect(result?.issue.title).toBe("Queued follow-up");
+	});
 });
 
 function createRepository(
@@ -190,7 +230,9 @@ function chatSession(overrides: Partial<ChatSessionRow> = {}): ChatSessionRow {
 	};
 }
 
-function boardTask(): BoardTaskApiRecord {
+function boardTask(
+	overrides: Partial<BoardTaskApiRecord> = {},
+): BoardTaskApiRecord {
 	return {
 		id: "task-1",
 		taskKey: "OWN-1",
@@ -205,6 +247,7 @@ function boardTask(): BoardTaskApiRecord {
 		linkedPr: null,
 		createdAt: "2026-05-16T00:00:00.000Z",
 		updatedAt: "2026-05-16T00:00:00.000Z",
+		...overrides,
 	};
 }
 

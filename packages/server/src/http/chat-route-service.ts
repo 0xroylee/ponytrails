@@ -5,6 +5,7 @@ import {
 	DEFAULT_CHAT_ISSUE_STATUS,
 	DEFAULT_CHAT_ISSUE_TITLE,
 } from "../chat/chat-defaults";
+import { waitForTaskWorkflowIdle } from "../chat/chat-workflow-idle";
 import type { LocalWorkspaceIdentity } from "../local-workspace";
 import type { RealtimeEventPublisher } from "../realtime";
 import { createTaskRepository, createTaskService } from "../tasks";
@@ -57,5 +58,6 @@ export function createChatRouteService(
 			realtimeEvents?.publish({ type: "issue.updated", issue: result.value });
 			return result.value;
 		},
+		waitForWorkflowIdle: (issueId) => waitForTaskWorkflowIdle(db, issueId),
 	});
 }
