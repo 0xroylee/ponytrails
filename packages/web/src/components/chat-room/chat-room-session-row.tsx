@@ -3,7 +3,7 @@
 import { Archive, Loader2, Pin, PinOff } from "lucide-react";
 import type { ReactElement } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogClose,
@@ -48,11 +48,13 @@ export function ChatRoomSessionRow({
 					: "text-zinc-400",
 			)}
 		>
-			<Button
-				className="h-auto min-w-0 justify-start gap-2 pl-2 pr-0 py-2 text-left text-sm"
+			<a
+				className={cn(
+					buttonVariants({ variant: "ghost" }),
+					"h-auto min-w-0 justify-start gap-2 pl-2 pr-0 py-2 text-left text-sm",
+				)}
+				href={`/session/${encodeURIComponent(session.id)}`}
 				onClick={() => onSelectSession(session.id)}
-				type="button"
-				variant="ghost"
 			>
 				{isRunning ? (
 					<span
@@ -68,7 +70,7 @@ export function ChatRoomSessionRow({
 						{session.title}
 					</Typography>
 				</span>
-			</Button>
+			</a>
 			<Button
 				aria-label={pinLabel}
 				aria-pressed={isPinned}

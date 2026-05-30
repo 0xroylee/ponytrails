@@ -18,6 +18,7 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ComponentType, ReactElement } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,8 @@ export function ChatRoomSettingsSidebar({
 	onClose,
 	onNavigate,
 }: ChatRoomSettingsSidebarProps): ReactElement {
+	const pathname = usePathname();
+
 	return (
 		<div
 			aria-hidden={!isActive}
@@ -90,7 +93,10 @@ export function ChatRoomSettingsSidebar({
 				<div className="grid gap-1">
 					{navItems.map((item) => {
 						const Icon = iconByKey[item.key];
-						const isActiveItem = item.key === "chat";
+						const isActiveItem =
+							pathname === item.href ||
+							pathname.startsWith(`${item.href}/`) ||
+							(item.key === "chat" && pathname.startsWith("/session/"));
 						return (
 							<Link
 								aria-current={isActiveItem ? "page" : undefined}
