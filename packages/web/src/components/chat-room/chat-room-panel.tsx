@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type ReactElement, useEffect, useRef, useState } from "react";
+import { type ReactElement, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -13,7 +13,6 @@ import {
 	useUpdateChatSessionMutation,
 } from "@/lib/api/chat-queries";
 import { useCurrentWorkspaceQuery } from "@/lib/api/queries";
-import { useWorkspaceProjectsQuery } from "@/lib/api/realtime-queries";
 import { useRealtimeStore } from "@/lib/realtime";
 
 import { useChatClarificationState } from "./chat-clarification-state";
@@ -25,26 +24,21 @@ import { useChatRoomDraftState } from "./chat-room-panel-draft-state";
 import { ChatRoomPanelView } from "./chat-room-panel-view";
 import { selectChatSession } from "./chat-room-selection";
 import { resolveChatRoomStreamState } from "./chat-room-stream-state";
-import { activeChatStreamSessionIds } from "./chat-room-stream-utils";
 import { useWorkingSectionState } from "./chat-working-section-state";
 import type * as CRT from "./types/chat-room.types";
 import { useChatTaskDetailPanelState } from "./use-chat-task-detail-panel-state";
 
-const SIDEBAR_CONTROL_ID = "chat-sidebar-toggle";
 const NO_REFETCH = { refetchIntervalMs: false } as const;
 
 export function ChatRoomPanel({
 	commandDraftRequest,
 	initialSessionId = "",
-	newSessionRequest,
-	onSearchRequest,
+	onOpenSidebar,
 }: CRT.ChatRoomPanelProps): ReactElement {
 	const [activeSessionId, setActiveSessionId] = useState(initialSessionId);
 	const [draft, setDraft] = useState("");
 	const [commandLines, setCommandLines] = useState<CRT.ChatStreamLine[]>([]);
 	const clarificationState = useChatClarificationState();
-	const handledNewSessionRequest = useRef(0);
-	const sidebarToggleRef = useRef<HTMLInputElement>(null);
 	const router = useRouter();
 	const { runWithWorkingLabel, workingStartedAt } = useWorkingSectionState();
 	const { handleDraftChange, markCommandDraftHandled } = useChatRoomDraftState({
@@ -54,7 +48,6 @@ export function ChatRoomPanel({
 	const currentWorkspaceQuery = useCurrentWorkspaceQuery(NO_REFETCH);
 	const workspaceId = currentWorkspaceQuery.data?.workspaceId ?? "";
 	const sessionsQuery = useChatSessionsQuery(workspaceId, NO_REFETCH);
-	const projectsQuery = useWorkspaceProjectsQuery(workspaceId, NO_REFETCH);
 	const createSession = useCreateChatSessionMutation();
 	const updateSession = useUpdateChatSessionMutation();
 	const appendMessage = useAppendChatMessageMutation();
@@ -82,7 +75,6 @@ export function ChatRoomPanel({
 	const chatStreamsByRunId = useRealtimeStore(
 		(state) => state.chatStreamsByRunId,
 	);
-	const runningSessionIds = activeChatStreamSessionIds(chatStreamsByRunId);
 	const { activityStartedAt, isThinking, streamLines } =
 		resolveChatRoomStreamState(
 			commandLines,
@@ -105,19 +97,8 @@ export function ChatRoomPanel({
 		selectedSession,
 		sendMessage: (input) => sendMessage.mutateAsync(input),
 	});
-	useEffect(() => {
-		if (
-			newSessionRequest <= 0 ||
-			newSessionRequest === handledNewSessionRequest.current ||
-			!workspaceId
-		) {
-			return;
-		}
-		handledNewSessionRequest.current = newSessionRequest;
-		void startNewSession();
-	}, [newSessionRequest, workspaceId]);
 
-	async function startNewSession(closeSidebar = false): Promise<void> {
+	async function startNewSession(): Promise<void> {
 		if (!workspaceId) {
 			toast.error("Workspace is still loading.");
 			return;
@@ -127,11 +108,6 @@ export function ChatRoomPanel({
 		router.push(`/session/${encodeURIComponent(session.id)}`);
 		setDraft("");
 		taskDetails.close();
-		if (closeSidebar) closeMobileSidebar();
-	}
-
-	function closeMobileSidebar(): void {
-		if (sidebarToggleRef.current) sidebarToggleRef.current.checked = false;
 	}
 
 	async function handleSubmit(): Promise<void> {
@@ -175,31 +151,12 @@ export function ChatRoomPanel({
 		}
 	}
 
-	async function archiveSession(sessionId: string): Promise<void> {
-		try {
-			await updateSession.mutateAsync({
-				sessionId,
-				session: { archived: true },
-			});
-			if (sessionId === selectedSessionId) {
-				setActiveSessionId("");
-				router.push("/chat");
-				taskDetails.close();
-			}
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Archive failed");
-		}
-	}
-
 	return (
 		<ChatRoomPanelView
-			activeSessionId={selectedSessionId}
 			activeTaskId={activeTaskId}
 			draft={draft}
 			isBusy={isBusy}
-			isCreatingSession={createSession.isPending}
 			isMessagesLoading={messagesQuery.isLoading}
-			isSessionListLoading={sessionsQuery.isLoading}
 			isSending={sendMessage.isPending}
 			isPlanning={isPlanning}
 			isTaskDetailPanelOpen={taskDetails.isOpen}
@@ -209,38 +166,20 @@ export function ChatRoomPanel({
 			messagesError={messagesQuery.error}
 			pendingAnswers={pendingAnswers}
 			pendingQuestionIndex={pendingQuestionIndex}
-			projects={projectsQuery.data ?? []}
-			runningSessionIds={runningSessionIds}
 			selectedSession={selectedSession}
-			sidebarControlId={SIDEBAR_CONTROL_ID}
-			sidebarToggleRef={sidebarToggleRef}
-			sessions={sessions}
-			sessionsError={sessionsQuery.error}
 			streamLines={streamLines}
 			workingStartedAt={workingStartedAt ?? activityStartedAt}
 			onAnswerChange={(index, value) =>
 				clarificationState.updateAnswerDraft(selectedSessionId, index, value)
 			}
-			onArchiveSession={(sessionId) => void archiveSession(sessionId)}
-			onCloseSidebar={closeMobileSidebar}
 			onCloseTaskDetails={taskDetails.close}
 			onDraftChange={handleDraftChange}
-			onNewSession={() => void startNewSession(true)}
+			onOpenSidebar={onOpenSidebar}
 			onToggleTaskDetails={taskDetails.toggle}
-			onSearch={() => {
-				closeMobileSidebar();
-				onSearchRequest();
-			}}
 			onSelectCommand={setDraft}
 			onSelectOption={(index, value) =>
 				clarificationSubmitters.submitAnswerValue(index, value)
 			}
-			onSelectSession={(sessionId) => {
-				setActiveSessionId(sessionId);
-				router.push(`/session/${encodeURIComponent(sessionId)}`);
-				taskDetails.close();
-				closeMobileSidebar();
-			}}
 			onSubmit={() => void handleSubmit()}
 			onSubmitAnswers={() => void clarificationSubmitters.submitAnswers()}
 		/>

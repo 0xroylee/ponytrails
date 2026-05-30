@@ -11,22 +11,22 @@ export function ChatRoomHeader({
 	activeTaskId,
 	isTaskDetailPanelOpen,
 	projectId,
-	sidebarControlId,
 	title,
+	onOpenSidebar,
 	onToggleTaskDetails,
 }: ChatRoomHeaderProps): ReactElement {
 	return (
 		<header className="flex items-center justify-between gap-3 px-4 py-2">
 			<div className="flex min-w-0 flex-1 items-center gap-3">
 				<Button
-					asChild
-					className="cursor-pointer md:hidden"
+					aria-label="Open chat sidebar"
+					className="md:hidden"
+					onClick={onOpenSidebar}
 					size="icon"
+					type="button"
 					variant="ghost"
 				>
-					<label aria-label="Open chat sidebar" htmlFor={sidebarControlId}>
-						<PanelLeft size={17} />
-					</label>
+					<PanelLeft size={17} />
 				</Button>
 				<div className="min-w-0">
 					<Typography className="truncate text-zinc-300">{title}</Typography>

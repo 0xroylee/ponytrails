@@ -6,24 +6,21 @@ import type {
 	CliCommandStreamRequest,
 	TaskClarificationQuestion,
 	TaskCreateAnswer,
-	WorkspaceProjectRecord,
 } from "@/lib/api";
-import type { RefObject } from "react";
 import type { ChatMissionProgressViewModel } from "./chat-mission-progress.types";
 
 export interface ChatRoomPanelProps {
 	commandDraftRequest: CommandDraftRequest | null;
 	initialSessionId?: string;
-	newSessionRequest: number;
-	onSearchRequest: () => void;
+	onOpenSidebar: () => void;
 }
 
 export interface ChatRoomHeaderProps {
 	activeTaskId: string | null;
 	isTaskDetailPanelOpen: boolean;
 	projectId: string;
-	sidebarControlId: string;
 	title: string;
+	onOpenSidebar: () => void;
 	onToggleTaskDetails: () => void;
 }
 
@@ -70,13 +67,10 @@ export interface ChatTaskDetailPanelProps {
 }
 
 export interface ChatRoomPanelViewProps {
-	activeSessionId: string;
 	activeTaskId: string | null;
 	draft: string;
 	isBusy: boolean;
-	isCreatingSession: boolean;
 	isMessagesLoading: boolean;
-	isSessionListLoading: boolean;
 	isSending: boolean;
 	isPlanning: boolean;
 	isTaskDetailPanelOpen: boolean;
@@ -86,26 +80,16 @@ export interface ChatRoomPanelViewProps {
 	messagesError: Error | null;
 	pendingAnswers: string[];
 	pendingQuestionIndex: number;
-	projects: WorkspaceProjectRecord[];
-	runningSessionIds: Set<string>;
 	selectedSession: ChatSessionRecord | null;
-	sidebarControlId: string;
-	sidebarToggleRef: RefObject<HTMLInputElement | null>;
-	sessions: ChatSessionRecord[];
-	sessionsError: Error | null;
 	streamLines: ChatStreamLine[];
 	workingStartedAt: string | null;
 	onAnswerChange: (index: number, value: string) => void;
-	onArchiveSession: (sessionId: string) => void;
-	onCloseSidebar: () => void;
 	onCloseTaskDetails: () => void;
 	onDraftChange: (value: string) => void;
-	onNewSession: () => void;
+	onOpenSidebar: () => void;
 	onToggleTaskDetails: () => void;
-	onSearch: () => void;
 	onSelectCommand: (value: string) => void;
 	onSelectOption: (index: number, value: string) => Promise<void> | void;
-	onSelectSession: (sessionId: string) => void;
 	onSubmit: () => void;
 	onSubmitAnswers: () => void;
 }

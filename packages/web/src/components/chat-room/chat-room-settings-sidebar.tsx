@@ -52,8 +52,10 @@ export function ChatRoomSettingsSidebar({
 		<div
 			aria-hidden={!isActive}
 			className={cn(
-				"absolute inset-0 grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] transition-transform duration-200 ease-out",
-				isActive ? "translate-x-0" : "pointer-events-none -translate-x-full",
+				"absolute inset-0 grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden transition-[opacity,transform] duration-200 ease-out",
+				isActive
+					? "translate-x-0 opacity-100"
+					: "pointer-events-none -translate-x-full opacity-0",
 			)}
 			inert={!isActive ? true : undefined}
 		>

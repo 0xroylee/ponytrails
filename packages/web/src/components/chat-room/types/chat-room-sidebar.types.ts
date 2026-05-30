@@ -6,9 +6,9 @@ export interface ChatRoomSidebarProps {
 	isCollapsed: boolean;
 	isCreating: boolean;
 	isLoading: boolean;
+	isMobileOpen: boolean;
 	projects: WorkspaceProjectRecord[];
 	runningSessionIds: Set<string>;
-	sidebarControlId: string;
 	sessions: ChatSessionRecord[];
 	onNewSession: () => void;
 	onCloseSidebar: () => void;

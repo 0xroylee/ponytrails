@@ -24,25 +24,25 @@ const promptChips = [
 ];
 
 interface ChatNoSessionHomeProps extends ChatComposerProps {
-	sidebarControlId: string;
+	onOpenSidebar: () => void;
 }
 
 export function ChatNoSessionHome({
-	sidebarControlId,
+	onOpenSidebar,
 	onSelectCommand,
 	...composerProps
 }: ChatNoSessionHomeProps): ReactElement {
 	return (
 		<div className="relative grid min-h-0 min-w-0 place-items-center px-4 py-8 text-zinc-100">
 			<Button
-				asChild
+				aria-label="Open chat sidebar"
 				className="absolute left-4 top-4 cursor-pointer md:hidden"
+				onClick={onOpenSidebar}
 				size="icon"
+				type="button"
 				variant="ghost"
 			>
-				<label aria-label="Open chat sidebar" htmlFor={sidebarControlId}>
-					<PanelLeft size={17} />
-				</label>
+				<PanelLeft size={17} />
 			</Button>
 			<div className="grid w-full max-w-5xl -translate-y-8 gap-8">
 				<div className="flex flex-wrap items-center justify-center gap-4 text-center">

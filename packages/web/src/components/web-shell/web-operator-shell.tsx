@@ -1,54 +1,34 @@
 "use client";
 
+import { PanelLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
 	type ReactElement,
 	type ReactNode,
 	useCallback,
-	useEffect,
 	useMemo,
 	useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
 import type {
-	SidebarDisplayMode,
 	SidebarNavItem,
 	SidebarNavKey,
 } from "@/components/web-shell/types/web-shell.types";
-import { WebSidebar } from "@/components/web-shell/web-sidebar";
 import { useBoardTasksQuery, useCommandHistoryQuery } from "@/lib/api/queries";
 
 import { CommandSearchDialog } from "./command-search-dialog";
+import { OperatorChatSidebar } from "./operator-chat-sidebar";
+import {
+	activeChatSessionIdFromPathname,
+	isChatSurfacePathname,
+} from "./operator-chat-sidebar-route";
 import { OperatorIssueActionsProvider } from "./operator-issue-actions-context";
 import type {
 	CommandDraftRequest,
 	OperatorIssueActionsContextValue,
 } from "./types/operator-issue-actions.types";
 import { hrefForNavKey, navItems } from "./web-shell.constants";
-
-const compactSidebarQuery = "(max-width: 900px)";
-
-function normalizeSidebarMode(
-	mode: SidebarDisplayMode,
-	isCompactViewport: boolean,
-): SidebarDisplayMode {
-	if (isCompactViewport && mode === "expanded") {
-		return "collapsed";
-	}
-	return mode;
-}
-
-function nextSidebarMode(
-	mode: SidebarDisplayMode,
-	isCompactViewport: boolean,
-): SidebarDisplayMode {
-	const normalizedMode = normalizeSidebarMode(mode, isCompactViewport);
-
-	if (normalizedMode === "expanded") {
-		return "collapsed";
-	}
-	return "expanded";
-}
 
 function getActiveNavKey(pathname: string): SidebarNavKey {
 	return (
@@ -65,13 +45,10 @@ export function WebOperatorShell({
 }): ReactElement {
 	const pathname = usePathname();
 	const router = useRouter();
-	const [sidebarMode, setSidebarMode] =
-		useState<SidebarDisplayMode>("expanded");
-	const [isCompactViewport, setIsCompactViewport] = useState<boolean>(false);
 	const [commandDraftRequest, setCommandDraftRequest] =
 		useState<CommandDraftRequest | null>(null);
 	const [createIssueRequest, setCreateIssueRequest] = useState(0);
-	const [createSessionRequest, setCreateSessionRequest] = useState(0);
+	const [isChatSidebarMobileOpen, setIsChatSidebarMobileOpen] = useState(false);
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
 	const searchTasksQuery = useBoardTasksQuery({
 		enabled: isSearchOpen,
@@ -82,39 +59,24 @@ export function WebOperatorShell({
 		refetchIntervalMs: false,
 	});
 	const activeNavKey = getActiveNavKey(pathname);
-	const isChatSurface = activeNavKey === "chat";
-	const canShowSidebar = sidebarMode !== "hidden" && !isChatSurface;
-
-	useEffect(() => {
-		const mediaQuery = window.matchMedia(compactSidebarQuery);
-		const syncViewport = (): void => {
-			const isCompact = mediaQuery.matches;
-			setIsCompactViewport(isCompact);
-			setSidebarMode((current) => normalizeSidebarMode(current, isCompact));
-		};
-		syncViewport();
-		mediaQuery.addEventListener("change", syncViewport);
-		return () => {
-			mediaQuery.removeEventListener("change", syncViewport);
-		};
-	}, []);
-
-	const toggleSidebarMode = useCallback(() => {
-		setSidebarMode((current) => nextSidebarMode(current, isCompactViewport));
-	}, [isCompactViewport]);
+	const isChatSurface = isChatSurfacePathname(pathname);
+	const activeSessionId = activeChatSessionIdFromPathname(pathname);
 
 	const createIssue = useCallback(() => {
 		router.push("/issues");
 		setCreateIssueRequest((value) => value + 1);
 	}, [router]);
 
-	const createSession = useCallback(() => {
-		router.push("/chat");
-		setCreateSessionRequest((value) => value + 1);
-	}, [router]);
-
 	const openSearch = useCallback(() => {
 		setIsSearchOpen(true);
+	}, []);
+
+	const openChatSidebar = useCallback(() => {
+		setIsChatSidebarMobileOpen(true);
+	}, []);
+
+	const closeChatSidebar = useCallback(() => {
+		setIsChatSidebarMobileOpen(false);
 	}, []);
 
 	const selectChatCommandDraft = useCallback(
@@ -142,17 +104,13 @@ export function WebOperatorShell({
 		[router],
 	);
 
-	const viewportColumns = useMemo(() => {
-		return canShowSidebar ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
-	}, [canShowSidebar]);
 	const issueActionsValue = useMemo<OperatorIssueActionsContextValue>(
 		() => ({
 			commandDraftRequest,
 			createIssueRequest,
-			createSessionRequest,
+			requestOpenChatSidebar: openChatSidebar,
 			requestChatCommandDraft: selectChatCommandDraft,
 			requestNewIssue: createIssue,
-			requestNewSession: createSession,
 			requestOpenIssue: openIssue,
 			requestSearch: openSearch,
 		}),
@@ -160,8 +118,7 @@ export function WebOperatorShell({
 			commandDraftRequest,
 			createIssue,
 			createIssueRequest,
-			createSession,
-			createSessionRequest,
+			openChatSidebar,
 			openIssue,
 			openSearch,
 			selectChatCommandDraft,
@@ -169,29 +126,27 @@ export function WebOperatorShell({
 	);
 
 	return (
-		<main
-			style={{
-				height: "100dvh",
-				maxHeight: "100dvh",
-				display: "grid",
-				gridTemplateColumns: viewportColumns,
-				background: "hsl(var(--background))",
-				position: "relative",
-				overflowX: "clip",
-			}}
-		>
-			{canShowSidebar ? (
-				<WebSidebar
-					mode={sidebarMode}
-					activeKey={activeNavKey}
-					navItems={navItems}
-					onNewSession={createSession}
-					onSearch={openSearch}
-					onToggleMode={toggleSidebarMode}
-				/>
+		<main className="relative grid h-[100dvh] max-h-[100dvh] min-w-0 grid-rows-[minmax(0,1fr)] overflow-x-clip bg-background md:grid-cols-[auto_minmax(0,1fr)]">
+			<OperatorChatSidebar
+				activeSessionId={activeSessionId}
+				isMobileOpen={isChatSidebarMobileOpen}
+				onCloseMobileSidebar={closeChatSidebar}
+				onSearch={openSearch}
+			/>
+			{!isChatSurface ? (
+				<Button
+					aria-label="Open chat sidebar"
+					className="absolute left-4 top-4 z-20 cursor-pointer md:hidden"
+					onClick={openChatSidebar}
+					size="icon"
+					type="button"
+					variant="ghost"
+				>
+					<PanelLeft size={17} />
+				</Button>
 			) : null}
 			<OperatorIssueActionsProvider value={issueActionsValue}>
-				{children}
+				<div className="min-h-0 min-w-0">{children}</div>
 			</OperatorIssueActionsProvider>
 			<CommandSearchDialog
 				activeKey={activeNavKey}

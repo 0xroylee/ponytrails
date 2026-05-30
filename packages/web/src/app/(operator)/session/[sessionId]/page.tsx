@@ -7,7 +7,7 @@ import { ChatRoomPanel } from "@/components/chat-room/chat-room-panel";
 import { useOperatorIssueActions } from "@/components/web-shell/operator-issue-actions-context";
 
 export default function SessionPage(): ReactElement {
-	const { commandDraftRequest, createSessionRequest, requestSearch } =
+	const { commandDraftRequest, requestOpenChatSidebar } =
 		useOperatorIssueActions();
 	const params = useParams<{ sessionId?: string | string[] }>();
 	const sessionId = readSessionId(params.sessionId);
@@ -17,8 +17,7 @@ export default function SessionPage(): ReactElement {
 			commandDraftRequest={commandDraftRequest}
 			initialSessionId={sessionId}
 			key={sessionId}
-			newSessionRequest={createSessionRequest}
-			onSearchRequest={requestSearch}
+			onOpenSidebar={requestOpenChatSidebar}
 		/>
 	);
 }

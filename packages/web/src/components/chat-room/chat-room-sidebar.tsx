@@ -20,6 +20,7 @@ export function ChatRoomSidebar({
 	isCollapsed,
 	isCreating,
 	isLoading,
+	isMobileOpen,
 	projects,
 	runningSessionIds,
 	sessions,
@@ -97,7 +98,8 @@ export function ChatRoomSidebar({
 		<aside
 			aria-label="Projects and sessions"
 			className={cn(
-				"fixed inset-y-0 left-0 z-40 grid min-h-0 w-[18rem] max-w-[calc(100vw-2rem)] -translate-x-full border-r border-border bg-surface-panel transition-[transform,width] peer-checked:translate-x-0 md:static md:z-auto md:max-w-none md:translate-x-0",
+				"fixed inset-y-0 left-0 z-40 grid min-h-0 w-[18rem] max-w-[calc(100vw-2rem)] border-r border-border bg-surface-panel transition-[transform,width] md:static md:z-auto md:max-w-none md:transform-none",
+				isMobileOpen ? "transform-none" : "-translate-x-full",
 				isCollapsed ? "md:w-[5.5rem]" : "md:w-[18rem]",
 			)}
 		>

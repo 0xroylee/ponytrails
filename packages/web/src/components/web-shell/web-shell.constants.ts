@@ -5,17 +5,17 @@ import type {
 } from "@/components/web-shell/types/web-shell.types";
 
 export const navItems: SidebarNavItem[] = [
-	{ key: "chat", label: "Chat", href: "/chat" },
-	{ key: "inbox", label: "Inbox", href: "/inbox" },
-	{ key: "issues", label: "Issues", href: "/issues" },
-	{ key: "projects", label: "Projects", href: "/projects" },
-	{ key: "autopilot", label: "Autopilot", href: "/autopilot" },
+	// { key: "chat", label: "Chat", href: "/chat" },
+	// { key: "inbox", label: "Inbox", href: "/inbox" },
+	// { key: "issues", label: "Issues", href: "/issues" },
+	// { key: "projects", label: "Projects", href: "/projects" },
+	// { key: "autopilot", label: "Autopilot", href: "/autopilot" },
 	{ key: "agents", label: "Agents", href: "/agents" },
 	// { key: "squads", label: "Squads", href: "/squads" },
 	{ key: "usage", label: "Usage", href: "/usage" },
 	{ key: "runtimes", label: "Runtimes", href: "/runtimes" },
-	{ key: "skills", label: "Skills", href: "/skills" },
-	{ key: "settings", label: "Settings", href: "/settings" },
+	// { key: "skills", label: "Skills", href: "/skills" },
+	// { key: "settings", label: "Settings", href: "/settings" },
 ];
 
 export const sectionContentByKey: Record<

@@ -1,0 +1,116 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { type ReactElement, useState } from "react";
+import { toast } from "sonner";
+
+import { ChatRoomSidebar } from "@/components/chat-room/chat-room-sidebar";
+import { activeChatStreamSessionIds } from "@/components/chat-room/chat-room-stream-utils";
+import {
+	useChatSessionsQuery,
+	useCreateChatSessionMutation,
+	useUpdateChatSessionMutation,
+} from "@/lib/api/chat-queries";
+import { useCurrentWorkspaceQuery } from "@/lib/api/queries";
+import { useWorkspaceProjectsQuery } from "@/lib/api/realtime-queries";
+import { useRealtimeStore } from "@/lib/realtime";
+
+const NO_REFETCH = { refetchIntervalMs: false } as const;
+
+export function OperatorChatSidebar({
+	activeSessionId,
+	isMobileOpen,
+	onCloseMobileSidebar,
+	onSearch,
+}: {
+	activeSessionId: string;
+	isMobileOpen: boolean;
+	onCloseMobileSidebar: () => void;
+	onSearch: () => void;
+}): ReactElement {
+	const [isSessionSidebarCollapsed, setIsSessionSidebarCollapsed] =
+		useState(false);
+	const router = useRouter();
+	const currentWorkspaceQuery = useCurrentWorkspaceQuery(NO_REFETCH);
+	const workspaceId = currentWorkspaceQuery.data?.workspaceId ?? "";
+	const sessionsQuery = useChatSessionsQuery(workspaceId, NO_REFETCH);
+	const projectsQuery = useWorkspaceProjectsQuery(workspaceId, NO_REFETCH);
+	const createSession = useCreateChatSessionMutation();
+	const updateSession = useUpdateChatSessionMutation();
+	const chatStreamsByRunId = useRealtimeStore(
+		(state) => state.chatStreamsByRunId,
+	);
+	const runningSessionIds = activeChatStreamSessionIds(chatStreamsByRunId);
+
+	function closeMobileSidebar(): void {
+		onCloseMobileSidebar();
+	}
+
+	function toggleSessionSidebar(): void {
+		setIsSessionSidebarCollapsed((current) => !current);
+	}
+
+	async function startNewSession(): Promise<void> {
+		if (!workspaceId) {
+			toast.error("Workspace is still loading.");
+			return;
+		}
+		const session = await createSession.mutateAsync({ workspaceId });
+		router.push(`/session/${encodeURIComponent(session.id)}`);
+		closeMobileSidebar();
+	}
+
+	async function archiveSession(sessionId: string): Promise<void> {
+		try {
+			await updateSession.mutateAsync({
+				sessionId,
+				session: { archived: true },
+			});
+			if (sessionId === activeSessionId) {
+				router.push("/chat");
+			}
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Archive failed");
+		}
+	}
+
+	function search(): void {
+		closeMobileSidebar();
+		onSearch();
+	}
+
+	function selectSession(sessionId: string): void {
+		router.push(`/session/${encodeURIComponent(sessionId)}`);
+		closeMobileSidebar();
+	}
+
+	return (
+		<>
+			{isMobileOpen ? (
+				<button
+					aria-label="Close chat sidebar"
+					className="fixed inset-0 z-30 bg-black/60 md:hidden"
+					onClick={closeMobileSidebar}
+					type="button"
+				/>
+			) : null}
+			<ChatRoomSidebar
+				activeSessionId={activeSessionId}
+				error={sessionsQuery.error}
+				isCollapsed={isSessionSidebarCollapsed}
+				isCreating={createSession.isPending}
+				isLoading={sessionsQuery.isLoading}
+				isMobileOpen={isMobileOpen}
+				projects={projectsQuery.data ?? []}
+				runningSessionIds={runningSessionIds}
+				sessions={sessionsQuery.data ?? []}
+				onArchiveSession={(sessionId) => void archiveSession(sessionId)}
+				onCloseSidebar={closeMobileSidebar}
+				onNewSession={() => void startNewSession()}
+				onSearch={search}
+				onSelectSession={selectSession}
+				onToggleCollapsed={toggleSessionSidebar}
+			/>
+		</>
+	);
+}

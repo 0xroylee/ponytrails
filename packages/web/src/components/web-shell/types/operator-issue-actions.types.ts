@@ -6,9 +6,8 @@ export interface CommandDraftRequest {
 export interface OperatorIssueActionsContextValue {
 	commandDraftRequest: CommandDraftRequest | null;
 	createIssueRequest: number;
-	createSessionRequest: number;
+	requestOpenChatSidebar: () => void;
 	requestNewIssue: () => void;
-	requestNewSession: () => void;
 	requestOpenIssue: (taskId: string) => void;
 	requestChatCommandDraft: (draft: string) => void;
 	requestSearch: () => void;
