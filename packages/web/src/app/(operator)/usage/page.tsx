@@ -1,7 +1,11 @@
 import type { ReactElement } from "react";
 
-import { OperatorSectionPanel } from "@/components/web-shell/operator-section-panel";
+import { UsagePanel } from "@/components/usage/usage-panel";
 
 export default function UsagePage(): ReactElement {
-	return <OperatorSectionPanel sectionKey="usage" />;
+	return (
+		<section className="grid h-[100dvh] max-h-[100dvh] content-start gap-4 overflow-auto p-[clamp(0.75rem,3vw,1.25rem)]">
+			<UsagePanel />
+		</section>
+	);
 }

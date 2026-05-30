@@ -1,4 +1,8 @@
+import type { Activity } from "react-github-calendar";
+
 import type { TokenUsageRecord } from "@/lib/api";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function summarizeTokenUsage(records: TokenUsageRecord[]): {
 	inputTokens: number;
@@ -57,6 +61,41 @@ export function formatEstimatedCostMicrousd(value: number | null): string {
 	}).format(value / 1_000_000);
 }
 
+export function buildTokenUsageActivity(
+	records: TokenUsageRecord[],
+	options: { days?: number; endDate?: Date | string } = {},
+): Activity[] {
+	const dayCount = Math.max(1, Math.floor(options.days ?? 365));
+	const endDate = normalizeDate(options.endDate ?? new Date());
+	const endTime = utcDayTime(endDate);
+	const totalsByDate = new Map<string, number>();
+
+	for (let index = dayCount - 1; index >= 0; index -= 1) {
+		const date = toDateKey(new Date(endTime - index * DAY_MS));
+		totalsByDate.set(date, 0);
+	}
+
+	for (const record of records) {
+		const recordedAt = normalizeDate(record.recordedAt);
+		if (!recordedAt) {
+			continue;
+		}
+		const date = toDateKey(recordedAt);
+		const current = totalsByDate.get(date);
+		if (current === undefined) {
+			continue;
+		}
+		totalsByDate.set(date, current + record.totalTokens);
+	}
+
+	const maxCount = Math.max(...totalsByDate.values());
+	return Array.from(totalsByDate, ([date, count]) => ({
+		date,
+		count,
+		level: activityLevel(count, maxCount),
+	}));
+}
+
 export function formatDueDate(value: string | null): string {
 	if (!value) {
 		return "No due date";
@@ -68,4 +107,39 @@ export function formatDueDate(value: string | null): string {
 	return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
 		date,
 	);
+}
+
+function normalizeDate(value: Date | string): Date | null {
+	const date = value instanceof Date ? value : new Date(value);
+	return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function utcDayTime(date: Date | null): number {
+	const safeDate = date ?? new Date();
+	return Date.UTC(
+		safeDate.getUTCFullYear(),
+		safeDate.getUTCMonth(),
+		safeDate.getUTCDate(),
+	);
+}
+
+function toDateKey(date: Date): string {
+	return date.toISOString().slice(0, 10);
+}
+
+function activityLevel(count: number, maxCount: number): Activity["level"] {
+	if (count <= 0 || maxCount <= 0) {
+		return 0;
+	}
+	const ratio = count / maxCount;
+	if (ratio <= 0.25) {
+		return 1;
+	}
+	if (ratio <= 0.5) {
+		return 2;
+	}
+	if (ratio <= 0.75) {
+		return 3;
+	}
+	return 4;
 }

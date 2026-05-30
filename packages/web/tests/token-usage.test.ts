@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+	buildTokenUsageActivity,
 	formatTokenCount,
 	summarizeTokenUsage,
 } from "../src/components/issues-board/issue-task-detail-panel-utils";
@@ -67,6 +68,43 @@ describe("token usage", () => {
 			runs: 2,
 		});
 		expect(formatTokenCount(1550)).toBe("1.6K");
+	});
+
+	it("builds daily activity data for token usage calendars", () => {
+		const records: TokenUsageRecord[] = [
+			usageRecord({
+				id: "usage-1",
+				recordedAt: "2026-05-27T23:55:00.000Z",
+				totalTokens: 100,
+			}),
+			usageRecord({
+				id: "usage-2",
+				recordedAt: "2026-05-27T01:05:00.000Z",
+				totalTokens: 300,
+			}),
+			usageRecord({
+				id: "usage-3",
+				recordedAt: "2026-05-29T10:00:00.000Z",
+				totalTokens: 800,
+			}),
+			usageRecord({
+				id: "usage-4",
+				recordedAt: "not-a-date",
+				totalTokens: 999,
+			}),
+		];
+
+		expect(
+			buildTokenUsageActivity(records, {
+				days: 4,
+				endDate: "2026-05-30T12:00:00.000Z",
+			}),
+		).toEqual([
+			{ count: 400, date: "2026-05-27", level: 2 },
+			{ count: 0, date: "2026-05-28", level: 0 },
+			{ count: 800, date: "2026-05-29", level: 4 },
+			{ count: 0, date: "2026-05-30", level: 0 },
+		]);
 	});
 });
 
