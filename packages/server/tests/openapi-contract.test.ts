@@ -11,6 +11,11 @@ const IMPLEMENTED_ROUTES = [
 	["GET", "/api/projects/{id}"],
 	["PATCH", "/api/projects/{id}"],
 	["DELETE", "/api/projects/{id}"],
+	["GET", "/api/github/connection"],
+	["DELETE", "/api/github/connection"],
+	["GET", "/api/github/oauth/start"],
+	["GET", "/api/github/oauth/callback"],
+	["GET", "/api/github/repositories"],
 	["GET", "/api/tasks"],
 	["POST", "/api/tasks"],
 	["POST", "/api/tasks/chat-create"],
@@ -44,6 +49,22 @@ const IMPLEMENTED_ROUTES = [
 	["GET", "/api/polling/status"],
 	["GET", "/api/settings/models"],
 	["PATCH", "/api/settings/models"],
+] as const;
+
+const PROJECT_MUTATION_FIELDS = [
+	"boardId",
+	"name",
+	"ownerId",
+	"emoji",
+	"externalProjectId",
+	"description",
+	"repoOwner",
+	"repoName",
+	"baseBranch",
+	"localFolder",
+	"lead",
+	"category",
+	"priority",
 ] as const;
 
 const AGENT_UPDATE_FIELDS = [
@@ -182,6 +203,25 @@ describe("openapi contract", () => {
 
 		for (const field of AGENT_UPDATE_FIELDS) {
 			expect(agentPatchFields).toContain(`${field}:`);
+		}
+	});
+
+	it("documents all project mutation fields", () => {
+		const root = path.resolve(__dirname, "../..", "..");
+		const openApiPath = path.join(root, "openapi.yaml");
+		const openApiText = readFileSync(openApiPath, "utf-8");
+		const projectCreateFields = extractSchemaBlock(
+			openApiText,
+			"ProjectCreateRequest",
+		);
+		const projectPatchFields = extractSchemaBlock(
+			openApiText,
+			"ProjectPatchFields",
+		);
+
+		for (const field of PROJECT_MUTATION_FIELDS) {
+			expect(projectCreateFields).toContain(`${field}:`);
+			expect(projectPatchFields).toContain(`${field}:`);
 		}
 	});
 });

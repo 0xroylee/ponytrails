@@ -15,7 +15,6 @@ import type {
 	JobRecord,
 	ProjectBoardTaskRecord,
 	SettingsModelsResponse,
-	SettingsModelsUpdateRequest,
 	SkillRecord,
 	TaskCreateResponse,
 	TokenUsageRecord,
@@ -40,6 +39,10 @@ export {
 	useUpdateProjectMutation,
 } from "./project-mutations";
 export { serverStateQueryKeys } from "./query-keys";
+export {
+	settingsMutationKeys,
+	useUpdateModelSettingsMutation,
+} from "./settings-mutations";
 
 const apiClient = createWebApiClient();
 const DEFAULT_POLL_INTERVAL_MS = 5000;
@@ -50,10 +53,6 @@ export const taskCreationMutationKeys = {
 
 export const agentMutationKeys = {
 	updateAgent: ["agents", "update-agent"] as const,
-};
-
-export const settingsMutationKeys = {
-	updateModelSettings: ["settings", "update-model-settings"] as const,
 };
 
 export function useTokenUsageQuery(
@@ -188,24 +187,6 @@ export function useModelSettingsQuery(
 		queryFn: () => apiClient.getModelSettings(),
 		enabled: options?.enabled,
 		refetchInterval: resolveRefetchInterval(options),
-	});
-}
-
-export function useUpdateModelSettingsMutation(): UseMutationResult<
-	SettingsModelsResponse,
-	Error,
-	SettingsModelsUpdateRequest
-> {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationKey: settingsMutationKeys.updateModelSettings,
-		mutationFn: (request) => apiClient.updateModelSettings(request),
-		onSuccess: (settings) => {
-			queryClient.setQueryData(serverStateQueryKeys.modelSettings, settings);
-			queryClient.invalidateQueries({
-				queryKey: serverStateQueryKeys.modelSettings,
-			});
-		},
 	});
 }
 

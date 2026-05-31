@@ -14,6 +14,7 @@ tags:
   - name: Notifications
   - name: Polling
   - name: Workspace
+  - name: GitHub
 paths:
   /health:
     get:
@@ -102,6 +103,68 @@ paths:
           description: Deleted project.
         '404':
           $ref: '#/components/responses/TypedError'
+  /api/github/connection:
+    get:
+      tags: [GitHub]
+      responses:
+        '200':
+          description: GitHub OAuth connection state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubConnectionResponse'
+    delete:
+      tags: [GitHub]
+      responses:
+        '200':
+          description: Cleared local GitHub OAuth connection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubConnectionResponse'
+  /api/github/oauth/start:
+    get:
+      tags: [GitHub]
+      responses:
+        '302':
+          description: Redirects to GitHub OAuth authorization.
+        '503':
+          description: GitHub OAuth is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubConnectionResponse'
+  /api/github/oauth/callback:
+    get:
+      tags: [GitHub]
+      parameters:
+        - in: query
+          name: code
+          required: false
+          schema:
+            type: string
+            minLength: 1
+        - in: query
+          name: state
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '302':
+          description: Redirects to Projects after the OAuth callback.
+        '400':
+          $ref: '#/components/responses/TypedError'
+  /api/github/repositories:
+    get:
+      tags: [GitHub]
+      responses:
+        '200':
+          description: GitHub repositories available to the connected account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubRepositoriesResponse'
   /api/workspace/current:
     get:
       tags: [Workspace]
@@ -766,6 +829,45 @@ components:
         description: { type: string, minLength: 1 }
         source: { type: string, minLength: 1 }
         updatedAt: { type: string, minLength: 1 }
+    GitHubConnectionResponse:
+      type: object
+      additionalProperties: false
+      required: [isConfigured, isConnected, login, unavailableReason]
+      properties:
+        isConfigured: { type: boolean }
+        isConnected: { type: boolean }
+        login:
+          type: string
+          nullable: true
+        unavailableReason:
+          type: string
+          nullable: true
+    GitHubRepositoriesResponse:
+      type: object
+      additionalProperties: false
+      required: [isAvailable, unavailableReason, repositories]
+      properties:
+        isAvailable: { type: boolean }
+        unavailableReason:
+          type: string
+          nullable: true
+        repositories:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitHubRepositoryRecord'
+    GitHubRepositoryRecord:
+      type: object
+      additionalProperties: false
+      required: [id, owner, name, nameWithOwner, defaultBranch, isPrivate]
+      properties:
+        id: { type: string }
+        owner: { type: string }
+        name: { type: string }
+        nameWithOwner: { type: string }
+        defaultBranch:
+          type: string
+          nullable: true
+        isPrivate: { type: boolean }
     ProjectCreateRequest:
       type: object
       additionalProperties: false
@@ -774,11 +876,35 @@ components:
         boardId: { type: string, minLength: 1 }
         name: { type: string, minLength: 1 }
         ownerId: { type: string, minLength: 1 }
+        emoji:
+          type: string
+          nullable: true
         externalProjectId:
           type: string
           nullable: true
         description:
           type: string
+          nullable: true
+        repoOwner:
+          type: string
+          nullable: true
+        repoName:
+          type: string
+          nullable: true
+        baseBranch:
+          type: string
+          nullable: true
+        localFolder:
+          type: string
+          nullable: true
+        lead:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        priority:
+          type: integer
           nullable: true
     ProjectUpdateRequest:
       allOf:
@@ -791,11 +917,35 @@ components:
         boardId: { type: string, minLength: 1 }
         name: { type: string, minLength: 1 }
         ownerId: { type: string, minLength: 1 }
+        emoji:
+          type: string
+          nullable: true
         externalProjectId:
           type: string
           nullable: true
         description:
           type: string
+          nullable: true
+        repoOwner:
+          type: string
+          nullable: true
+        repoName:
+          type: string
+          nullable: true
+        baseBranch:
+          type: string
+          nullable: true
+        localFolder:
+          type: string
+          nullable: true
+        lead:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        priority:
+          type: integer
           nullable: true
     TaskCreateRequest:
       type: object
