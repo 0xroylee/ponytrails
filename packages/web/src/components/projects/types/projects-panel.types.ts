@@ -1,4 +1,5 @@
 import type { WorkspaceProjectRecord } from "@/lib/api";
+import type { GitHubConnectionResponse } from "@/lib/api/types/client.types";
 
 export type ProjectRepositoryMode = "select" | "manual";
 
@@ -29,4 +30,21 @@ export interface ProjectDisplayRow {
 	leadLabel: string;
 	createdLabel: string;
 	summaryLabel: string;
+}
+
+export interface RepositorySelectorStateInput {
+	connection: GitHubConnectionResponse | undefined;
+	hasRepositoryOptions: boolean;
+	isConnectionError: boolean;
+	isConnectionLoading: boolean;
+	isRepositoryLoading: boolean;
+	isRepositoryError: boolean;
+	repositoryUnavailableReason: string | null;
+}
+
+export interface RepositorySelectorState {
+	canSelectRepository: boolean;
+	shouldShowConnect: boolean;
+	shouldShowRetry: boolean;
+	statusMessage: string | null;
 }

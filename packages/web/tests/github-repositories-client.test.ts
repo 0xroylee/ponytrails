@@ -75,7 +75,7 @@ describe("GitHub repositories API client", () => {
 				isConfigured: true,
 				isConnected: false,
 				login: null,
-				unavailableReason: null,
+				unavailableReason: "Connect GitHub to list repositories",
 			});
 		}) as typeof fetch;
 		const client = createApiClient({ fetchFn });
@@ -84,7 +84,7 @@ describe("GitHub repositories API client", () => {
 			isConfigured: true,
 			isConnected: false,
 			login: null,
-			unavailableReason: null,
+			unavailableReason: "Connect GitHub to list repositories",
 		});
 	});
 });

@@ -10,16 +10,55 @@ import type { GitHubRepositoryRecord } from "@/lib/api";
 import type { GitHubConnectionResponse } from "@/lib/api/types/client.types";
 import { cn } from "@/lib/utils";
 
-import { resolveRepositorySelectorState } from "./projects-panel-utils";
+import { Field } from "./project-form-field";
 import type {
 	ProjectFormState,
 	ProjectRepositoryMode,
+	RepositorySelectorState,
+	RepositorySelectorStateInput,
 } from "./types/projects-panel.types";
+
+const LOADING_REPOSITORIES_MESSAGE = "Loading repositories.";
+const CONNECTION_UNAVAILABLE_MESSAGE =
+	"GitHub connection unavailable; manual entry is still available.";
+const OAUTH_UNCONFIGURED_MESSAGE =
+	"GitHub OAuth is not configured; manual entry is still available.";
+const REPOSITORIES_UNAVAILABLE_MESSAGE =
+	"GitHub repositories unavailable; manual entry is still available.";
+const NO_REPOSITORIES_MESSAGE =
+	"No repositories found; manual entry is still available.";
+
+export function resolveRepositorySelectorState(
+	input: RepositorySelectorStateInput,
+): RepositorySelectorState {
+	if (input.isConnectionLoading)
+		return repositoryStatusState(LOADING_REPOSITORIES_MESSAGE);
+	if (input.isConnectionError)
+		return repositoryRetryState(CONNECTION_UNAVAILABLE_MESSAGE);
+	if (!input.connection)
+		return repositoryStatusState(LOADING_REPOSITORIES_MESSAGE);
+	if (!input.connection.isConfigured)
+		return repositoryStatusState(OAUTH_UNCONFIGURED_MESSAGE);
+	if (!input.connection.isConnected)
+		return repositorySelectorState({
+			shouldShowConnect: true,
+			statusMessage: "Connect GitHub to list repositories.",
+		});
+	if (input.isRepositoryLoading)
+		return repositoryStatusState(LOADING_REPOSITORIES_MESSAGE);
+	if (input.isRepositoryError || input.repositoryUnavailableReason)
+		return repositoryRetryState(REPOSITORIES_UNAVAILABLE_MESSAGE);
+	if (!input.hasRepositoryOptions)
+		return repositoryStatusState(NO_REPOSITORIES_MESSAGE);
+	return repositorySelectorState({ canSelectRepository: true });
+}
 
 export function RepositoryFields({
 	connection,
 	form,
 	hasRepositoryOptions,
+	isConnectionError,
+	isConnectionLoading,
 	isRepositoryError,
 	isRepositoryLoading,
 	repositories,
@@ -31,6 +70,8 @@ export function RepositoryFields({
 	connection: GitHubConnectionResponse | undefined;
 	form: ProjectFormState;
 	hasRepositoryOptions: boolean;
+	isConnectionError: boolean;
+	isConnectionLoading: boolean;
 	isRepositoryError: boolean;
 	isRepositoryLoading: boolean;
 	repositories: GitHubRepositoryRecord[];
@@ -42,6 +83,8 @@ export function RepositoryFields({
 	const selectorState = resolveRepositorySelectorState({
 		connection,
 		hasRepositoryOptions,
+		isConnectionError,
+		isConnectionLoading,
 		isRepositoryError,
 		isRepositoryLoading,
 		repositoryUnavailableReason,
@@ -142,28 +185,24 @@ export function RepositoryFields({
 	);
 }
 
-export function Field({
-	children,
-	htmlFor,
-	label,
-}: {
-	children: ReactElement;
-	htmlFor?: string;
-	label: string;
-}): ReactElement {
-	return (
-		<div className="grid gap-1">
-			<Typography
-				as="label"
-				className="text-zinc-400"
-				htmlFor={htmlFor}
-				variant="label"
-			>
-				{label}
-			</Typography>
-			{children}
-		</div>
-	);
+function repositorySelectorState(
+	overrides: Partial<RepositorySelectorState>,
+): RepositorySelectorState {
+	return {
+		canSelectRepository: false,
+		shouldShowConnect: false,
+		shouldShowRetry: false,
+		statusMessage: null,
+		...overrides,
+	};
+}
+
+function repositoryStatusState(statusMessage: string): RepositorySelectorState {
+	return repositorySelectorState({ statusMessage });
+}
+
+function repositoryRetryState(statusMessage: string): RepositorySelectorState {
+	return repositorySelectorState({ shouldShowRetry: true, statusMessage });
 }
 
 function RepositoryModeButton({

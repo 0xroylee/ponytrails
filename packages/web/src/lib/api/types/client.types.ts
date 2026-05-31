@@ -12,6 +12,7 @@ import type {
 	CliCommandStreamRequest,
 } from "./command-stream-client.types";
 import type {
+	GitHubConnectionResponse,
 	GitHubRepositoriesResponse,
 	GitHubRepositoryRecord,
 } from "./github.types";
@@ -106,17 +107,11 @@ export type {
 	WorkspaceProjectsResponse,
 } from "./project.types";
 export type {
+	GitHubConnectionResponse,
 	GitHubRepositoriesResponse,
 	GitHubRepositoryRecord,
 } from "./github.types";
 export type { InboxMessageRecord, InboxMessageScope } from "./inbox.types";
-
-export interface GitHubConnectionResponse {
-	isConfigured: boolean;
-	isConnected: boolean;
-	login: string | null;
-	unavailableReason: string | null;
-}
 
 export interface ApiClientOptions {
 	baseUrl?: string;
@@ -216,10 +211,12 @@ export interface ApiClient extends WorkflowComputerApiMethods {
 	listGitHubRepositories(
 		options?: HealthRequestOptions,
 	): Promise<GitHubRepositoriesResponse>;
-	// biome-ignore format: keep this shared API contract at the repo line limit.
-	getGitHubConnection(options?: HealthRequestOptions): Promise<GitHubConnectionResponse>;
-	// biome-ignore format: keep this shared API contract at the repo line limit.
-	disconnectGitHub(options?: HealthRequestOptions): Promise<GitHubConnectionResponse>;
+	getGitHubConnection(
+		options?: HealthRequestOptions,
+	): Promise<GitHubConnectionResponse>;
+	disconnectGitHub(
+		options?: HealthRequestOptions,
+	): Promise<GitHubConnectionResponse>;
 	listInboxMessages(
 		scope: InboxMessageScope,
 		options?: HealthRequestOptions,

@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/realtime-queries";
 
 import { ProjectCreateDialog } from "./project-create-dialog";
+import { ProjectMetric } from "./project-metric";
 import {
 	EMPTY_PROJECT_FORM_STATE,
 	buildProjectCreateRequest,
@@ -96,6 +97,12 @@ export function ProjectsPanel(): ReactElement {
 		setDialogMode(null);
 		setFormError(null);
 		setEditingProjectId(null);
+	}
+
+	function retryGitHubData(): void {
+		void gitHubConnectionQuery.refetch().then((result) => {
+			if (result.data?.isConnected === true) void repositoriesQuery.refetch();
+		});
 	}
 
 	async function submitProject(
@@ -216,6 +223,10 @@ export function ProjectsPanel(): ReactElement {
 					connection={gitHubConnectionQuery.data}
 					form={form}
 					formError={formError}
+					isConnectionError={gitHubConnectionQuery.isError}
+					isConnectionLoading={
+						gitHubConnectionQuery.isLoading || gitHubConnectionQuery.isFetching
+					}
 					isRepositoryError={repositoriesQuery.isError}
 					isRepositoryLoading={repositoriesQuery.isLoading}
 					isSaving={createProject.isPending || updateProject.isPending}
@@ -228,16 +239,11 @@ export function ProjectsPanel(): ReactElement {
 					onConnectGitHub={() =>
 						window.location.assign("/api/github/oauth/start")
 					}
-					onRetryRepositories={() => void repositoriesQuery.refetch()}
+					onRetryRepositories={retryGitHubData}
 					onSubmit={(event) => void submitProject(event)}
 					onUpdateField={updateField}
 				/>
 			) : null}
 		</section>
 	);
-}
-
-// biome-ignore format: keep this component under the repo 250-line limit.
-function ProjectMetric({ label, value }: { label: string; value: number }): ReactElement {
-	return <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm text-zinc-400">{label}<Typography as="span" className="text-zinc-100">{value}</Typography></span>;
 }

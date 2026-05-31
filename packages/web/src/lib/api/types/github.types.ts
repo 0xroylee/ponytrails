@@ -1,3 +1,10 @@
+export interface GitHubConnectionResponse {
+	isConfigured: boolean;
+	isConnected: boolean;
+	login: string | null;
+	unavailableReason: string | null;
+}
+
 export interface GitHubRepositoryRecord {
 	id: string;
 	owner: string;

@@ -4,7 +4,6 @@ import type {
 	ProjectUpdateRequest,
 	WorkspaceProjectRecord,
 } from "@/lib/api";
-import type { GitHubConnectionResponse } from "@/lib/api/types/client.types";
 import type {
 	ProjectCreateDefaults,
 	ProjectDisplayRow,
@@ -21,24 +20,16 @@ const RELATIVE_TIME_UNITS = [
 ] as const;
 export const DEFAULT_PROJECT_EMOJI = "📁";
 
-// biome-ignore format: keep this utility under the repo 250-line limit.
-export const EMPTY_PROJECT_FORM_STATE: ProjectFormState = { name: "", emoji: DEFAULT_PROJECT_EMOJI, description: "", repositoryMode: "select", selectedRepository: "", manualRepository: "", lead: "", priority: "" };
-
-// biome-ignore format: keep this utility under the repo 250-line limit.
-export interface RepositorySelectorStateInput { connection?: GitHubConnectionResponse; hasRepositoryOptions: boolean; isRepositoryLoading: boolean; isRepositoryError: boolean; repositoryUnavailableReason: string | null; }
-// biome-ignore format: keep this utility under the repo 250-line limit.
-export interface RepositorySelectorState { canSelectRepository: boolean; shouldShowConnect: boolean; shouldShowRetry: boolean; statusMessage: string | null; }
-
-// biome-ignore format: keep this utility under the repo 250-line limit.
-export function resolveRepositorySelectorState(
-	input: RepositorySelectorStateInput,
-): RepositorySelectorState {
-	if (!input.connection || input.isRepositoryLoading) return repositorySelectorState({ statusMessage: "Loading repositories." });
-	if (!input.connection.isConfigured) return repositorySelectorState({ statusMessage: "GitHub OAuth is not configured; manual entry is still available." });
-	if (!input.connection.isConnected) return repositorySelectorState({ shouldShowConnect: true, statusMessage: "Connect GitHub to list repositories." });
-	if (input.isRepositoryError || input.repositoryUnavailableReason) return repositorySelectorState({ shouldShowRetry: true, statusMessage: "GitHub repositories unavailable; manual entry is still available." });
-	return repositorySelectorState({ canSelectRepository: input.hasRepositoryOptions });
-}
+export const EMPTY_PROJECT_FORM_STATE: ProjectFormState = {
+	name: "",
+	emoji: DEFAULT_PROJECT_EMOJI,
+	description: "",
+	repositoryMode: "select",
+	selectedRepository: "",
+	manualRepository: "",
+	lead: "",
+	priority: "",
+};
 
 export function buildProjectCreateRequest(
 	form: ProjectFormState,
@@ -224,16 +215,4 @@ function formatOptionalLabel(
 
 function projectSearchText(project: WorkspaceProjectRecord): string {
 	return `${project.name} ${project.emoji ?? ""} ${project.description ?? ""} ${project.externalProjectId ?? ""} ${project.repoOwner ?? ""} ${project.repoName ?? ""} ${project.baseBranch ?? ""} ${project.localFolder ?? ""} ${project.lead ?? ""} ${project.category ?? ""} ${project.priority ?? ""}`;
-}
-
-function repositorySelectorState(
-	overrides: Partial<RepositorySelectorState>,
-): RepositorySelectorState {
-	return {
-		canSelectRepository: false,
-		shouldShowConnect: false,
-		shouldShowRetry: false,
-		statusMessage: null,
-		...overrides,
-	};
 }

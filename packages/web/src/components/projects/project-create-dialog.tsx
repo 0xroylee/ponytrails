@@ -20,13 +20,16 @@ import { Typography } from "@/components/ui/typography";
 import type { GitHubRepositoryRecord } from "@/lib/api";
 import type { GitHubConnectionResponse } from "@/lib/api/types/client.types";
 
-import { Field, RepositoryFields } from "./project-create-dialog-fields";
+import { RepositoryFields } from "./project-create-dialog-fields";
+import { Field } from "./project-form-field";
 import type { ProjectFormState } from "./types/projects-panel.types";
 
 interface ProjectCreateDialogProps {
 	connection: GitHubConnectionResponse | undefined;
 	form: ProjectFormState;
 	formError: string | null;
+	isConnectionError: boolean;
+	isConnectionLoading: boolean;
 	isRepositoryError: boolean;
 	isRepositoryLoading: boolean;
 	isSaving: boolean;
@@ -44,6 +47,8 @@ export function ProjectCreateDialog({
 	connection,
 	form,
 	formError,
+	isConnectionError,
+	isConnectionLoading,
 	isRepositoryError,
 	isRepositoryLoading,
 	isSaving,
@@ -174,6 +179,8 @@ export function ProjectCreateDialog({
 							connection={connection}
 							form={form}
 							hasRepositoryOptions={hasRepositoryOptions}
+							isConnectionError={isConnectionError}
+							isConnectionLoading={isConnectionLoading}
 							isRepositoryError={isRepositoryError}
 							isRepositoryLoading={isRepositoryLoading}
 							repositories={repositories}
