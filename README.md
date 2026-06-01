@@ -39,21 +39,21 @@ Run guided onboarding. The wizard writes local instance config and stores
 secrets under `~/.devos/config`.
 
 ```bash
-npx devos onboard
-npx devos onboard --check
+devos onboard
+devos onboard --check
 ```
 
 Run one scoped workflow.
 
 ```bash
-npx devos run --issue ENG-123
+devos run --issue ENG-123
 ```
 
 If you want devos.ing to keep polling for eligible work:
 
 ```bash
-npx devos run --poll
-npx devos run --poll-forever
+devos run --poll
+devos run --poll-forever
 ```
 
 ## Prerequisites
@@ -69,7 +69,7 @@ workflow runs need a few local tools and credentials:
 - Project credentials and routing details for the systems you use, such as
   Linear, GitHub, and optional Resend notifications.
 
-Run `npx devos onboard --check` after any config change. It validates config,
+Run `devos onboard --check` after any config change. It validates config,
 tooling, GitHub auth, agent runtime availability, and secret placement.
 
 ## Core Concepts
@@ -123,26 +123,26 @@ workflow progress.
 
 ```bash
 # guided setup and validation
-npx devos onboard
-npx devos onboard --check
+devos onboard
+devos onboard --check
 
 # run one issue or the configured queue
-npx devos run --issue ENG-123
-npx devos run
+devos run --issue ENG-123
+devos run
 
 # poll continuously for work
-npx devos run --poll
-npx devos run --poll-forever
+devos run --poll
+devos run --poll-forever
 
 # inspect run state
-npx devos status --issue ENG-123
+devos status --issue ENG-123
 
 # inspect GitHub releases and create a tag-only release marker
-npx devos release list --limit 10
-npx devos release tag v0.0.2 --message "Release v0.0.2"
+devos release list --limit 10
+devos release tag v0.0.2 --message "Release v0.0.2"
 
 # create a task through the configured intake flow
-npx devos task create --request "Add retry handling for API timeouts"
+devos task create --request "Add retry handling for API timeouts"
 ```
 
 ### Local App Commands
@@ -167,10 +167,10 @@ bun run cron:once
 ### Skill Commands
 
 ```bash
-npx devos skills list
-npx devos skills add --title "<TITLE>" --description "<DESCRIPTION>" --content "<CONTENT>"
-npx devos skills update <NAME> [--title "<TITLE>"] [--description "<DESCRIPTION>"] [--content "<CONTENT>"]
-npx devos skills remove <NAME>
+devos skills list
+devos skills add --title "<TITLE>" --description "<DESCRIPTION>" --content "<CONTENT>"
+devos skills update <NAME> [--title "<TITLE>"] [--description "<DESCRIPTION>"] [--content "<CONTENT>"]
+devos skills remove <NAME>
 ```
 
 ## Local Contributor Setup
@@ -181,9 +181,9 @@ validate onboarding.
 ```bash
 bun install
 bun run build
-npx devos help
-npx devos onboard
-npx devos onboard --check
+devos help
+devos onboard
+devos onboard --check
 ```
 
 Start the local development stack:
