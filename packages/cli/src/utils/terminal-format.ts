@@ -39,6 +39,16 @@ export function renderSummaryBox(
 	].join("\n");
 }
 
+export function renderCliOutlineBox(title: string, content: string): string {
+	const width = Math.max(title.length + 4, content.length + 4);
+	const contentPadding = " ".repeat(Math.max(width - content.length - 4, 0));
+	return [
+		`${renderCliHeading(title)} ${pc.gray("─┐")}`,
+		`${pc.gray("│")}  ${content}${contentPadding}  ${pc.gray("│")}`,
+		pc.gray(`└${"─".repeat(width - 1)}┘`),
+	].join("\n");
+}
+
 export function renderKeyValueRows(
 	rows: Array<[label: string, value: string, detail?: string]>,
 ): string {

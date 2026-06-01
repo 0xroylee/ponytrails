@@ -31,6 +31,9 @@ describe("onboard next command", () => {
 			const daemonIndex = output.indexOf("devos daemon");
 			expect(successIndex).toBeGreaterThan(-1);
 			expect(daemonIndex).toBeGreaterThan(successIndex);
+			expect(output).toContain("Next command ─┐");
+			expect(output).toContain("│  devos daemon  │");
+			expect(output).toContain("└───────────────┘");
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
 		}

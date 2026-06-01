@@ -1,5 +1,8 @@
 import { runCommand } from "../../utils/shell";
-import { renderCliHeading } from "../../utils/terminal-format";
+import {
+	renderCliHeading,
+	renderCliOutlineBox,
+} from "../../utils/terminal-format";
 import { getCliVersion } from "../../version";
 import { instanceConfigPath, sqliteEnvDbPath } from "../config";
 import { promptForMissingPluginCredentials } from "../plugins/credentials";
@@ -51,7 +54,9 @@ export async function runOnboardWizard(
 	if (checks.some((check) => check.status === "fail")) {
 		throw new Error("Onboard check failed");
 	}
-	process.stdout.write(`${renderCliHeading("Next command")}\ndevos daemon\n`);
+	process.stdout.write(
+		`${renderCliOutlineBox("Next command", "devos daemon")}\n`,
+	);
 }
 
 function renderOnboardCustomizationIntro(): string {
