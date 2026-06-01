@@ -58,7 +58,8 @@ export function startDaemonServices(
 				stdio: "inherit",
 			});
 			children.push(child);
-			child.on("error", () => {
+			child.on("error", (error) => {
+				writeDaemonFailure(input, `${service.name} failed to start`, error);
 				shutdown("SIGTERM", child);
 				finish(1, true);
 			});
@@ -66,6 +67,12 @@ export function startDaemonServices(
 				if (resolved) return;
 				shutdown(signal ?? undefined, child);
 				const exitCode = code ?? (signal ? 1 : 0);
+				if (exitCode !== 0) {
+					writeDaemonFailure(
+						input,
+						`${service.name} exited with ${formatChildExit(code, signal)}`,
+					);
+				}
 				finish(exitCode, exitCode !== 0);
 			});
 			return child;
@@ -104,13 +111,32 @@ export function startDaemonServices(
 					});
 				}
 			})
-			.catch(() => {
+			.catch((error: Error) => {
 				if (!resolved) {
+					writeDaemonFailure(input, "startup readiness check failed", error);
 					shutdown("SIGTERM");
 					finish(1, true);
 				}
 			});
 	});
+}
+
+function writeDaemonFailure(
+	input: DaemonStartupInput,
+	message: string,
+	error?: Error,
+): void {
+	const detail = error ? `: ${error.message}` : "";
+	input.write?.(`devos daemon failed: ${message}${detail}\n`);
+}
+
+function formatChildExit(
+	code: number | null,
+	signal: NodeJS.Signals | null,
+): string {
+	if (code !== null) return `code ${code}`;
+	if (signal) return `signal ${signal}`;
+	return "unknown status";
 }
 
 async function startDaemonServicesInOrder(

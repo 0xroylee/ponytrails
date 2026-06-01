@@ -9,6 +9,7 @@ import { registerOnboardCommand } from "./onboard";
 import { registerReleaseCommand } from "./release";
 import { registerRunCommand } from "./run";
 import { registerStatusCommand } from "./status";
+import { registerUpdateCommand } from "./update";
 import { registerWorkflowWorkerCommand } from "./workflow-worker";
 
 export function registerCliCommands(
@@ -21,6 +22,7 @@ export function registerCliCommands(
 	registerOnboardCommand(program, runtime);
 	registerModelsCommand(program, runtime);
 	registerReleaseCommand(program, runtime);
+	registerUpdateCommand(program, runtime);
 	registerStatusCommand(program, runtime);
 	registerTaskCommand(program, runtime);
 	registerSkillsCommand(program, runtime);

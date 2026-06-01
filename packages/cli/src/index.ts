@@ -9,6 +9,7 @@ import {
 	handleStatusCommand,
 	handleTaskCommand,
 } from "./features/commands";
+import { handleUpdateCommand } from "./features/commands/update-command";
 import { loadConfig } from "./features/config";
 import {
 	runProductionDaemon,
@@ -38,6 +39,7 @@ async function main(): Promise<void> {
 		handlePluginsCommand,
 		handleModelsCommand,
 		handleReleaseCommand,
+		handleUpdateCommand,
 		handleTaskCommand,
 	};
 	const program = createCliProgram(runtime);

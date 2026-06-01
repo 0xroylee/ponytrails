@@ -48,6 +48,9 @@ export function createTestRuntime(calls: RuntimeCall[]): CliRuntime {
 		handleReleaseCommand: async (command, cwd) => {
 			calls.push({ name: "release", payload: { command, cwd } });
 		},
+		handleUpdateCommand: async (command) => {
+			calls.push({ name: "update", payload: command });
+		},
 		handleTaskCommand: async (_config, command) => {
 			calls.push({ name: "task", payload: command });
 		},

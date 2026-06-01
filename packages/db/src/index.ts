@@ -5,6 +5,7 @@ export {
 	DEFAULT_EMBEDDED_POSTGRES_USER,
 	ServerDatabaseInitializationError,
 	initializeServerDatabase,
+	resolveServerDatabaseEngine,
 } from "./database";
 export { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 export { runMigrations } from "./migrations";

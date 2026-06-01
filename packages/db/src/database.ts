@@ -27,7 +27,7 @@ export async function initializeServerDatabase(
 	options: InitializeServerDatabaseOptions = {},
 ): Promise<ServerDatabase> {
 	const resolvedPath = path.resolve(databasePath);
-	const engine = await resolveDatabaseEngine(options);
+	const engine = await resolveServerDatabaseEngine(resolvedPath, options);
 	if (engine === "pglite") {
 		return initializePgliteServerDatabase(resolvedPath, options);
 	}
@@ -144,21 +144,29 @@ function toErrorMessage(error: unknown): string {
 
 export { ServerDatabaseInitializationError } from "./database-error";
 
-async function resolveDatabaseEngine(
-	options: InitializeServerDatabaseOptions,
+export async function resolveServerDatabaseEngine(
+	databasePath: string,
+	options: InitializeServerDatabaseOptions = {},
+	env: NodeJS.ProcessEnv = process.env,
+	canOpenPort: () => Promise<boolean> = canOpenLoopbackPort,
 ): Promise<ServerDatabaseEngine> {
 	if (options.engine) {
 		return options.engine;
 	}
 	if (
-		process.env.DEVOS_DB_ENGINE === "pglite" ||
-		process.env.DEVOS_DB_ENGINE === "embedded-postgres"
+		env.DEVOS_DB_ENGINE === "pglite" ||
+		env.DEVOS_DB_ENGINE === "embedded-postgres"
 	) {
-		return process.env.DEVOS_DB_ENGINE;
+		return env.DEVOS_DB_ENGINE;
 	}
-	return process.env.CODEX_SANDBOX === "seatbelt" ||
-		process.env.CODEX_SANDBOX_NETWORK_DISABLED === "1" ||
-		!(await canOpenLoopbackPort())
+	const loopbackAvailable = await canOpenPort();
+	if (
+		loopbackAvailable &&
+		(await readClusterState(path.resolve(databasePath))) === "initialized"
+	) {
+		return "embedded-postgres";
+	}
+	return env.CODEX_SANDBOX === "seatbelt" || !loopbackAvailable
 		? "pglite"
 		: "embedded-postgres";
 }

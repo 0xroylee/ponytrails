@@ -9,6 +9,7 @@ export type {
 	SkillsCommand,
 	StatusCommand,
 	TaskCommand,
+	UpdateCommand,
 	WorkflowWorkerCommand,
 } from "./types/args.types";
 

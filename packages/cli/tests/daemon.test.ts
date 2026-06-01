@@ -116,6 +116,7 @@ describe("runProductionDaemon", () => {
 
 	it("stops siblings and the worker when one service exits", async () => {
 		const harness = createDaemonHarness();
+		const output: string[] = [];
 		const done = runProductionDaemon({
 			cwd: "/repo",
 			env: {},
@@ -125,6 +126,7 @@ describe("runProductionDaemon", () => {
 			startWorkflowWorker: harness.startWorkflowWorker,
 			waitForServerReady: readyImmediately,
 			waitForWebReady: readyImmediately,
+			write: (message) => output.push(message),
 		});
 
 		await flushAsyncWork();
@@ -135,6 +137,7 @@ describe("runProductionDaemon", () => {
 		expect(harness.children[1]?.signals).toEqual(["SIGTERM"]);
 		expect(harness.children[2]?.signals).toEqual(["SIGTERM"]);
 		expect(harness.workflowWorkerStopped).toBe(true);
+		expect(output.join("")).toContain("server exited with code 7");
 	});
 
 	it("stops all services with the received process signal", async () => {
@@ -162,6 +165,7 @@ describe("runProductionDaemon", () => {
 
 	it("returns failure and stops siblings when a child spawn errors", async () => {
 		const harness = createDaemonHarness();
+		const output: string[] = [];
 		const done = runProductionDaemon({
 			cwd: "/repo",
 			env: {},
@@ -171,6 +175,7 @@ describe("runProductionDaemon", () => {
 			startWorkflowWorker: harness.startWorkflowWorker,
 			waitForServerReady: readyImmediately,
 			waitForWebReady: readyImmediately,
+			write: (message) => output.push(message),
 		});
 
 		await flushAsyncWork();
@@ -179,6 +184,9 @@ describe("runProductionDaemon", () => {
 		await expect(done).resolves.toBe(1);
 		expect(harness.children[1]?.signals).toEqual(["SIGTERM"]);
 		expect(harness.workflowWorkerStopped).toBe(true);
+		expect(output.join("")).toContain("devos daemon failed");
+		expect(output.join("")).toContain("server");
+		expect(output.join("")).toContain("spawn EACCES");
 	});
 });
 

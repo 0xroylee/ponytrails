@@ -1,5 +1,6 @@
 import { runCommand } from "../../utils/shell";
 import { renderCliHeading } from "../../utils/terminal-format";
+import { getCliVersion } from "../../version";
 import { instanceConfigPath, sqliteEnvDbPath } from "../config";
 import { promptForMissingPluginCredentials } from "../plugins/credentials";
 import { clackPromptAdapter } from "../prompts";
@@ -43,6 +44,7 @@ export async function runOnboardWizard(
 		`${renderCliHeading("Onboarding files written:")}\n${ENV_FILE}\nInstance config: ${instanceConfigPath()}\nSecrets saved to ${sqliteEnvDbPath(cwd)}\n\n`,
 	);
 	process.stdout.write(`${renderDevosBanner()}\n`);
+	process.stdout.write(`devos v${getCliVersion()}\n`);
 	process.stdout.write(`\n${renderCliHeading("Running doctor checks...")}\n`);
 	const checks = await collectChecks(cwd);
 	process.stdout.write(formatOnboardChecks(checks));

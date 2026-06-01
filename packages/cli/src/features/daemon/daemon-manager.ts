@@ -43,7 +43,8 @@ export class DaemonManager {
 					this.options.waitForServerReady ?? waitForDaemonHttpReady,
 				waitForWebReady: this.options.waitForWebReady ?? waitForDaemonHttpReady,
 				readinessScheduler: this.options.readinessScheduler,
-				write: this.options.write,
+				write:
+					this.options.write ?? ((message) => process.stderr.write(message)),
 			},
 			this.options.signalTarget ?? process,
 			this.options.cleanupPorts ?? cleanupDaemonPorts,
