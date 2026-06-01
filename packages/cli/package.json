@@ -19,7 +19,8 @@
 		"lint": "biome lint .",
 		"check": "biome check .",
 		"check:write": "biome check --write .",
-		"prepare:publish": "bun run check && bun run typecheck && bun run test && bun run build && npm --cache ./.npm-cache pack --dry-run --ignore-scripts"
+		"prepare:publish": "bun run check && bun run typecheck && bun run test && bun run build && npm --cache ./.npm-cache pack --dry-run --ignore-scripts",
+		"release": "bun run ./scripts/release-cli.ts"
 	},
 	"devDependencies": {
 		"@devos/tsconfig": "workspace:*",
