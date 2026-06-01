@@ -130,6 +130,7 @@ else
 fi
 
 info "Installing devos CLI ($TARGET) for $platform-$architecture"
+bun remove --global devos >/dev/null 2>&1 || true
 bun add --global "$TARGET" || error "Failed to install devos CLI."
 
 if command -v devos >/dev/null 2>&1; then

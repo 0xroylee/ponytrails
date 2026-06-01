@@ -64,8 +64,12 @@ describe("devos installer route", () => {
 				'  printf "%s\\n" "1.3.8"',
 				"  exit 0",
 				"fi",
+				'if [ "$1" = "remove" ] && [ "$2" = "--global" ] && [ "$3" = "devos" ]; then',
+				'  printf "%s\\n" "$*" >> "$BUN_CALL_LOG"',
+				"  exit 0",
+				"fi",
 				'if [ "$1" = "add" ] && [ "$2" = "--global" ]; then',
-				'  printf "%s\\n" "$*" > "$BUN_CALL_LOG"',
+				'  printf "%s\\n" "$*" >> "$BUN_CALL_LOG"',
 				'  printf "%s\\n" "#!/usr/bin/env sh" "echo devos" > "$FAKE_BIN/devos"',
 				'  chmod +x "$FAKE_BIN/devos"',
 				"  exit 0",
@@ -93,8 +97,13 @@ describe("devos installer route", () => {
 		expect(await readFile(curlLogPath, "utf8")).toContain(
 			"https://devos.ing/cli/devos-0.0.2.tgz",
 		);
-		expect(await readFile(callLogPath, "utf8")).toContain("add --global ");
-		expect(await readFile(callLogPath, "utf8")).toContain("devos-cli.");
+		const bunCalls = await readFile(callLogPath, "utf8");
+		expect(bunCalls).toContain("remove --global devos");
+		expect(bunCalls).toContain("add --global ");
+		expect(bunCalls).toContain("devos-cli.");
+		expect(bunCalls.indexOf("remove --global devos")).toBeLessThan(
+			bunCalls.indexOf("add --global "),
+		);
 		expect(installResult.stdout).toContain("devos installed successfully");
 	});
 });
