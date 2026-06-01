@@ -28,12 +28,12 @@ export function Nav(): ReactElement {
 					</div>
 				</div>
 				<div className="flex items-center gap-3">
-					<a
+					{/* <a
 						className="hidden text-foreground/70 text-sm hover:text-foreground sm:inline"
 						href="/"
 					>
 						Sign in
-					</a>
+					</a> */}
 					<a
 						className="group inline-flex items-center gap-1.5 border-2 border-foreground bg-[var(--neon-pink)] px-4 py-1.5 text-foreground text-sm tracking-tight shadow-retro-sm transition-all hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_0_var(--foreground)]"
 						href="#start"

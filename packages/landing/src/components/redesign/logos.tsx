@@ -1,13 +1,20 @@
 import type { ReactElement } from "react";
 
 const logos = [
-	"Linear",
-	"Vercel",
-	"Ramp",
-	"Notion",
-	"Anthropic",
-	"Supabase",
-	"Stripe",
+	// "Linear",
+	// "Vercel",
+	// "Ramp",
+	// "Notion",
+	// "Anthropic",
+	// "Supabase",
+	// "Stripe",
+	"No Logo",
+	"No Logo",
+	"No Logo",
+	"No Logo",
+	"No Logo",
+	"No Logo",
+	"No Logo",
 ];
 const marqueeLogos = ["a", "b", "c"].flatMap((round) =>
 	logos.map((logo) => ({ id: `${round}-${logo}`, logo })),
