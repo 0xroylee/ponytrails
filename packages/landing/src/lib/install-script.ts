@@ -1,5 +1,5 @@
 export const DEVOS_MIN_BUN_VERSION = "1.3.0";
-export const DEVOS_INSTALL_VERSION = "0.0.1";
+export const DEVOS_INSTALL_VERSION = "0.0.2";
 export const DEVOS_INSTALL_BASE_URL = "https://devos.ing/cli";
 export const DEVOS_INSTALL_PACKAGE_URL = `${DEVOS_INSTALL_BASE_URL}/devos-${DEVOS_INSTALL_VERSION}.tgz`;
 

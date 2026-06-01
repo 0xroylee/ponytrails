@@ -91,10 +91,10 @@ before the real `bun publish`.
 ## GitHub Release From Tags
 
 The repository creates GitHub Releases from pushed version tags. The workflow
-runs when a tag like `v0.0.1` is pushed.
+runs when a tag like `v0.0.2` is pushed.
 
 ```bash
-devos release tag v0.0.1 --message "Release v0.0.1"
+devos release tag v0.0.2 --message "Release v0.0.2"
 ```
 
 The GitHub Action verifies that the tag version matches

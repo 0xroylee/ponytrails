@@ -139,7 +139,7 @@ npx devos status --issue ENG-123
 
 # inspect GitHub releases and create a tag-only release marker
 npx devos release list --limit 10
-npx devos release tag v0.0.1 --message "Release v0.0.1"
+npx devos release tag v0.0.2 --message "Release v0.0.2"
 
 # create a task through the configured intake flow
 npx devos task create --request "Add retry handling for API timeouts"
