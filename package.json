@@ -49,6 +49,7 @@
 		"cron:once": "bun run ./packages/server/src/cron/run-cron.ts --once",
 		"prepare:publish": "bun run --filter devos prepare:publish",
 		"release:cli": "bun run --filter devos release",
+		"sandbox:daemon": "bun run ./scripts/prod-daemon-sandbox.ts",
 		"changeset": "changeset",
 		"prepare": "bun run ./scripts/prepare.ts"
 	},
