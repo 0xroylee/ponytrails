@@ -84,7 +84,6 @@ export function ChatRoomSidebar({
 	}
 
 	function handleSettingsNavigate(): void {
-		showMainSidebar();
 		onCloseSidebar();
 	}
 

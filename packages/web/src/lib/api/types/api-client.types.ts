@@ -27,6 +27,8 @@ import type {
 	TokenUsageRecord,
 } from "./server-state.types";
 import type {
+	SettingsGithubResponse,
+	SettingsGithubUpdateRequest,
 	SettingsModelsResponse,
 	SettingsModelsUpdateRequest,
 } from "./settings.types";
@@ -135,6 +137,13 @@ export interface ApiClient extends WorkflowComputerApiMethods {
 		request: SettingsModelsUpdateRequest,
 		options?: HealthRequestOptions,
 	): Promise<SettingsModelsResponse>;
+	getGitHubSettings(
+		options?: HealthRequestOptions,
+	): Promise<SettingsGithubResponse>;
+	updateGitHubSettings(
+		request: SettingsGithubUpdateRequest,
+		options?: HealthRequestOptions,
+	): Promise<SettingsGithubResponse>;
 	listBoardTasks(
 		options?: HealthRequestOptions,
 	): Promise<ProjectBoardTaskRecord[]>;

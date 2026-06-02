@@ -5,6 +5,8 @@ import {
 } from "./response-utils";
 import type { HealthRequestOptions } from "./types/client.types";
 import type {
+	SettingsGithubResponse,
+	SettingsGithubUpdateRequest,
 	SettingsModelOption,
 	SettingsModelStage,
 	SettingsModelsResponse,
@@ -13,6 +15,7 @@ import type {
 } from "./types/settings.types";
 
 const SETTINGS_MODELS_PATH = "/api/settings/models";
+const SETTINGS_GITHUB_PATH = "/api/settings/github";
 const REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
 
 type RequestWithBase = (
@@ -30,6 +33,13 @@ export function createSettingsApiMethods(requestWithBase: RequestWithBase): {
 		request: SettingsModelsUpdateRequest,
 		options?: HealthRequestOptions,
 	): Promise<SettingsModelsResponse>;
+	getGitHubSettings(
+		options?: HealthRequestOptions,
+	): Promise<SettingsGithubResponse>;
+	updateGitHubSettings(
+		request: SettingsGithubUpdateRequest,
+		options?: HealthRequestOptions,
+	): Promise<SettingsGithubResponse>;
 } {
 	return {
 		async getModelSettings(options) {
@@ -49,6 +59,35 @@ export function createSettingsApiMethods(requestWithBase: RequestWithBase): {
 			);
 			return parseSettingsModelsResponse(payload);
 		},
+		async getGitHubSettings(options) {
+			const payload = await requestWithBase(
+				SETTINGS_GITHUB_PATH,
+				"GET",
+				options,
+			);
+			return parseSettingsGithubResponse(payload);
+		},
+		async updateGitHubSettings(request, options) {
+			const payload = await requestWithBase(
+				SETTINGS_GITHUB_PATH,
+				"PATCH",
+				options,
+				request,
+			);
+			return parseSettingsGithubResponse(payload);
+		},
+	};
+}
+
+function parseSettingsGithubResponse(payload: unknown): SettingsGithubResponse {
+	const row = assertObjectRecord(payload, SETTINGS_GITHUB_PATH);
+	return {
+		commitInstruction: readString(
+			row,
+			"commitInstruction",
+			SETTINGS_GITHUB_PATH,
+		),
+		prInstruction: readString(row, "prInstruction", SETTINGS_GITHUB_PATH),
 	};
 }
 

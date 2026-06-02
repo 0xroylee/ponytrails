@@ -619,6 +619,39 @@ paths:
           $ref: '#/components/responses/TypedError'
         '404':
           $ref: '#/components/responses/TypedError'
+  /api/settings/github:
+    get:
+      tags: [Settings]
+      summary: Read GitHub commit and PR instructions
+      responses:
+        '200':
+          description: GitHub workflow instructions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsGithubResponse'
+        '404':
+          $ref: '#/components/responses/TypedError'
+    patch:
+      tags: [Settings]
+      summary: Update GitHub commit and PR instructions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsGithubUpdateRequest'
+      responses:
+        '200':
+          description: Updated GitHub workflow instructions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsGithubResponse'
+        '400':
+          $ref: '#/components/responses/TypedError'
+        '404':
+          $ref: '#/components/responses/TypedError'
   /api/workspaces/{workspaceId}/projects:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -846,6 +879,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SettingsReasoningEffort'
+    SettingsGithubResponse:
+      type: object
+      additionalProperties: false
+      required: [commitInstruction, prInstruction]
+      properties:
+        commitInstruction:
+          type: string
+        prInstruction:
+          type: string
     SettingsModelStage:
       type: object
       additionalProperties: false
@@ -884,6 +926,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SettingsModelStageUpdate'
+    SettingsGithubUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        commitInstruction:
+          type: string
+        prInstruction:
+          type: string
     SettingsModelStageUpdate:
       type: object
       additionalProperties: false

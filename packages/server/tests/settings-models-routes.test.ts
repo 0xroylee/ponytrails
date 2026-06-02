@@ -97,6 +97,43 @@ describe("settings model routes", () => {
 		expect(loaded.config.codex?.reasoningEfforts?.brainstorm).toBe("xhigh");
 		expect(loaded.config.codex?.reasoningEfforts?.reviewTest).toBe("medium");
 	});
+
+	it("reads and updates persisted GitHub workflow instructions", async () => {
+		await writeInstanceConfig({
+			github: {
+				commitInstruction: "commit {issueKey}: {issueTitle}",
+				prInstruction: "PR for {issueKey} on {branch}",
+			},
+		});
+
+		const readResponse = await createApp()(
+			new Request("http://localhost/api/settings/github"),
+		);
+
+		expect(readResponse.status).toBe(200);
+		await expect(readResponse.json()).resolves.toEqual({
+			commitInstruction: "commit {issueKey}: {issueTitle}",
+			prInstruction: "PR for {issueKey} on {branch}",
+		});
+
+		const updateResponse = await createApp()(
+			jsonRequest("PATCH", "/api/settings/github", {
+				commitInstruction: "ship {issueKey}: {issueTitle}",
+				prInstruction: "Open PR from {branch} into {baseBranch}",
+			}),
+		);
+
+		expect(updateResponse.status).toBe(200);
+		const loaded = await loadInstanceConfig("/tmp/project");
+		expect(loaded.ok).toBe(true);
+		if (!loaded.ok) return;
+		expect(loaded.config.github?.commitInstruction).toBe(
+			"ship {issueKey}: {issueTitle}",
+		);
+		expect(loaded.config.github?.prInstruction).toBe(
+			"Open PR from {branch} into {baseBranch}",
+		);
+	});
 });
 
 async function writeInstanceConfig(

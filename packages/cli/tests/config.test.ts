@@ -436,6 +436,36 @@ describe("loadConfig", () => {
 		}
 	});
 
+	it("loads GitHub workflow instructions from instance config", async () => {
+		const tempDir = await mkdtemp(
+			path.join(process.cwd(), ".tmp-config-test-"),
+		);
+		const instanceConfig = {
+			...createInstanceConfig(tempDir, "2026-05-29T00:00:00.000Z"),
+			github: {
+				commitInstruction: "commit {issueKey}: {issueTitle}",
+				prInstruction: "PR for {issueKey} from {branch}",
+			},
+		};
+		await mkdir(path.dirname(instanceConfigPath()), { recursive: true });
+		await writeFile(
+			instanceConfigPath(),
+			renderInstanceConfigDocument(instanceConfig),
+		);
+
+		try {
+			const config = await loadConfig(tempDir);
+			expect(config.projects[0]?.github.commitInstruction).toBe(
+				"commit {issueKey}: {issueTitle}",
+			);
+			expect(config.projects[0]?.github.prInstruction).toBe(
+				"PR for {issueKey} from {branch}",
+			);
+		} finally {
+			await rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("prefers process env over sqlite values", async () => {
 		const tempDir = await mkdtemp(
 			path.join(process.cwd(), ".tmp-config-test-"),

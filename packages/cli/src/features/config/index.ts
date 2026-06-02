@@ -12,6 +12,7 @@ import {
 import { normalizeOptionalValue } from "./env-normalizers";
 import { loadInstanceCodexConfig } from "./instance-codex";
 import { loadInstanceServerDatabaseConfig } from "./instance-database-path";
+import { loadInstanceGithubConfig } from "./instance-github";
 import { loadInstanceWorkspaceConfig } from "./instance-workspace";
 import { resolveNotifications } from "./notification-resolution";
 import { applyInstancePlugins } from "./plugin-resolution";
@@ -57,8 +58,12 @@ async function loadConfigWithOptions(
 	const envNotifications = buildEnvNotifications(env);
 	const workspace = await loadInstanceWorkspaceConfig();
 	const instanceCodex = await loadInstanceCodexConfig();
-	const root = createRuntimeRootConfig(instanceCodex);
-	const defaultProjectRoot = createDefaultProjectRootConfig(instanceCodex);
+	const instanceGithub = await loadInstanceGithubConfig();
+	const root = createRuntimeRootConfig(instanceCodex, instanceGithub);
+	const defaultProjectRoot = createDefaultProjectRootConfig(
+		instanceCodex,
+		instanceGithub,
+	);
 
 	const resolvedProjects = resolveProjects(cwd, envBase, root);
 	const metadataProjects = options.applyServerProjectMetadata
@@ -89,14 +94,24 @@ async function loadConfigWithOptions(
 
 function createRuntimeRootConfig(
 	codex: DevosRootConfig["codex"],
+	github: DevosRootConfig["github"],
 ): DevosRootConfig {
-	return { ...(codex ? { codex } : {}), projects: [] };
+	return {
+		...(codex ? { codex } : {}),
+		...(github ? { github } : {}),
+		projects: [],
+	};
 }
 
 function createDefaultProjectRootConfig(
 	codex: DevosRootConfig["codex"],
+	github: DevosRootConfig["github"],
 ): DevosRootConfig {
-	return { ...(codex ? { codex } : {}), projects: [{ id: "default" }] };
+	return {
+		...(codex ? { codex } : {}),
+		...(github ? { github } : {}),
+		projects: [{ id: "default" }],
+	};
 }
 
 export function getProjectById(

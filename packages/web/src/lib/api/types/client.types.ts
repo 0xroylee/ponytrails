@@ -31,6 +31,8 @@ import type {
 	TokenUsageRecord,
 } from "./server-state.types";
 import type {
+	SettingsGithubResponse,
+	SettingsGithubUpdateRequest,
 	SettingsModelsResponse,
 	SettingsModelsUpdateRequest,
 } from "./settings.types";
@@ -65,6 +67,8 @@ export type {
 	SettingsModelStage,
 	SettingsModelStageId,
 	SettingsModelStageUpdate,
+	SettingsGithubResponse,
+	SettingsGithubUpdateRequest,
 	SettingsModelsResponse,
 	SettingsModelsUpdateRequest,
 	SettingsReasoningEffort,
@@ -184,6 +188,13 @@ export interface ApiClient
 		request: SettingsModelsUpdateRequest,
 		options?: HealthRequestOptions,
 	): Promise<SettingsModelsResponse>;
+	getGitHubSettings(
+		options?: HealthRequestOptions,
+	): Promise<SettingsGithubResponse>;
+	updateGitHubSettings(
+		request: SettingsGithubUpdateRequest,
+		options?: HealthRequestOptions,
+	): Promise<SettingsGithubResponse>;
 	listBoardTasks(
 		options?: HealthRequestOptions,
 	): Promise<ProjectBoardTaskRecord[]>;

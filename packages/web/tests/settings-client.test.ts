@@ -70,4 +70,44 @@ describe("settings api client", () => {
 			}),
 		});
 	});
+
+	it("reads and updates GitHub workflow instructions", async () => {
+		const requests: Array<{ method?: string; url: string; body?: string }> = [];
+		const client = createApiClient({
+			fetchFn: (async (url, init) => {
+				requests.push({
+					url: String(url),
+					method: init?.method,
+					body: init?.body?.toString(),
+				});
+				return Response.json({
+					commitInstruction: "commit {issueKey}: {issueTitle}",
+					prInstruction: "PR for {issueKey} from {branch}",
+				});
+			}) as typeof fetch,
+		});
+
+		const settings = await client.getGitHubSettings();
+		await client.updateGitHubSettings({
+			commitInstruction: "ship {issueKey}: {issueTitle}",
+			prInstruction: "Open PR from {branch} into {baseBranch}",
+		});
+
+		expect(settings).toEqual({
+			commitInstruction: "commit {issueKey}: {issueTitle}",
+			prInstruction: "PR for {issueKey} from {branch}",
+		});
+		expect(requests[0]).toMatchObject({
+			url: "/api/settings/github",
+			method: "GET",
+		});
+		expect(requests[1]).toMatchObject({
+			url: "/api/settings/github",
+			method: "PATCH",
+			body: JSON.stringify({
+				commitInstruction: "ship {issueKey}: {issueTitle}",
+				prInstruction: "Open PR from {branch} into {baseBranch}",
+			}),
+		});
+	});
 });

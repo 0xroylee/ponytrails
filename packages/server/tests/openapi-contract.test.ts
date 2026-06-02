@@ -51,6 +51,8 @@ const IMPLEMENTED_ROUTES = [
 	["POST", "/api/notifications"],
 	["POST", "/api/notifications/email"],
 	["GET", "/api/polling/status"],
+	["GET", "/api/settings/github"],
+	["PATCH", "/api/settings/github"],
 	["GET", "/api/settings/models"],
 	["PATCH", "/api/settings/models"],
 ] as const;

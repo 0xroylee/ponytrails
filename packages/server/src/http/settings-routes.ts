@@ -1,4 +1,9 @@
 import {
+	SettingsGithubError,
+	getSettingsGithub,
+	updateSettingsGithub,
+} from "../settings/settings-github-service";
+import {
 	SettingsModelsError,
 	getSettingsModels,
 	updateSettingsModels,
@@ -6,16 +11,31 @@ import {
 import { jsonError, jsonSuccess, methodNotAllowedResponse } from "./response";
 
 const SETTINGS_MODELS_PATH = "/api/settings/models";
+const SETTINGS_GITHUB_PATH = "/api/settings/github";
 
 export async function handleSettingsRoute(
 	request: Request,
 	pathname: string,
 	workspacePath: string,
 ): Promise<Response | null> {
-	if (pathname !== SETTINGS_MODELS_PATH) {
+	if (pathname !== SETTINGS_MODELS_PATH && pathname !== SETTINGS_GITHUB_PATH) {
 		return null;
 	}
 	try {
+		if (pathname === SETTINGS_GITHUB_PATH) {
+			if (request.method === "GET") {
+				return jsonSuccess(await getSettingsGithub(workspacePath));
+			}
+			if (request.method === "PATCH") {
+				return jsonSuccess(
+					await updateSettingsGithub(
+						workspacePath,
+						await parseJsonBody(request),
+					),
+				);
+			}
+			return methodNotAllowedResponse();
+		}
 		if (request.method === "GET") {
 			return jsonSuccess(await getSettingsModels(workspacePath));
 		}
@@ -26,6 +46,9 @@ export async function handleSettingsRoute(
 		}
 		return methodNotAllowedResponse();
 	} catch (error) {
+		if (error instanceof SettingsGithubError) {
+			return jsonError(error.message, { status: error.status });
+		}
 		if (error instanceof SettingsModelsError) {
 			return jsonError(error.message, { status: error.status });
 		}

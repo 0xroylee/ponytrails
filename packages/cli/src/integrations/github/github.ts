@@ -1,4 +1,9 @@
 import { access } from "node:fs/promises";
+import {
+	DEFAULT_GITHUB_COMMIT_INSTRUCTION,
+	DEFAULT_GITHUB_PR_INSTRUCTION,
+	renderGithubInstruction,
+} from "../../features/config/github-instructions";
 import type {
 	BugRecord,
 	PullRequestRef,
@@ -160,7 +165,17 @@ export async function createDraftPrFromWorktree(
 		);
 	}
 
-	const commitTitle = `[devos] ${issueKey}: ${issueTitle}`;
+	const instructionContext = {
+		baseBranch: config.repo.baseBranch,
+		branch,
+		issueKey,
+		issueTitle,
+	};
+	const commitTitle = renderGithubInstruction(
+		config.github.commitInstruction,
+		instructionContext,
+		DEFAULT_GITHUB_COMMIT_INSTRUCTION,
+	);
 	await commitChanges(config, commitTitle, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,
@@ -175,15 +190,11 @@ export async function createDraftPrFromWorktree(
 		assertCommandOk: assertOk,
 	});
 	const prTitle = `[codex] ${issueKey}: ${issueTitle}`;
-	const prBody = [
-		`Workflow task: ${issueKey}`,
-		"",
-		"This PR was created by the devos.ing ADHD (Agentic Development Hub & Daemon) workflow.",
-		"",
-		"Includes:",
-		"- plan + implement session output",
-		"- separate review/testing session",
-	].join("\n");
+	const prBody = renderGithubInstruction(
+		config.github.prInstruction,
+		instructionContext,
+		DEFAULT_GITHUB_PR_INSTRUCTION,
+	);
 
 	const create = await withRetries("gh pr create", async () => {
 		const result = await commandRunner(
@@ -245,7 +256,16 @@ export async function updateDraftPrFromWorktree(
 		return false;
 	}
 
-	const commitTitle = `[devos] ${issueKey}: address review feedback`;
+	const commitTitle = renderGithubInstruction(
+		config.github.commitInstruction,
+		{
+			baseBranch: config.repo.baseBranch,
+			branch: prBranch,
+			issueKey,
+			issueTitle: "address review feedback",
+		},
+		DEFAULT_GITHUB_COMMIT_INSTRUCTION,
+	);
 	await commitChanges(config, commitTitle, {
 		runCommand: commandRunner,
 		assertCommandOk: assertOk,

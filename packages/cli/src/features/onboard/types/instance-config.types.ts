@@ -42,6 +42,11 @@ export interface OnboardCodexConfig {
 	reasoningEfforts?: Partial<Record<OnboardModelStage, OnboardReasoningEffort>>;
 }
 
+export interface OnboardGithubConfig {
+	commitInstruction?: string;
+	prInstruction?: string;
+}
+
 export interface OnboardInstanceConfig {
 	$meta: {
 		version: 1;
@@ -100,6 +105,7 @@ export interface OnboardInstanceConfig {
 		};
 	};
 	codex?: OnboardCodexConfig;
+	github?: OnboardGithubConfig;
 	plugins?: InstancePluginsConfig;
 }
 

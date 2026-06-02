@@ -14,6 +14,7 @@ import type {
 	CurrentWorkspaceRecord,
 	JobRecord,
 	ProjectBoardTaskRecord,
+	SettingsGithubResponse,
 	SettingsModelsResponse,
 	SkillRecord,
 	TokenUsageRecord,
@@ -40,6 +41,7 @@ export { useGitHubRepositorySearchQuery } from "./github-queries";
 export { serverStateQueryKeys } from "./query-keys";
 export {
 	settingsMutationKeys,
+	useUpdateGitHubSettingsMutation,
 	useUpdateModelSettingsMutation,
 } from "./settings-mutations";
 export {
@@ -184,6 +186,17 @@ export function useModelSettingsQuery(
 	return useQuery({
 		queryKey: serverStateQueryKeys.modelSettings,
 		queryFn: () => apiClient.getModelSettings(),
+		enabled: options?.enabled,
+		refetchInterval: resolveRefetchInterval(options),
+	});
+}
+
+export function useGitHubSettingsQuery(
+	options?: ServerStateQueryOptions,
+): UseQueryResult<SettingsGithubResponse, Error> {
+	return useQuery({
+		queryKey: serverStateQueryKeys.gitHubSettings,
+		queryFn: () => apiClient.getGitHubSettings(),
 		enabled: options?.enabled,
 		refetchInterval: resolveRefetchInterval(options),
 	});

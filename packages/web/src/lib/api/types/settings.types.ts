@@ -35,3 +35,13 @@ export interface SettingsModelsResponse {
 export interface SettingsModelsUpdateRequest {
 	stages: SettingsModelStageUpdate[];
 }
+
+export interface SettingsGithubResponse {
+	commitInstruction: string;
+	prInstruction: string;
+}
+
+export interface SettingsGithubUpdateRequest {
+	commitInstruction: string;
+	prInstruction: string;
+}

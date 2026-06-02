@@ -8,11 +8,13 @@ import {
 	Bot,
 	ChartColumn,
 	Computer,
+	GitBranch,
 	Inbox,
 	ListChecks,
 	MessageSquare,
 	Plug,
 	Settings,
+	SlidersHorizontal,
 	Sparkles,
 	SquareKanban,
 	UsersRound,
@@ -22,6 +24,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType, ReactElement } from "react";
 
+import {
+	isSettingsNavItemActive,
+	settingsNavItems,
+} from "@/components/settings/settings-navigation";
+import type { SettingsView } from "@/components/settings/types/settings-navigation.types";
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
@@ -43,6 +50,14 @@ const iconByKey: Record<
 	skills: BookOpen,
 	squads: UsersRound,
 	usage: ChartColumn,
+};
+
+const settingsIconByKey: Record<
+	SettingsView,
+	ComponentType<{ size?: number }>
+> = {
+	git: GitBranch,
+	models: SlidersHorizontal,
 };
 
 export function ChatRoomSettingsSidebar({
@@ -90,6 +105,34 @@ export function ChatRoomSettingsSidebar({
 			</header>
 			<nav className="min-h-0 overflow-auto p-3">
 				<Typography className="mb-2 px-2" variant="eyebrow">
+					Settings
+				</Typography>
+				<div className="grid gap-1">
+					{settingsNavItems.map((item) => {
+						const Icon = settingsIconByKey[item.key];
+						const isActiveItem = isSettingsNavItemActive(pathname, item.href);
+						return (
+							<Link
+								aria-current={isActiveItem ? "page" : undefined}
+								className={cn(
+									"flex h-9 items-center gap-2 rounded-md px-2 text-xs",
+									isActiveItem
+										? "bg-surface-active text-zinc-100"
+										: "text-muted-foreground hover:bg-surface-hover hover:text-zinc-200",
+								)}
+								href={item.href}
+								key={item.key}
+								onClick={onNavigate}
+							>
+								<Icon size={15} />
+								<Typography as="span" className="truncate" variant="muted">
+									{item.label}
+								</Typography>
+							</Link>
+						);
+					})}
+				</div>
+				<Typography className="mb-2 mt-4 px-2" variant="eyebrow">
 					Workspace
 				</Typography>
 				<div className="grid gap-1">

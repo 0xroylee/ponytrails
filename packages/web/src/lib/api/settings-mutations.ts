@@ -7,6 +7,8 @@ import {
 } from "@tanstack/react-query";
 import { serverStateQueryKeys } from "./query-keys";
 import type {
+	SettingsGithubResponse,
+	SettingsGithubUpdateRequest,
 	SettingsModelsResponse,
 	SettingsModelsUpdateRequest,
 } from "./types/client.types";
@@ -16,6 +18,7 @@ const apiClient = createWebApiClient();
 
 export const settingsMutationKeys = {
 	updateModelSettings: ["settings", "update-model-settings"] as const,
+	updateGitHubSettings: ["settings", "update-github-settings"] as const,
 };
 
 export function useUpdateModelSettingsMutation(): UseMutationResult<
@@ -31,6 +34,24 @@ export function useUpdateModelSettingsMutation(): UseMutationResult<
 			queryClient.setQueryData(serverStateQueryKeys.modelSettings, settings);
 			queryClient.invalidateQueries({
 				queryKey: serverStateQueryKeys.modelSettings,
+			});
+		},
+	});
+}
+
+export function useUpdateGitHubSettingsMutation(): UseMutationResult<
+	SettingsGithubResponse,
+	Error,
+	SettingsGithubUpdateRequest
+> {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationKey: settingsMutationKeys.updateGitHubSettings,
+		mutationFn: (request) => apiClient.updateGitHubSettings(request),
+		onSuccess: (settings) => {
+			queryClient.setQueryData(serverStateQueryKeys.gitHubSettings, settings);
+			queryClient.invalidateQueries({
+				queryKey: serverStateQueryKeys.gitHubSettings,
 			});
 		},
 	});

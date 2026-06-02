@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 
 import { AgentMonitorShell } from "@/components/agent-monitor/agent-monitor-shell";
-import { SettingsModelsPanel } from "@/components/settings/settings-models-panel";
+import { SettingsPanelContent } from "@/components/settings/settings-panel-content";
+import type { SettingsView } from "@/components/settings/types/settings-navigation.types";
 import { TaskCreatePanel } from "@/components/task-create/task-create-panel";
 import { Typography } from "@/components/ui/typography";
 
@@ -10,8 +11,10 @@ import { sectionContentByKey } from "./web-shell.constants";
 
 export function OperatorSectionPanel({
 	sectionKey,
+	settingsView = "models",
 }: {
 	sectionKey: SidebarNavKey;
+	settingsView?: SettingsView;
 }): ReactElement {
 	const content = sectionContentByKey[sectionKey];
 
@@ -42,24 +45,22 @@ export function OperatorSectionPanel({
 				</Typography>
 				<Typography variant="description">{content.description}</Typography>
 			</header>
-			<div
-				style={{
-					display: "grid",
-					gap: "1rem",
-					gridTemplateColumns:
-						"repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",
-					minWidth: 0,
-				}}
-			>
-				{sectionKey === "settings" ? (
-					<SettingsModelsPanel />
-				) : (
-					<>
-						<TaskCreatePanel />
-						<AgentMonitorShell />
-					</>
-				)}
-			</div>
+			{sectionKey === "settings" ? (
+				<SettingsPanelContent view={settingsView} />
+			) : (
+				<div
+					style={{
+						display: "grid",
+						gap: "1rem",
+						gridTemplateColumns:
+							"repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",
+						minWidth: 0,
+					}}
+				>
+					<TaskCreatePanel />
+					<AgentMonitorShell />
+				</div>
+			)}
 		</section>
 	);
 }

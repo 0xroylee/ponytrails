@@ -1,3 +1,4 @@
+import type { GithubInstructionsConfig } from "./github-instructions.types";
 import type { ServerRuntimeConfig } from "./server.types";
 
 export type CodexReasoningEffort = "low" | "medium" | "high" | "xhigh";
@@ -38,7 +39,7 @@ export interface ProjectRuntimeConfig {
 		name: string;
 		baseBranch: string;
 	};
-	github: {
+	github: GithubInstructionsConfig & {
 		useGhCli: boolean;
 		defaultBugLabel: string;
 	};

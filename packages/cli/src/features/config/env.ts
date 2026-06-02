@@ -15,6 +15,10 @@ import {
 	parseOptionalPositiveInt,
 	parseRecipientsFromEnv,
 } from "./env-normalizers";
+import {
+	DEFAULT_GITHUB_COMMIT_INSTRUCTION,
+	DEFAULT_GITHUB_PR_INSTRUCTION,
+} from "./github-instructions";
 import type { InstanceServerDatabaseConfig } from "./instance-database-path";
 import { normalizeOptionalPath } from "./path-resolution";
 import { loadSqliteEnv } from "./sqlite-env";
@@ -63,6 +67,8 @@ export function buildEnvBase(
 		github: {
 			useGhCli: true,
 			defaultBugLabel: env.GITHUB_BUG_LABEL ?? "bug",
+			commitInstruction: DEFAULT_GITHUB_COMMIT_INSTRUCTION,
+			prInstruction: DEFAULT_GITHUB_PR_INSTRUCTION,
 		},
 		server: {
 			database: {

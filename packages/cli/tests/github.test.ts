@@ -13,6 +13,7 @@ import {
 	prepareWorktreeDependencies,
 	removeIssueWorktree,
 	squashMergePullRequest,
+	updateDraftPrFromWorktree,
 } from "../src/integrations/github";
 import type { CommandResult } from "../src/utils/shell";
 
@@ -498,6 +499,107 @@ describe("createDraftPrFromWorktree", () => {
 			"main",
 			"--head",
 			"OWN-1",
+		]);
+	});
+
+	it("uses configured commit and PR instructions for draft PR creation", async () => {
+		const calls: string[][] = [];
+		const config = createProjectConfig();
+		config.github.commitInstruction =
+			"ship {issueKey} on {branch}: {issueTitle}";
+		config.github.prInstruction =
+			"Task {issueKey}\nTitle {issueTitle}\nBranch {branch}\nBase {baseBranch}";
+		const runCommand = mock(
+			async (_command: string, args: string[]): Promise<CommandResult> => {
+				calls.push(args);
+				if (args[0] === "rev-parse") {
+					return { code: 0, stdout: "true\n", stderr: "" };
+				}
+				if (args[0] === "branch" && args[1] === "--show-current") {
+					return { code: 0, stdout: "codex/eng-42\n", stderr: "" };
+				}
+				if (args[0] === "diff") {
+					return { code: 1, stdout: "", stderr: "" };
+				}
+				if (
+					args[0] === "add" ||
+					args[0] === "commit" ||
+					args[0] === "push" ||
+					args[0] === "auth"
+				) {
+					return { code: 0, stdout: "", stderr: "" };
+				}
+				if (args[0] === "pr" && args[1] === "create") {
+					return {
+						code: 0,
+						stdout: "https://github.com/acme/repo/pull/101\n",
+						stderr: "",
+					};
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		);
+
+		await createDraftPrFromWorktree(config, "ENG-42", "Custom text", {
+			runCommand,
+			assertCommandOk: assertOk,
+		});
+
+		expect(calls).toContainEqual([
+			"commit",
+			"-m",
+			"ship ENG-42 on codex/eng-42: Custom text",
+		]);
+		expect(calls).toContainEqual([
+			"pr",
+			"create",
+			"--draft",
+			"--title",
+			"[codex] ENG-42: Custom text",
+			"--body",
+			"Task ENG-42\nTitle Custom text\nBranch codex/eng-42\nBase main",
+			"--base",
+			"main",
+			"--head",
+			"codex/eng-42",
+		]);
+	});
+});
+
+describe("updateDraftPrFromWorktree", () => {
+	it("uses configured commit instruction for review updates", async () => {
+		const calls: string[][] = [];
+		const config = createProjectConfig();
+		config.github.commitInstruction =
+			"ship {issueKey} on {branch}: {issueTitle}";
+		const runCommand = mock(
+			async (_command: string, args: string[]): Promise<CommandResult> => {
+				calls.push(args);
+				if (args[0] === "rev-parse") {
+					return { code: 0, stdout: "true\n", stderr: "" };
+				}
+				if (args[0] === "branch" && args[1] === "--show-current") {
+					return { code: 0, stdout: "codex/eng-42\n", stderr: "" };
+				}
+				if (args[0] === "diff") {
+					return { code: 1, stdout: "", stderr: "" };
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		);
+
+		const updated = await updateDraftPrFromWorktree(
+			config,
+			"codex/eng-42",
+			"ENG-42",
+			{ runCommand, assertCommandOk: assertOk },
+		);
+
+		expect(updated).toBe(true);
+		expect(calls).toContainEqual([
+			"commit",
+			"-m",
+			"ship ENG-42 on codex/eng-42: address review feedback",
 		]);
 	});
 });
