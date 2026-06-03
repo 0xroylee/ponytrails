@@ -34,11 +34,12 @@ export async function runOnboardWizard(
 	const collectChecks = deps.collectOnboardChecks ?? collectOnboardChecks;
 	const configurePluginCredentials =
 		deps.configurePluginCredentials ?? configureInstalledPluginCredentials;
-	process.stdout.write(renderOnboardCustomizationIntro());
+	const write = deps.write ?? ((chunk: string) => process.stdout.write(chunk));
+	write(renderOnboardCustomizationIntro());
 	const rtk = await safeRun(commandRunner, "rtk", ["--version"], cwd);
 	if (rtk.code !== 0) await promptForRtkInstall(cwd, commandRunner, prompts);
 	const gh = await safeRun(commandRunner, "gh", ["auth", "status"], cwd);
-	if (gh.code !== 0) process.stdout.write(renderOnboardGitHubInstallPrompt());
+	if (gh.code !== 0) write(renderOnboardGitHubInstallPrompt());
 
 	const draft = await collectOnboardDraft(cwd, {
 		prompts,
@@ -46,20 +47,18 @@ export async function runOnboardWizard(
 	});
 	await writeFiles(cwd, draft);
 	await configurePluginCredentials(cwd, prompts);
-	process.stdout.write(
+	write(
 		`${renderCliHeading("Onboarding files written:")}\n${ENV_FILE}\nInstance config: ${instanceConfigPath()}\nSecrets saved to ${sqliteEnvDbPath(cwd)}\n\n`,
 	);
-	process.stdout.write(`${renderDevosBanner()}\n`);
-	process.stdout.write(`devos v${getCliVersion()}\n`);
-	process.stdout.write(`\n${renderCliHeading("Running doctor checks...")}\n`);
+	write(`${renderDevosBanner()}\n`);
+	write(`devos v${getCliVersion()}\n`);
+	write(`\n${renderCliHeading("Running doctor checks...")}\n`);
 	const checks = await collectChecks(cwd);
-	process.stdout.write(formatOnboardChecks(checks));
+	write(formatOnboardChecks(checks));
 	if (checks.some((check) => check.status === "fail")) {
 		throw new Error("Onboard check failed");
 	}
-	process.stdout.write(
-		`${renderCliOutlineBox("Next command", "devos daemon")}\n`,
-	);
+	write(`${renderCliOutlineBox("Next command", "devos daemon")}\n`);
 }
 
 async function promptForRtkInstall(

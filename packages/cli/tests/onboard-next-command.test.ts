@@ -16,16 +16,18 @@ describe("onboard next command", () => {
 	it("prints devos daemon after successful onboard checks", async () => {
 		const tempDir = await createTempHome();
 		try {
-			const output = await captureStdout(() =>
-				runOnboardWizard(tempDir, {
-					runCommand: async () => okCommand(),
-					prompts: onboardingPromptAdapter(),
-					collectOnboardChecks: async (): Promise<OnboardCheck[]> => [
-						{ name: "Instance config", status: "pass", message: "ok" },
-					],
-					configurePluginCredentials: async () => {},
-				}),
-			);
+			let output = "";
+			await runOnboardWizard(tempDir, {
+				runCommand: async () => okCommand(),
+				prompts: onboardingPromptAdapter(),
+				collectOnboardChecks: async (): Promise<OnboardCheck[]> => [
+					{ name: "Instance config", status: "pass", message: "ok" },
+				],
+				configurePluginCredentials: async () => {},
+				write: (chunk) => {
+					output += chunk;
+				},
+			});
 
 			const successIndex = output.indexOf("All checks passed!");
 			const daemonIndex = output.indexOf("devos daemon");
@@ -45,21 +47,6 @@ async function createTempHome(): Promise<string> {
 	const tempDir = await mkdtemp(path.join(process.cwd(), ".tmp-onboard-home-"));
 	process.env.HOME = tempDir;
 	return tempDir;
-}
-
-async function captureStdout(run: () => Promise<void>): Promise<string> {
-	const previousWrite = process.stdout.write;
-	let output = "";
-	process.stdout.write = ((chunk: string | Uint8Array) => {
-		output += String(chunk);
-		return true;
-	}) as typeof process.stdout.write;
-	try {
-		await run();
-		return output;
-	} finally {
-		process.stdout.write = previousWrite;
-	}
 }
 
 function onboardingPromptAdapter(): PromptAdapter {

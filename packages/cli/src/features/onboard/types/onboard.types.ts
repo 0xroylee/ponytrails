@@ -135,6 +135,7 @@ export interface OnboardDraftPromptDeps {
 
 export interface OnboardWizardDeps extends Partial<OnboardDraftPromptDeps> {
 	runCommand?: OnboardCheckDeps["runCommand"];
+	write?: (chunk: string) => void;
 	writeOnboardFiles?: (cwd: string, draft: OnboardDraft) => Promise<void>;
 	collectOnboardChecks?: (cwd: string) => Promise<OnboardCheck[]>;
 	configurePluginCredentials?: (
