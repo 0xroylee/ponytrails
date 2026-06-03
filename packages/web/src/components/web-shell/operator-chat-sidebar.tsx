@@ -11,7 +11,10 @@ import {
 	useCreateChatSessionMutation,
 	useUpdateChatSessionMutation,
 } from "@/lib/api/chat-queries";
-import { useCurrentWorkspaceQuery } from "@/lib/api/queries";
+import {
+	useBoardTasksQuery,
+	useCurrentWorkspaceQuery,
+} from "@/lib/api/queries";
 import { useWorkspaceProjectsQuery } from "@/lib/api/realtime-queries";
 import { useRealtimeStore } from "@/lib/realtime";
 
@@ -32,13 +35,18 @@ function OperatorChatSidebarView({
 	const currentWorkspaceQuery = useCurrentWorkspaceQuery(NO_REFETCH);
 	const workspaceId = currentWorkspaceQuery.data?.workspaceId ?? "";
 	const sessionsQuery = useChatSessionsQuery(workspaceId, NO_REFETCH);
+	const tasksQuery = useBoardTasksQuery(NO_REFETCH);
 	const projectsQuery = useWorkspaceProjectsQuery(workspaceId, NO_REFETCH);
 	const createSession = useCreateChatSessionMutation();
 	const updateSession = useUpdateChatSessionMutation();
 	const chatStreamsByRunId = useRealtimeStore(
 		(state) => state.chatStreamsByRunId,
 	);
-	const runningSessionIds = activeChatStreamSessionIds(chatStreamsByRunId);
+	const runningSessionIds = activeChatStreamSessionIds(
+		chatStreamsByRunId,
+		sessionsQuery.data ?? [],
+		tasksQuery.data ?? [],
+	);
 
 	function closeMobileSidebar(): void {
 		onCloseMobileSidebar();

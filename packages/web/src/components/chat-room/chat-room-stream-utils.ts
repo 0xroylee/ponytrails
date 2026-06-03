@@ -1,4 +1,6 @@
+import type { ChatSessionRecord, ProjectBoardTaskRecord } from "@/lib/api";
 import type { RealtimeChatStreamBuffer } from "@/lib/realtime/types/realtime-store.types";
+import { shouldShowChatPlanningIndicator } from "./chat-thinking-state";
 import type { ChatStreamLine } from "./types/chat-room.types";
 
 export function chatStreamLinesForSession(
@@ -32,11 +34,27 @@ export function hasLoadingChatStreamForSession(
 
 export function activeChatStreamSessionIds(
 	streamsByRunId: Record<string, RealtimeChatStreamBuffer>,
+	sessions: ChatSessionRecord[] = [],
+	tasks: ProjectBoardTaskRecord[] = [],
 ): Set<string> {
 	const sessionIds = new Set<string>();
 	for (const stream of Object.values(streamsByRunId)) {
 		if (stream.status === "loading" || stream.status === "streaming") {
 			sessionIds.add(stream.sessionId);
+		}
+	}
+	const tasksById = new Map(tasks.map((task) => [task.id, task]));
+	for (const session of sessions) {
+		const taskStatus = session.taskId
+			? (tasksById.get(session.taskId)?.status ?? null)
+			: null;
+		if (
+			shouldShowChatPlanningIndicator({
+				hasMissionProgress: false,
+				taskStatus,
+			})
+		) {
+			sessionIds.add(session.id);
 		}
 	}
 	return sessionIds;
