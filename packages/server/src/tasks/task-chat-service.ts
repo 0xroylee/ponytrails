@@ -53,7 +53,7 @@ export async function runTaskIntake(
 		json: true,
 	});
 	if (result.status !== "succeeded") {
-		throw new Error(result.error ?? "Task creation failed");
+		throw new Error(readCliFailureMessage(result, "Task creation failed"));
 	}
 	return parseTaskIntakeOutput(result.commandResult?.stdout ?? "");
 }
@@ -73,7 +73,9 @@ export async function runTaskRequirementIntake(
 		json: true,
 	});
 	if (result.status !== "succeeded") {
-		throw new Error(result.error ?? "Task requirement intake failed");
+		throw new Error(
+			readCliFailureMessage(result, "Task requirement intake failed"),
+		);
 	}
 	return parseTaskRequirementOutput(result.commandResult?.stdout ?? "");
 }
@@ -220,6 +222,16 @@ function readErrorMessage(record: Record<string, unknown>): string {
 	return typeof record.error === "string" && record.error.trim()
 		? record.error
 		: "unknown legacy Linear failure";
+}
+
+function readCliFailureMessage(
+	result: Awaited<ReturnType<CliExecutor["execute"]>>,
+	fallback: string,
+): string {
+	const output = [result.commandResult?.stderr, result.commandResult?.stdout]
+		.map((value) => value?.trim())
+		.find((value) => value !== undefined && value.length > 0);
+	return result.error ?? output ?? fallback;
 }
 
 async function settle<T>(
