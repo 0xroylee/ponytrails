@@ -54,16 +54,18 @@ describe("onboard next command", () => {
 	it("keeps the onboarding description text in the intro output", async () => {
 		const tempDir = await createTempHome();
 		try {
-			const output = await captureStdout(() =>
-				runOnboardWizard(tempDir, {
-					runCommand: async () => okCommand(),
-					prompts: onboardingPromptAdapter(),
-					collectOnboardChecks: async (): Promise<OnboardCheck[]> => [
-						{ name: "Instance config", status: "pass", message: "ok" },
-					],
-					configurePluginCredentials: async () => {},
-				}),
-			);
+			let output = "";
+			await runOnboardWizard(tempDir, {
+				runCommand: async () => okCommand(),
+				prompts: onboardingPromptAdapter(),
+				collectOnboardChecks: async (): Promise<OnboardCheck[]> => [
+					{ name: "Instance config", status: "pass", message: "ok" },
+				],
+				configurePluginCredentials: async () => {},
+				write: (chunk) => {
+					output += chunk;
+				},
+			});
 
 			const introLine = "devos onboard will configure:";
 			expect(output).toContain(introLine);
