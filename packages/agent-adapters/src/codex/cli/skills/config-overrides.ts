@@ -34,6 +34,8 @@ export function buildCodexConfigOverrides(
 	if (fastModeEnabled) {
 		overrides.push('service_tier="fast"');
 		overrides.push("features.fast_mode=true");
+	} else {
+		overrides.push('service_tier="flex"');
 	}
 	appendMcpServers(overrides, mcpServers);
 	appendRawOverrides(overrides, config.codex.configOverrides);

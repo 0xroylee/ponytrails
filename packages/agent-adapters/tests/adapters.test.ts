@@ -179,6 +179,35 @@ describe("codex adapter", () => {
 		expect(calls[3]).not.toContain('service_tier="fast"');
 	});
 
+	it("uses flex service tier for task-intake runs without fast mode", async () => {
+		const adapter = new CodexAdapter({
+			...config,
+			codex: {
+				...config.codex,
+				fastModes: {},
+			},
+		});
+		const calls: string[][] = [];
+		(
+			adapter as unknown as {
+				runCodex: (args: string[]) => Promise<AgentResult>;
+			}
+		).runCodex = async (args: string[]) => {
+			calls.push(args);
+			return { finalMessage: "", stdout: "" };
+		};
+		(
+			adapter as unknown as { nextOutputFile: () => Promise<string> }
+		).nextOutputFile = async () => "/tmp/out.txt";
+
+		await adapter.runTaskIntake("task intake prompt");
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]).toContain('service_tier="flex"');
+		expect(calls[0]).not.toContain('service_tier="fast"');
+		expect(calls[0]).not.toContain("features.fast_mode=true");
+	});
+
 	it("wraps codex args in docker when configured", () => {
 		const invocation = buildCodexRuntimeInvocation(
 			{
