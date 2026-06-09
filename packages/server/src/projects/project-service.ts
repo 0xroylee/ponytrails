@@ -1,4 +1,5 @@
 import { isForeignKeyError } from "../http/http-utils";
+import type { UpdateProjectPayload } from "../http/types/project-task-api.types";
 import type {
 	ProjectRepository,
 	ProjectService,
@@ -93,9 +94,9 @@ function normalizeHookScript(value: string | null | undefined): string | null {
 	return value.trim() ? value : null;
 }
 
-function normalizeProjectUpdateInput<T extends Record<string, unknown>>(
-	input: T,
-): T {
+function normalizeProjectUpdateInput(
+	input: UpdateProjectPayload,
+): UpdateProjectPayload {
 	return {
 		...input,
 		...("preHookScript" in input

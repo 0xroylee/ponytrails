@@ -28,6 +28,8 @@ describe("server services", () => {
 					lead: input.lead ?? null,
 					category: input.category ?? null,
 					priority: input.priority ?? null,
+					preHookScript: input.preHookScript ?? null,
+					afterHookScript: input.afterHookScript ?? null,
 				};
 			},
 			updateProject: async () => null,
