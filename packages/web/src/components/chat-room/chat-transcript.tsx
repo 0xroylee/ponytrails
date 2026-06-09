@@ -15,10 +15,10 @@ import { createChatSessionActivitySections } from "./chat-session-activity-state
 import { ChatSessionAgentOutputBubbles } from "./chat-session-agent-output-bubbles";
 import { createChatSessionAgentOutputs } from "./chat-session-agent-output-state";
 import { ChatStandaloneStreamBlock } from "./chat-standalone-stream-block";
-import { ChatTranscriptSkeleton } from "./chat-transcript-skeleton";
 import { formatWaitDurationLabel } from "./chat-wait-label";
 import type { ChatTranscriptProps } from "./types/chat-room.types";
 export function ChatTranscript({
+	contentWidthClassName,
 	error,
 	isLoading,
 	isPlanning,
@@ -115,19 +115,25 @@ export function ChatTranscript({
 			className="relative min-h-0 min-w-0 overflow-auto px-4 py-6"
 			ref={scrollContainerRef}
 		>
-			<div className="mx-auto flex flex-col min-w-0 max-w-6xl gap-4">
+			<div
+				className={`mx-auto flex w-full min-w-0 ${contentWidthClassName} flex-col gap-4`}
+			>
 				{showMissionPanel ? (
 					showMissionSkeleton ? (
-						<ChatMissionProgressSkeleton />
+						<ChatMissionProgressSkeleton
+							contentWidthClassName={contentWidthClassName}
+						/>
 					) : (
-						<ChatMissionProgress mission={missionProgress} />
+						<ChatMissionProgress
+							contentWidthClassName={contentWidthClassName}
+							mission={missionProgress}
+						/>
 					)
 				) : null}
 				<div
-					className="mx-auto grid w-full min-w-0 max-w-4xl gap-4"
+					className={`mx-auto grid w-full min-w-0 ${contentWidthClassName} gap-4`}
 					data-chat-transcript-message-column="true"
 				>
-					{isLoading ? <ChatTranscriptSkeleton /> : null}
 					{error ? <ErrorLine text={error.message} /> : null}
 					{messages.map((message) => (
 						<ChatMessageBubble key={message.id} message={message} />

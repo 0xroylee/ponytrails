@@ -6,6 +6,7 @@ import type {
 const ROOT_CLASS_NAME =
 	"relative grid h-[100dvh] min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-background text-zinc-100";
 const SESSION_BASE_CLASS_NAME = "grid min-h-0 min-w-0";
+const SESSION_CONTENT_WIDTH_CLASS_NAME = "max-w-5xl";
 
 export function resolveChatRoomPanelLayout({
 	activeContentMode,
@@ -22,6 +23,7 @@ export function resolveChatRoomPanelLayout({
 
 	return {
 		contentMode,
+		contentWidthClassName: SESSION_CONTENT_WIDTH_CLASS_NAME,
 		rootClassName: ROOT_CLASS_NAME,
 		sessionClassName: `${SESSION_BASE_CLASS_NAME} ${rowsClassName}`,
 		showMissionPanelInTranscript: false,

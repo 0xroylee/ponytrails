@@ -9,7 +9,10 @@ import type { ChatStreamLine } from "./types/chat-room.types";
 import type { ChatSessionAgentOutput } from "./types/chat-session-agent-output.types";
 
 const AGENT_PREFIX = /^\s*(assistant|codex|agent)\s*:\s*/i;
+const AGENT_OUTPUT_PREFIX = /^\s*(?:agent\s+)?output\s*:\s*/i;
 const MAX_AGENT_OUTPUTS = 6;
+const SAFE_STRUCTURED_OUTPUT_FIELDS = ["text", "message", "detail", "summary"];
+const WORKFLOW_STREAM_SCHEMA_PREFIX = "devos.workflow.stream.";
 
 interface CreateChatSessionAgentOutputInput {
 	messages: ChatMessageRecord[];
@@ -73,9 +76,11 @@ function addAgentOutput(
 function readAgentOutputText(rawText: string): string | null {
 	const structured = readStructuredAgentOutput(rawText);
 	if (structured) return structured;
-	const match = rawText.match(AGENT_PREFIX);
-	if (!match) return null;
-	const text = rawText.replace(AGENT_PREFIX, "").trim();
+	const text = rawText
+		.replace(AGENT_OUTPUT_PREFIX, "")
+		.replace(AGENT_PREFIX, "")
+		.trim();
+	if (text === rawText.trim()) return null;
 	return text || null;
 }
 
@@ -84,13 +89,38 @@ function readStructuredAgentOutput(rawText: string): string | null {
 	if (!record) return null;
 	const directType = readString(record, "type")?.toLowerCase();
 	if (directType === "agent_message") {
-		return readTrimmedString(record, "text");
+		return readSafeStructuredOutputText(record, "text");
 	}
 	const item = readRecord(record, "item");
-	if (!item) return null;
-	const itemType = item ? readString(item, "type")?.toLowerCase() : null;
-	if (itemType !== "agent_message") return null;
-	return readTrimmedString(item, "text");
+	if (item) {
+		const itemType = readString(item, "type")?.toLowerCase();
+		if (itemType === "agent_message") {
+			return readSafeStructuredOutputText(item, "text");
+		}
+	}
+	if (!isWorkflowStreamRecord(record)) return null;
+	return readSafeStructuredOutputText(record);
+}
+
+function isWorkflowStreamRecord(record: Record<string, unknown>): boolean {
+	const schema = readString(record, "schema");
+	if (schema?.startsWith(WORKFLOW_STREAM_SCHEMA_PREFIX)) return true;
+	const kind = readString(record, "kind")?.toLowerCase();
+	return kind === "thinking" || kind === "action" || kind === "output";
+}
+
+function readSafeStructuredOutputText(
+	record: Record<string, unknown>,
+	preferredField?: string,
+): string | null {
+	const fields = preferredField
+		? [preferredField, ...SAFE_STRUCTURED_OUTPUT_FIELDS]
+		: SAFE_STRUCTURED_OUTPUT_FIELDS;
+	for (const field of fields) {
+		const value = readTrimmedString(record, field);
+		if (value) return value;
+	}
+	return null;
 }
 
 function readRecord(

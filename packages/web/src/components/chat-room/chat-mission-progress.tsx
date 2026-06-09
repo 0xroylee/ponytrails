@@ -9,13 +9,18 @@ import { formatWorkflowLoadingLabel } from "./chat-mission-phase-labels";
 import { MissionBody } from "./chat-mission-progress-sections";
 import type { ChatMissionProgressViewModel } from "./types/chat-mission-progress.types";
 
-export function missionPanelWidthClass(isExpanded: boolean): string {
-	return isExpanded ? "max-w-6xl" : "max-w-4xl";
+export function missionPanelWidthClass(
+	isExpanded: boolean,
+	contentWidthClassName: string,
+): string {
+	return isExpanded ? "max-w-full" : contentWidthClassName;
 }
 
 export function ChatMissionProgress({
+	contentWidthClassName,
 	mission,
 }: {
+	contentWidthClassName: string;
 	mission: ChatMissionProgressViewModel | null;
 }): ReactElement | null {
 	const [isExpanded, setIsExpanded] = useState(false);
@@ -30,7 +35,7 @@ export function ChatMissionProgress({
 		<section
 			className={cn(
 				"mx-auto z-20 grid w-full max-w-full justify-self-center gap-3 rounded-md border border-border bg-surface-input/95 px-3 py-3 text-sm text-zinc-300 backdrop-blur",
-				missionPanelWidthClass(isExpanded),
+				missionPanelWidthClass(isExpanded, contentWidthClassName),
 			)}
 			data-chat-mission-expanded={isExpanded ? "true" : "false"}
 			data-chat-mission-progress="true"

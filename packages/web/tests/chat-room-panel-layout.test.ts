@@ -43,4 +43,23 @@ describe("chat room panel layout", () => {
 		expect(layout.rootClassName).not.toContain("grid-cols");
 		expect(layout.sessionClassName).toContain("grid-rows-[auto_minmax(0,1fr)]");
 	});
+
+	it("uses one content width across session tabs", () => {
+		const contentWidths = [
+			resolveChatRoomPanelLayout({
+				activeContentMode: "messages",
+				hasActiveTask: true,
+			}).contentWidthClassName,
+			resolveChatRoomPanelLayout({
+				activeContentMode: "taskDetails",
+				hasActiveTask: true,
+			}).contentWidthClassName,
+			resolveChatRoomPanelLayout({
+				activeContentMode: "action",
+				hasActiveTask: true,
+			}).contentWidthClassName,
+		];
+
+		expect(new Set(contentWidths)).toEqual(new Set(["max-w-5xl"]));
+	});
 });

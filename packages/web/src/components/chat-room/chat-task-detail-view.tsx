@@ -19,6 +19,7 @@ import {
 import type { ChatTaskDetailViewProps } from "./types/chat-room.types";
 
 export function ChatTaskDetailView({
+	contentWidthClassName,
 	taskId,
 }: ChatTaskDetailViewProps): ReactElement {
 	const taskQuery = useBoardTaskQuery(taskId ?? "", {
@@ -31,7 +32,9 @@ export function ChatTaskDetailView({
 			aria-label="Task details"
 			className="min-h-0 overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6"
 		>
-			<div className="mx-auto grid w-full max-w-5xl min-w-0 gap-5">
+			<div
+				className={`mx-auto grid w-full ${contentWidthClassName} min-w-0 gap-5`}
+			>
 				{renderDetailContent(taskQuery, taskId)}
 			</div>
 		</section>

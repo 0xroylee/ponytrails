@@ -54,6 +54,7 @@ export interface ChatStreamLine {
 }
 
 export interface ChatTranscriptProps {
+	contentWidthClassName: string;
 	error: Error | null;
 	isLoading: boolean;
 	isPlanning: boolean;
@@ -69,10 +70,12 @@ export interface ChatTranscriptProps {
 }
 
 export interface ChatTaskDetailViewProps {
+	contentWidthClassName: string;
 	taskId: string | null;
 }
 
 export interface ChatActionStatusViewProps {
+	contentWidthClassName: string;
 	missionProgress: ChatMissionProgressViewModel | null;
 	showMissionSkeleton: boolean;
 }
@@ -81,6 +84,7 @@ export interface ChatRoomPanelViewProps {
 	activeContentMode: ChatRoomMainContentMode;
 	activeTaskId: string | null;
 	draft: string;
+	hasMessagesCache: boolean;
 	isBusy: boolean;
 	isMessagesLoading: boolean;
 	isRerunDisabled: boolean;
@@ -111,6 +115,7 @@ export interface ChatRoomPanelViewProps {
 }
 
 export interface ChatComposerProps {
+	contentWidthClassName?: string;
 	disabled: boolean;
 	draft: string;
 	isSending: boolean;
@@ -125,6 +130,7 @@ export interface ChatComposerProps {
 
 export interface ChatClarificationComposerProps {
 	answers: string[];
+	contentWidthClassName: string;
 	disabled: boolean;
 	pendingQuestionIndex: number;
 	questions: TaskClarificationQuestion[];

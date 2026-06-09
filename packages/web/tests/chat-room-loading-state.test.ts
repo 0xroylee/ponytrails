@@ -10,6 +10,7 @@ describe("chat room loading state", () => {
 		expect(
 			shouldShowChatRoomLoadingShell({
 				hasSelectedSession: true,
+				hasMessagesCache: false,
 				isMessagesLoading: true,
 			}),
 		).toBe(true);
@@ -17,6 +18,7 @@ describe("chat room loading state", () => {
 		expect(
 			shouldShowChatRoomLoadingShell({
 				hasSelectedSession: false,
+				hasMessagesCache: false,
 				isMessagesLoading: true,
 			}),
 		).toBe(false);
@@ -24,21 +26,23 @@ describe("chat room loading state", () => {
 		expect(
 			shouldShowChatRoomLoadingShell({
 				hasSelectedSession: true,
-				isMessagesLoading: false,
+				hasMessagesCache: true,
+				isMessagesLoading: true,
 			}),
 		).toBe(false);
+
 		expect(
 			shouldShowChatRoomLoadingShell({
 				hasSelectedSession: true,
+				hasMessagesCache: false,
 				isMessagesLoading: false,
-				isRealtimeActive: true,
 			}),
 		).toBe(false);
 		expect(
 			shouldShowChatRoomLoadingShell({
 				hasSelectedSession: false,
+				hasMessagesCache: false,
 				isMessagesLoading: false,
-				isRealtimeActive: true,
 			}),
 		).toBe(false);
 	});
@@ -66,7 +70,7 @@ describe("chat room loading state", () => {
 		).toBe(false);
 	});
 
-	it("keeps a visible loading shell for at least one second", () => {
+	it("hides the loading shell as soon as message querying stops", () => {
 		expect(
 			resolveMinimumLoadingShellState({
 				isLoading: true,
@@ -84,19 +88,6 @@ describe("chat room loading state", () => {
 			resolveMinimumLoadingShellState({
 				isLoading: false,
 				now: 1_200,
-				visible: true,
-				visibleSince: 1_000,
-			}),
-		).toEqual({
-			remainingMs: 800,
-			visible: true,
-			visibleSince: 1_000,
-		});
-
-		expect(
-			resolveMinimumLoadingShellState({
-				isLoading: false,
-				now: 2_000,
 				visible: true,
 				visibleSince: 1_000,
 			}),

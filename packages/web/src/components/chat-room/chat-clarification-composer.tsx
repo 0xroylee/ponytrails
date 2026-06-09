@@ -16,6 +16,7 @@ import type { ChatClarificationComposerProps } from "./types/chat-room.types";
 
 export function ChatClarificationComposer({
 	answers,
+	contentWidthClassName,
 	disabled,
 	pendingQuestionIndex,
 	questions,
@@ -53,7 +54,9 @@ export function ChatClarificationComposer({
 
 	return (
 		<div className="px-4 py-3">
-			<div className="mx-auto grid max-w-4xl gap-3 rounded-md border border-border bg-surface-panel p-3">
+			<div
+				className={`mx-auto grid w-full ${contentWidthClassName} gap-3 rounded-md border border-border bg-surface-panel p-3`}
+			>
 				<div className="grid gap-2 text-sm">
 					<Typography
 						as="span"

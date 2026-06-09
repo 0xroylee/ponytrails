@@ -44,7 +44,15 @@ describe("task activity routes", () => {
 			"execution",
 		]);
 		expect(activity.activities[1]?.body).toContain("Edit `page.tsx`");
+		expect(activity.activities[2]?.body).toContain(
+			"[2026-05-13T00:02:15.000Z stdout] Agent output: ready for review",
+		);
+		expect(activity.activities[2]?.body).not.toContain("[devos-event:");
 		expect(activity.activities[2]?.steps).toHaveLength(1);
+		expect(JSON.stringify(activity.activities[2])).not.toContain("codex exec");
+		expect(activity.activities[2]?.steps?.[0]).toMatchObject({
+			detail: "bun test passed",
+		});
 
 		const updateResponse = await app(
 			new Request("http://localhost/api/tasks/task-activity-1", {
@@ -130,7 +138,11 @@ async function seedActivityRows(db: ServerDatabase["db"]): Promise<void> {
 		status: "success",
 		startedAt: "2026-05-13T00:02:00.000Z",
 		finishedAt: "2026-05-13T00:03:00.000Z",
-		log: "Implemented and tested",
+		log: [
+			"codex exec --ask-for-approval never --prompt huge-command",
+			"[devos-event:stream-1]",
+			"[2026-05-13T00:02:15.000Z stdout] Agent output: ready for review",
+		].join("\n"),
 	});
 	await db.insert(taskExecutionStepsTable).values({
 		id: "step-1",
@@ -138,7 +150,15 @@ async function seedActivityRows(db: ServerDatabase["db"]): Promise<void> {
 		stepNumber: 1,
 		action: "run tests",
 		status: "success",
-		detail: "bun test passed",
+		detail: JSON.stringify({
+			schema: "devos.workflow.stream.v1",
+			emittedAt: "2026-05-13T00:02:30.000Z",
+			kind: "action",
+			action: "run tests",
+			status: "success",
+			detail: "bun test passed",
+			command: "codex exec --ask-for-approval never --prompt huge-command",
+		}),
 		recordedAt: "2026-05-13T00:02:30.000Z",
 	});
 }

@@ -22,6 +22,7 @@ import { ChatComposerTextarea } from "./chat-composer-textarea";
 import type { ChatComposerProps } from "./types/chat-room.types";
 
 export function ChatComposer({
+	contentWidthClassName = "max-w-5xl",
 	disabled,
 	draft,
 	isSending,
@@ -113,7 +114,10 @@ export function ChatComposer({
 	return (
 		<div className={cn(isHero ? "px-0 py-0" : "px-4 py-3")}>
 			<div
-				className={cn("relative mx-auto", isHero ? "max-w-5xl" : "max-w-4xl")}
+				className={cn(
+					"relative mx-auto w-full",
+					isHero ? "max-w-5xl" : contentWidthClassName,
+				)}
 			>
 				{showCommands ? (
 					<ChatCommandMenu

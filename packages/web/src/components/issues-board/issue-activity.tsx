@@ -1,12 +1,6 @@
 "use client";
 
-import {
-	Bot,
-	ChevronDown,
-	CircleDot,
-	MessageSquareText,
-	MoreHorizontal,
-} from "lucide-react";
+import { Bot, ChevronDown, CircleDot, MessageSquareText } from "lucide-react";
 import { type ReactElement, useId, useState } from "react";
 
 import { Typography } from "@/components/ui/typography";
@@ -14,6 +8,7 @@ import type { ProjectBoardTaskRecord, TaskActivityRecord } from "@/lib/api";
 import { isApiRequestError } from "@/lib/api";
 import { useTaskActivityQuery } from "@/lib/api/task-activity-query";
 
+import { IssueActivityCardMenu } from "./issue-activity-card-menu";
 import { ActivityRichText } from "./issue-activity-rich-text";
 import {
 	createActivityDisclosureState,
@@ -143,7 +138,7 @@ function ActivityCard({
 						<Typography variant="muted">{activity.title}</Typography>
 					</div>
 				</div>
-				<MoreHorizontal className="text-muted-foreground" size={18} />
+				<IssueActivityCardMenu activity={activity} />
 			</header>
 			{activity.body.trim() ? <ActivityRichText body={activity.body} /> : null}
 			{activity.steps?.length ? <ActivitySteps activity={activity} /> : null}

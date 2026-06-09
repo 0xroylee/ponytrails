@@ -48,12 +48,12 @@ export function ChatRoomSessionList({
 
 	return (
 		<div className="min-h-0 overflow-auto p-3">
-			<div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+			{/* <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
 				<Folder size={14} />
 				<Typography as="span" variant="eyebrow">
 					Sessions
 				</Typography>
-			</div>
+			</div> */}
 			<div className="grid gap-1">
 				{isLoading ? <ChatSessionListSkeleton /> : null}
 				{!isLoading && error ? <ChatSessionListError error={error} /> : null}
@@ -130,7 +130,7 @@ export function ChatRoomSessionList({
 										</Typography>
 									</Button>
 									{isProjectExpanded ? (
-										<div className="grid gap-1 pl-6">
+										<div className="grid gap-1">
 											{visibleSessions.sessions.map((session) => (
 												<ChatRoomSessionRow
 													activeSessionId={activeSessionId}

@@ -7,6 +7,7 @@ import type {
 } from "@/lib/api";
 import { createWebApiClient } from "@/lib/api/web-client";
 
+import { workflowProgressEventText } from "./chat-command-stream-lines";
 import { commandFinalText } from "./chat-command-utils";
 import type {
 	ChatStreamLine,
@@ -149,15 +150,15 @@ async function persistCommandError(
 	});
 }
 
-function eventText(event: CommandRunResult["events"][number]): string {
+export function eventText(event: CommandRunResult["events"][number]): string {
 	if (event.type === "stdout" || event.type === "stderr") {
 		return event.text.trimEnd();
 	}
 	if (event.type === "error") {
 		return event.error;
 	}
-	return event.type === "progress" && typeof event.event.message === "string"
-		? event.event.message
+	return event.type === "progress"
+		? (workflowProgressEventText(event.event) ?? "")
 		: "";
 }
 

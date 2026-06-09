@@ -15,7 +15,7 @@ export function composeTaskActivity(rows: TaskActivitySourceRows) {
 					stepNumber: step.stepNumber,
 					action: step.action,
 					status: step.status,
-					detail: step.detail,
+					detail: taskActivityStepDetail(step.detail),
 					recordedAt: step.recordedAt,
 				})),
 		]),
@@ -50,7 +50,7 @@ export function composeTaskActivity(rows: TaskActivitySourceRows) {
 			actorId: "devos",
 			actorType: "agent",
 			title: "recorded execution output",
-			body: stripStreamReplayMarkers(log.log),
+			body: taskActivityLogBody(log.log),
 			status: log.status,
 			createdAt: log.startedAt,
 			steps: stepsByLog.get(log.id) ?? [],
@@ -64,6 +64,49 @@ export function composeTaskActivity(rows: TaskActivitySourceRows) {
 	};
 }
 
-function stripStreamReplayMarkers(log: string): string {
-	return log.replace(/^\[devos-event:[^\]]+\]\n?/gm, "");
+function taskActivityLogBody(log: string): string {
+	return log
+		.split(/\r?\n/)
+		.filter((line) => isSafeTaskActivityLogLine(line))
+		.join("\n");
+}
+
+function isSafeTaskActivityLogLine(line: string): boolean {
+	const trimmed = line.trim();
+	if (!trimmed || trimmed.startsWith("[devos-event:")) return false;
+	if (isRawCommandLine(trimmed)) return false;
+	return true;
+}
+
+function isRawCommandLine(line: string): boolean {
+	return /^(?:codex|claude|opencode|cursor|github-copilot)\s+/i.test(line);
+}
+
+function taskActivityStepDetail(detail: string | null): string | null {
+	if (!detail?.trim()) return null;
+	const event = parseJsonRecord(detail);
+	if (!event) return detail;
+	return readSafeEventDetail(event);
+}
+
+function parseJsonRecord(value: string): Record<string, unknown> | null {
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			return null;
+		}
+		return parsed as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+function readSafeEventDetail(event: Record<string, unknown>): string | null {
+	for (const field of ["detail", "summary", "error"]) {
+		const value = event[field];
+		if (typeof value === "string" && value.trim()) {
+			return value;
+		}
+	}
+	return null;
 }

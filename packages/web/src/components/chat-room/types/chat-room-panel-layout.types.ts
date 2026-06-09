@@ -7,6 +7,7 @@ export interface ResolveChatRoomPanelLayoutInput {
 
 export interface ChatRoomPanelLayout {
 	contentMode: ChatRoomMainContentMode;
+	contentWidthClassName: string;
 	rootClassName: string;
 	sessionClassName: string;
 	showMissionPanelInTranscript: boolean;

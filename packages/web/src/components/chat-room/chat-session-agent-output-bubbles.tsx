@@ -2,8 +2,7 @@
 
 import type { ReactElement } from "react";
 
-import { Typography } from "@/components/ui/typography";
-
+import { AssistantTranscriptBubble } from "./chat-message-bubbles";
 import type { ChatSessionAgentOutput } from "./types/chat-session-agent-output.types";
 
 export function ChatSessionAgentOutputBubbles({
@@ -27,13 +26,9 @@ function AgentOutputBubble({
 	output: ChatSessionAgentOutput;
 }): ReactElement {
 	return (
-		<article
-			className="grid max-w-[min(42rem,90%)] justify-self-start rounded-md border border-border bg-surface-panel px-3 py-2 text-sm text-zinc-200"
-			data-chat-agent-output={output.id}
-		>
-			<Typography className="whitespace-pre-wrap break-words leading-6">
-				{output.text}
-			</Typography>
-		</article>
+		<AssistantTranscriptBubble
+			agentOutputId={output.id}
+			content={output.text}
+		/>
 	);
 }

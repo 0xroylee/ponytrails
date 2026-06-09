@@ -50,6 +50,65 @@ describe("chat session agent output state", () => {
 		]);
 	});
 
+	it("surfaces persisted mission agent output lines", () => {
+		const outputs = createChatSessionAgentOutputs({
+			messages: [],
+			missionProgress: missionWithLogs([
+				{
+					id: "line-1",
+					stream: "stdout",
+					text: "Agent output: ready for review",
+				},
+			]),
+			planMessageContent: null,
+			streamLines: [],
+		});
+
+		expect(outputs).toEqual([
+			{
+				id: "mission:line-1",
+				text: "ready for review",
+			},
+		]);
+	});
+
+	it("surfaces safe structured workflow details without leaking commands", () => {
+		const outputs = createChatSessionAgentOutputs({
+			messages: [],
+			missionProgress: null,
+			planMessageContent: null,
+			streamLines: [
+				streamLine(
+					"line-1",
+					JSON.stringify({
+						schema: "devos.workflow.stream.v1",
+						kind: "action",
+						status: "running",
+						detail: "I am running the focused transcript tests now.",
+						command: "codex exec --ask-for-approval never --prompt secret",
+					}),
+				),
+				streamLine(
+					"line-2",
+					JSON.stringify({
+						schema: "devos.workflow.stream.v1",
+						kind: "action",
+						status: "running",
+						command: "codex exec --ask-for-approval never --prompt secret",
+					}),
+				),
+			],
+		});
+
+		expect(outputs).toEqual([
+			{
+				id: "stream:line-1",
+				text: "I am running the focused transcript tests now.",
+			},
+		]);
+		expect(JSON.stringify(outputs)).not.toContain("codex exec");
+	});
+
 	it("suppresses tool logs and duplicate durable assistant content", () => {
 		const outputs = createChatSessionAgentOutputs({
 			messages: [

@@ -22,6 +22,9 @@ export function ChatMessageBubble({
 		return <PlanMessage content={message.content} />;
 	}
 	const isError = display === "error";
+	if (!isUser && !isError) {
+		return <AssistantTranscriptBubble content={message.content} />;
+	}
 	return (
 		<article
 			data-chat-message-display={display}
@@ -35,6 +38,26 @@ export function ChatMessageBubble({
 		>
 			<Typography className="whitespace-pre-wrap break-words leading-6">
 				{message.content}
+			</Typography>
+		</article>
+	);
+}
+
+export function AssistantTranscriptBubble({
+	agentOutputId,
+	content,
+}: {
+	agentOutputId?: string;
+	content: string;
+}): ReactElement {
+	return (
+		<article
+			className="grid max-w-[min(42rem,90%)] justify-self-start rounded-md border border-border bg-surface-panel px-3 py-2 text-sm text-zinc-200"
+			data-chat-agent-output={agentOutputId}
+			data-chat-message-display="assistant"
+		>
+			<Typography className="whitespace-pre-wrap break-words leading-6">
+				{content}
 			</Typography>
 		</article>
 	);

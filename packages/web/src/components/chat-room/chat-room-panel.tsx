@@ -35,7 +35,6 @@ import { useChatRoomContentModeState } from "./use-chat-room-content-mode-state"
 
 const NO_REFETCH = { refetchIntervalMs: false } as const;
 const apiClient = createWebApiClient();
-
 export function ChatRoomPanel({
 	commandDraftRequest,
 	initialSessionId = "",
@@ -213,6 +212,7 @@ export function ChatRoomPanel({
 			activeContentMode={contentMode.contentMode}
 			activeTaskId={activeTaskId}
 			draft={draft}
+			hasMessagesCache={messagesQuery.data !== undefined}
 			isBusy={isBusy}
 			isMessagesLoading={messagesQuery.isFetching}
 			isRerunDisabled={rerunState.isDisabled}

@@ -8,6 +8,7 @@ import { ChatMissionProgressSkeleton } from "./chat-mission-progress-skeleton";
 import type { ChatActionStatusViewProps } from "./types/chat-room.types";
 
 export function ChatActionStatusView({
+	contentWidthClassName,
 	missionProgress,
 	showMissionSkeleton,
 }: ChatActionStatusViewProps): ReactElement {
@@ -16,11 +17,18 @@ export function ChatActionStatusView({
 			aria-label="Action"
 			className="min-h-0 overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6"
 		>
-			<div className="mx-auto grid w-full max-w-6xl min-w-0 gap-5">
+			<div
+				className={`mx-auto grid w-full ${contentWidthClassName} min-w-0 gap-5`}
+			>
 				{showMissionSkeleton ? (
-					<ChatMissionProgressSkeleton />
+					<ChatMissionProgressSkeleton
+						contentWidthClassName={contentWidthClassName}
+					/>
 				) : missionProgress ? (
-					<ChatMissionProgress mission={missionProgress} />
+					<ChatMissionProgress
+						contentWidthClassName={contentWidthClassName}
+						mission={missionProgress}
+					/>
 				) : (
 					<ActionStatusEmpty />
 				)}

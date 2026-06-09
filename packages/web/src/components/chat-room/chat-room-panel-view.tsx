@@ -22,6 +22,7 @@ export function ChatRoomPanelView({
 	activeContentMode,
 	activeTaskId,
 	draft,
+	hasMessagesCache,
 	isBusy,
 	isMessagesLoading,
 	isRerunDisabled,
@@ -70,6 +71,7 @@ export function ChatRoomPanelView({
 	const isRealtimeActive =
 		Boolean(workingStartedAt) || isPlanning || isThinking;
 	const rawShowLoadingShell = shouldShowChatRoomLoadingShell({
+		hasMessagesCache,
 		hasSelectedSession: Boolean(selectedSession),
 		isMessagesLoading,
 	});
@@ -77,7 +79,6 @@ export function ChatRoomPanelView({
 		rawShowLoadingShell,
 		selectedSession?.id ?? null,
 	);
-	// const showLoadingShell = true
 	const showMissionSkeleton = shouldShowMissionProgressSkeleton({
 		hasActiveTask: Boolean(activeTaskId),
 		isChatRoomLoading: showLoadingShell || isRealtimeActive,
@@ -101,15 +102,20 @@ export function ChatRoomPanelView({
 						onRerunWorkflow={onRerunWorkflow}
 					/>
 					{layout.contentMode === "taskDetails" ? (
-						<ChatTaskDetailView taskId={activeTaskId} />
+						<ChatTaskDetailView
+							contentWidthClassName={layout.contentWidthClassName}
+							taskId={activeTaskId}
+						/>
 					) : layout.contentMode === "action" ? (
 						<ChatActionStatusView
+							contentWidthClassName={layout.contentWidthClassName}
 							missionProgress={missionProgress}
 							showMissionSkeleton={showMissionSkeleton}
 						/>
 					) : (
 						<>
 							<ChatTranscript
+								contentWidthClassName={layout.contentWidthClassName}
 								error={messagesError}
 								isLoading={showLoadingShell}
 								isPlanning={isPlanning}
@@ -124,10 +130,13 @@ export function ChatRoomPanelView({
 								onDraftCommand={onSelectCommand}
 							/>
 							{showLoadingShell ? (
-								<ChatComposerSkeleton />
+								<ChatComposerSkeleton
+									contentWidthClassName={layout.contentWidthClassName}
+								/>
 							) : hasPendingQuestions ? (
 								<ChatClarificationComposer
 									answers={pendingAnswers}
+									contentWidthClassName={layout.contentWidthClassName}
 									disabled={isBusy || isSending}
 									pendingQuestionIndex={pendingQuestionIndex}
 									questions={pendingQuestions}
@@ -137,6 +146,7 @@ export function ChatRoomPanelView({
 								/>
 							) : (
 								<ChatComposer
+									contentWidthClassName={layout.contentWidthClassName}
 									disabled={isBusy}
 									draft={draft}
 									isSending={isSending}
