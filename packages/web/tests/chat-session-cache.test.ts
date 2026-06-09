@@ -40,6 +40,19 @@ describe("chat session cache", () => {
 		expect(preserved).toEqual([seenAtT2]);
 		expect(isChatSessionUnread(preserved[0] ?? delayedUnreadAtT2)).toBe(false);
 	});
+
+	it("replaces cached sessions with newer renamed titles", () => {
+		const current = chatSession({
+			title: "Untitled",
+			updatedAt: "2026-05-16T00:01:00.000Z",
+		});
+		const renamed = chatSession({
+			title: "Renamed",
+			updatedAt: "2026-05-16T00:02:00.000Z",
+		});
+
+		expect(mergeChatSessions([current], [renamed])).toEqual([renamed]);
+	});
 });
 
 function chatSession(

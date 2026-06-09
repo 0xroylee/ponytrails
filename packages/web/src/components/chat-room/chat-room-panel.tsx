@@ -17,18 +17,16 @@ import { useRealtimeStore } from "@/lib/realtime";
 
 import { useChatClarificationState } from "./chat-clarification-state";
 import { createChatClarificationSubmitters } from "./chat-clarification-submitters";
-import {
-	createStreamLine,
-	streamLineFromCommandEvent,
-} from "./chat-command-stream-lines";
 import { parseChatCommand } from "./chat-command-utils";
 import { executeChatRoomInput } from "./chat-room-execute-input";
 import { useChatRoomMission } from "./chat-room-mission";
 import { useChatRoomDraftState } from "./chat-room-panel-draft-state";
 import { ChatRoomPanelView } from "./chat-room-panel-view";
+import { rerunChatSessionWorkflow } from "./chat-room-rerun-workflow";
 import { selectChatSession } from "./chat-room-selection";
 import { resolveChatRoomStreamState } from "./chat-room-stream-state";
 import { resolveChatSessionRerunState } from "./chat-session-rerun-state";
+import { createChatSessionTitleRenameHandler } from "./chat-session-title-rename";
 import { useWorkingSectionState } from "./chat-working-section-state";
 import type * as CRT from "./types/chat-room.types";
 import { useChatRoomContentModeState } from "./use-chat-room-content-mode-state";
@@ -115,6 +113,11 @@ export function ChatRoomPanel({
 		selectedSession,
 		sendMessage: (input) => sendMessage.mutateAsync(input),
 	});
+	const renameSessionTitle = createChatSessionTitleRenameHandler({
+		renameSession: (input) => updateSession.mutateAsync(input),
+		selectedSession,
+		showError: (message) => toast.error(message),
+	});
 
 	async function startNewSession(): Promise<void> {
 		if (!workspaceId) {
@@ -173,39 +176,18 @@ export function ChatRoomPanel({
 			toast.error("Workflow cannot be rerun yet.");
 			return;
 		}
-		let finalStatus: "succeeded" | "failed" | "rejected" | null = null;
-		let finalError: string | undefined;
-		setIsRerunning(true);
-		setSubmittedRerunKey(rerunSubmissionKey);
-		setCommandLines([createStreamLine("system", "Queued workflow rerun.")]);
-		try {
-			await apiClient.streamCliCommand(rerunState.command, (event) => {
-				if (event.type === "complete") {
-					finalStatus = event.result.status;
-					finalError = event.result.error;
-				}
-				const line = streamLineFromCommandEvent(event);
-				if (line) setCommandLines((current) => [...current, line]);
-			});
-			await Promise.allSettled([
-				sessionsQuery.refetch(),
-				messagesQuery.refetch(),
-				refetchActiveTask(),
-			]);
-			if (finalStatus && finalStatus !== "succeeded") {
-				toast.error(finalError ?? "Workflow rerun failed.");
-			}
-		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : "Workflow rerun failed.";
-			setCommandLines((current) => [
-				...current,
-				createStreamLine("stderr", message),
-			]);
-			toast.error(message);
-		} finally {
-			setIsRerunning(false);
-		}
+		await rerunChatSessionWorkflow({
+			command: rerunState.command,
+			refetchActiveTask,
+			refetchMessages: messagesQuery.refetch,
+			refetchSessions: sessionsQuery.refetch,
+			setCommandLines,
+			setIsRerunning,
+			setSubmittedRerunKey,
+			streamCliCommand: apiClient.streamCliCommand,
+			submissionKey: rerunSubmissionKey,
+			showError: (message) => toast.error(message),
+		});
 	}
 
 	return (
@@ -218,6 +200,7 @@ export function ChatRoomPanel({
 			isRerunDisabled={rerunState.isDisabled}
 			isRerunning={isRerunning}
 			isRerunVisible={rerunState.isVisible}
+			isRenamingTitle={updateSession.isPending}
 			isSending={sendMessage.isPending}
 			isPlanning={isPlanning}
 			isThinking={isThinking}
@@ -237,6 +220,7 @@ export function ChatRoomPanel({
 			onOpenMessages={contentMode.openMessages}
 			onOpenSidebar={onOpenSidebar}
 			onOpenTaskDetails={contentMode.openTaskDetails}
+			onRenameTitle={renameSessionTitle}
 			onRerunWorkflow={() => void handleRerunWorkflow()}
 			onSelectCommand={setDraft}
 			onSelectOption={(index, value) =>

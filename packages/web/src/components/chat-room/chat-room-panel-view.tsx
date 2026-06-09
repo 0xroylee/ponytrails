@@ -27,6 +27,7 @@ export function ChatRoomPanelView({
 	isRerunDisabled,
 	isRerunning,
 	isRerunVisible,
+	isRenamingTitle,
 	isSending,
 	isPlanning,
 	isThinking,
@@ -44,6 +45,7 @@ export function ChatRoomPanelView({
 	onOpenMessages,
 	onOpenSidebar,
 	onOpenTaskDetails,
+	onRenameTitle,
 	onRerunWorkflow,
 	onSelectCommand,
 	onSelectOption,
@@ -93,11 +95,13 @@ export function ChatRoomPanelView({
 						isRerunDisabled={isRerunDisabled}
 						isRerunning={isRerunning}
 						isRerunVisible={isRerunVisible}
+						isRenamingTitle={isRenamingTitle}
 						title={selectedSession.title}
 						onOpenAction={onOpenAction}
 						onOpenMessages={onOpenMessages}
 						onOpenSidebar={onOpenSidebar}
 						onOpenTaskDetails={onOpenTaskDetails}
+						onRenameTitle={onRenameTitle}
 						onRerunWorkflow={onRerunWorkflow}
 					/>
 					{layout.contentMode === "taskDetails" ? (

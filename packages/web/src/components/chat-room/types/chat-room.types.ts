@@ -23,11 +23,13 @@ export interface ChatRoomHeaderProps {
 	isRerunDisabled: boolean;
 	isRerunning: boolean;
 	isRerunVisible: boolean;
+	isRenamingTitle: boolean;
 	title: string;
 	onOpenAction: () => void;
 	onOpenMessages: () => void;
 	onOpenSidebar: () => void;
 	onOpenTaskDetails: () => void;
+	onRenameTitle: (title: string) => Promise<boolean> | boolean;
 	onRerunWorkflow: () => void;
 }
 
@@ -86,6 +88,7 @@ export interface ChatRoomPanelViewProps {
 	isRerunDisabled: boolean;
 	isRerunning: boolean;
 	isRerunVisible: boolean;
+	isRenamingTitle: boolean;
 	isSending: boolean;
 	isPlanning: boolean;
 	isThinking: boolean;
@@ -103,6 +106,7 @@ export interface ChatRoomPanelViewProps {
 	onOpenMessages: () => void;
 	onOpenSidebar: () => void;
 	onOpenTaskDetails: () => void;
+	onRenameTitle: (title: string) => Promise<boolean> | boolean;
 	onRerunWorkflow: () => void;
 	onSelectCommand: (value: string) => void;
 	onSelectOption: (index: number, value: string) => Promise<void> | void;

@@ -76,6 +76,34 @@ describe("chat API client", () => {
 		expect(session.archived).toBe(true);
 	});
 
+	it("sends title updates for chat sessions", async () => {
+		const fetchFn = (async (input: URL | RequestInfo, init?: RequestInit) => {
+			expect(String(input)).toBe("/api/chat/sessions/session-1");
+			expect(init?.method).toBe("PATCH");
+			expect(JSON.parse(String(init?.body))).toEqual({ title: "Renamed" });
+			return okJsonResponse({
+				id: "session-1",
+				workspaceId: "owner-1",
+				projectId: "default",
+				taskId: "task-1",
+				title: "Renamed",
+				pendingRequest: null,
+				pendingQuestions: [],
+				archived: false,
+				createdAt: "2026-05-20T00:00:00.000Z",
+				updatedAt: "2026-05-20T00:01:00.000Z",
+				lastSeenAt: "2026-05-20T00:00:00.000Z",
+			});
+		}) as typeof fetch;
+		const client = createApiClient({ fetchFn });
+
+		const session = await client.updateChatSession("session-1", {
+			title: "Renamed",
+		});
+
+		expect(session.title).toBe("Renamed");
+	});
+
 	it("parses chat send responses with the linked issue", async () => {
 		const fetchFn = (async (input: URL | RequestInfo, init?: RequestInit) => {
 			expect(String(input)).toBe("/api/chat/sessions/session-1/send");

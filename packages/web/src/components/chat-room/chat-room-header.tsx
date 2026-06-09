@@ -2,15 +2,19 @@
 
 import {
 	Activity,
+	Check,
 	FileText,
 	Loader2,
 	MessageCircle,
 	PanelLeft,
+	Pencil,
 	RotateCcw,
+	X,
 } from "lucide-react";
-import type { ReactElement } from "react";
+import { type FormEvent, type ReactElement, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { buildChatRoomHeaderTabs } from "./chat-room-header-tabs";
@@ -23,17 +27,43 @@ export function ChatRoomHeader({
 	isRerunDisabled,
 	isRerunning,
 	isRerunVisible,
+	isRenamingTitle,
 	title,
 	onOpenAction,
 	onOpenMessages,
 	onOpenSidebar,
 	onOpenTaskDetails,
+	onRenameTitle,
 	onRerunWorkflow,
 }: ChatRoomHeaderProps): ReactElement {
+	const [draftTitle, setDraftTitle] = useState(title);
+	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const tabs = buildChatRoomHeaderTabs({
 		activeTab,
 		hasTaskDetails: Boolean(activeTaskId),
 	});
+	const trimmedDraftTitle = draftTitle.trim();
+
+	function startEditingTitle(): void {
+		setDraftTitle(title);
+		setIsEditingTitle(true);
+	}
+
+	function cancelEditingTitle(): void {
+		setDraftTitle(title);
+		setIsEditingTitle(false);
+	}
+
+	async function saveTitle(event: FormEvent<HTMLFormElement>): Promise<void> {
+		event.preventDefault();
+		if (!trimmedDraftTitle || isRenamingTitle) {
+			return;
+		}
+		const didSave = await onRenameTitle(trimmedDraftTitle);
+		if (didSave !== false) {
+			setIsEditingTitle(false);
+		}
+	}
 
 	function selectTab(key: ChatRoomHeaderTabKey): void {
 		if (key === "taskDetails") {
@@ -61,9 +91,64 @@ export function ChatRoomHeader({
 					>
 						<PanelLeft size={17} />
 					</Button>
-					<div className="min-w-0">
-						<Typography className="truncate text-zinc-300">{title}</Typography>
-					</div>
+					{isEditingTitle ? (
+						<form
+							className="flex min-w-0 flex-1 items-center gap-2"
+							onSubmit={(event) => void saveTitle(event)}
+						>
+							<Input
+								aria-label="Session title"
+								className="h-8 min-w-0"
+								disabled={isRenamingTitle}
+								onChange={(event) => setDraftTitle(event.currentTarget.value)}
+								value={draftTitle}
+							/>
+							<Button
+								aria-label="Save session title"
+								disabled={!trimmedDraftTitle || isRenamingTitle}
+								size="icon"
+								type="submit"
+								variant="ghost"
+							>
+								{isRenamingTitle ? (
+									<Loader2
+										aria-hidden="true"
+										className="animate-spin"
+										size={15}
+									/>
+								) : (
+									<Check aria-hidden="true" size={15} />
+								)}
+							</Button>
+							<Button
+								aria-label="Cancel session title edit"
+								disabled={isRenamingTitle}
+								onClick={cancelEditingTitle}
+								size="icon"
+								type="button"
+								variant="ghost"
+							>
+								<X aria-hidden="true" size={15} />
+							</Button>
+						</form>
+					) : (
+						<>
+							<div className="min-w-0">
+								<Typography className="truncate text-zinc-300">
+									{title}
+								</Typography>
+							</div>
+							<Button
+								aria-label="Edit session title"
+								onClick={startEditingTitle}
+								size="icon"
+								type="button"
+								variant="ghost"
+							>
+								<Pencil aria-hidden="true" size={14} />
+							</Button>
+						</>
+					)}
 				</div>
 				<div className="flex shrink-0 items-center gap-2">
 					{isRerunVisible ? (
