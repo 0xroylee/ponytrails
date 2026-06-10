@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { isChatSessionUnread } from "../src/components/chat-room/chat-session-read-state";
-import { mergeChatSessions } from "../src/lib/api/chat-session-cache";
+import {
+	markChatSessionSeen,
+	mergeChatSessions,
+} from "../src/lib/api/chat-session-cache";
 import type { ChatSessionRecord } from "../src/lib/api/types/chat.types";
 
 describe("chat session cache", () => {
@@ -39,6 +42,35 @@ describe("chat session cache", () => {
 
 		expect(preserved).toEqual([seenAtT2]);
 		expect(isChatSessionUnread(preserved[0] ?? delayedUnreadAtT2)).toBe(false);
+	});
+
+	it("marks only the selected session read in cached session lists", () => {
+		const selectedUnread = chatSession({
+			id: "session-1",
+			updatedAt: "2026-05-16T00:02:00.000Z",
+			lastSeenAt: "2026-05-16T00:01:00.000Z",
+		});
+		const otherUnread = chatSession({
+			id: "session-2",
+			updatedAt: "2026-05-16T00:03:00.000Z",
+			lastSeenAt: "2026-05-16T00:01:00.000Z",
+		});
+
+		const updated = markChatSessionSeen(
+			[selectedUnread, otherUnread],
+			selectedUnread.id,
+			selectedUnread.updatedAt,
+		);
+
+		const selected = updated.find(
+			(session) => session.id === selectedUnread.id,
+		);
+		const other = updated.find((session) => session.id === otherUnread.id);
+
+		expect(selected?.lastSeenAt).toBe(selectedUnread.updatedAt);
+		expect(other?.lastSeenAt).toBe(otherUnread.lastSeenAt);
+		expect(isChatSessionUnread(selected ?? selectedUnread)).toBe(false);
+		expect(isChatSessionUnread(other ?? otherUnread)).toBe(true);
 	});
 });
 

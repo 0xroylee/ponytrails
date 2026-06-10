@@ -1,13 +1,14 @@
 "use client";
 
 import {
+	type QueryKey,
 	type UseMutationResult,
 	type UseQueryResult,
 	useMutation,
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { mergeChatSessions } from "./chat-session-cache";
+import { markChatSessionSeen, mergeChatSessions } from "./chat-session-cache";
 import { serverStateQueryKeys } from "./query-keys";
 import type {
 	ChatMessageCreateRequest,
@@ -24,6 +25,7 @@ import { createWebApiClient } from "./web-client";
 
 const apiClient = createWebApiClient();
 const DEFAULT_POLL_INTERVAL_MS = 5000;
+const CHAT_SESSIONS_QUERY_ROOT = ["server-state", "chat-sessions"] as const;
 
 export function useChatSessionsQuery(
 	workspaceId: string,
@@ -73,6 +75,25 @@ export function useUpdateChatSessionMutation(): UseMutationResult<
 	return useMutation({
 		mutationFn: ({ sessionId, session }) =>
 			apiClient.updateChatSession(sessionId, session),
+		onMutate: async ({ sessionId, session }) => {
+			if (typeof session.lastSeenAt !== "string") {
+				return { previousChatSessionQueries: [] };
+			}
+			await queryClient.cancelQueries({ queryKey: CHAT_SESSIONS_QUERY_ROOT });
+			return {
+				previousChatSessionQueries: optimisticallyMarkSessionSeen(
+					queryClient,
+					sessionId,
+					session.lastSeenAt,
+				),
+			};
+		},
+		onError: (_error, _variables, context) => {
+			for (const [queryKey, data] of context?.previousChatSessionQueries ??
+				[]) {
+				queryClient.setQueryData(queryKey, data);
+			}
+		},
 		onSuccess: (session) => upsertSession(queryClient, session),
 	});
 }
@@ -119,6 +140,21 @@ function upsertSession(
 		serverStateQueryKeys.chatSessions(session.workspaceId),
 		(current = []) => mergeChatSessions(current, [session]),
 	);
+}
+
+function optimisticallyMarkSessionSeen(
+	queryClient: ReturnType<typeof useQueryClient>,
+	sessionId: string,
+	lastSeenAt: string,
+): Array<[QueryKey, ChatSessionRecord[] | undefined]> {
+	const queryFilters = { queryKey: CHAT_SESSIONS_QUERY_ROOT };
+	const previousChatSessionQueries =
+		queryClient.getQueriesData<ChatSessionRecord[]>(queryFilters);
+	queryClient.setQueriesData<ChatSessionRecord[]>(
+		queryFilters,
+		(current = []) => markChatSessionSeen(current, sessionId, lastSeenAt),
+	);
+	return previousChatSessionQueries;
 }
 
 function appendMessage(

@@ -16,6 +16,22 @@ export function mergeChatSessions(
 		.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
+export function markChatSessionSeen(
+	current: ChatSessionRecord[],
+	sessionId: string,
+	lastSeenAt: string,
+): ChatSessionRecord[] {
+	return current.map((session) => {
+		if (
+			session.id !== sessionId ||
+			compareNullableTimestamp(lastSeenAt, session.lastSeenAt) <= 0
+		) {
+			return session;
+		}
+		return { ...session, lastSeenAt };
+	});
+}
+
 function shouldReplaceSession(
 	existing: ChatSessionRecord,
 	incoming: ChatSessionRecord,
