@@ -1,3 +1,4 @@
+import { createApiDocsApiMethods } from "./api-docs-client";
 import { createBoardApiMethods } from "./board-client";
 import { createChatApiMethods } from "./chat-client";
 import { createCommandStreamApiMethods } from "./command-stream-client";
@@ -35,6 +36,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 		body?: unknown,
 	) =>
 		requestJson(baseUrl, path, method, fetchFn, headers, requestOptions, body);
+	const apiDocsApiMethods = createApiDocsApiMethods(requestWithBase);
 	const boardApiMethods = createBoardApiMethods(requestWithBase);
 	const chatApiMethods = createChatApiMethods(requestWithBase);
 	const githubApiMethods = createGitHubApiMethods(requestWithBase);
@@ -52,6 +54,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 		createWorkspaceEnvironmentApiMethods(requestWithBase);
 
 	return {
+		...apiDocsApiMethods,
 		...boardApiMethods,
 		...chatApiMethods,
 		...githubApiMethods,

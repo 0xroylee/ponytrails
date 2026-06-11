@@ -2,6 +2,7 @@ import type { InboxMessageScope } from "./types/client.types";
 
 export const serverStateQueryKeys = {
 	tokenUsage: ["server-state", "token-usage"] as const,
+	apiDocs: ["server-state", "api-docs"] as const,
 	jobs: ["server-state", "jobs"] as const,
 	agents: ["server-state", "agents"] as const,
 	skills: ["server-state", "skills"] as const,

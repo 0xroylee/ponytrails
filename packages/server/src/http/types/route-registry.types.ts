@@ -1,4 +1,5 @@
 import type { RouteHandler } from "../../types/app.types";
+import type { ApiRouteDoc } from "./api-docs.types";
 
 export interface RouteRequestContext {
 	pathname: string;
@@ -12,6 +13,7 @@ export type RouteRegistryHandler = (
 ) => RouteRegistryResponse;
 
 export interface RouteRegistryEntry {
+	docs?: ApiRouteDoc[];
 	name: string;
 	handle: RouteRegistryHandler;
 }

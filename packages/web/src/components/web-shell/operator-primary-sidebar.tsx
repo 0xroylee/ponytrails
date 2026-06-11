@@ -2,6 +2,7 @@
 
 import {
 	Asterisk,
+	BookOpenText,
 	Bot,
 	Computer,
 	GitBranch,
@@ -21,6 +22,7 @@ const iconByKey: Partial<
 	Record<SidebarNavItem["key"], ComponentType<{ size?: number }>>
 > = {
 	agents: Bot,
+	docs: BookOpenText,
 	git: GitBranch,
 	issues: ListChecks,
 	integrations: Plug,

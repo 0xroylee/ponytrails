@@ -8,6 +8,7 @@ export const navItems: SidebarNavItem[] = [
 	{ key: "projects", label: "Projects", href: "/projects" },
 	{ key: "issues", label: "Issues", href: "/issues" },
 	{ key: "integrations", label: "Integrations", href: "/integrations" },
+	{ key: "docs", label: "Docs", href: "/docs" },
 	{ key: "agents", label: "Agents", href: "/agents" },
 	{ key: "runtimes", label: "Runtimes", href: "/runtimes" },
 	{ key: "git", label: "Git", href: "/git" },
@@ -68,6 +69,10 @@ export const sectionContentByKey: Record<
 	chat: {
 		heading: "Chat",
 		description: "Create tasks and run workflow commands.",
+	},
+	docs: {
+		heading: "Docs",
+		description: "Inspect generated server API reference details.",
 	},
 };
 

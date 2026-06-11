@@ -45,6 +45,11 @@ export type {
 	WorkspaceProjectRecord,
 	WorkspaceProjectsResponse,
 } from "./types/client.types";
+export type {
+	ApiDocsResponse,
+	ApiRouteDoc,
+	ApiRouteMethod,
+} from "./types/api-docs.types";
 export type { WorkflowComputerRecord } from "./types/workflow-computer.types";
 export type {
 	WorkspaceEnvironmentGitStatus,

@@ -11,6 +11,7 @@ describe("web shell navigation", () => {
 			{ key: "projects", label: "Projects", href: "/projects" },
 			{ key: "issues", label: "Issues", href: "/issues" },
 			{ key: "integrations", label: "Integrations", href: "/integrations" },
+			{ key: "docs", label: "Docs", href: "/docs" },
 			{ key: "agents", label: "Agents", href: "/agents" },
 			{ key: "runtimes", label: "Runtimes", href: "/runtimes" },
 			{ key: "git", label: "Git", href: "/git" },
@@ -33,5 +34,14 @@ describe("web shell navigation", () => {
 			href: "/issues",
 		});
 		expect(hrefForNavKey("issues")).toBe("/issues");
+	});
+
+	it("shows Docs in workspace navigation and routes it to API reference", () => {
+		expect(navItems).toContainEqual({
+			key: "docs",
+			label: "Docs",
+			href: "/docs",
+		});
+		expect(hrefForNavKey("docs")).toBe("/docs");
 	});
 });

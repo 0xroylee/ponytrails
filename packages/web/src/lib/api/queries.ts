@@ -8,6 +8,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { serverStateQueryKeys } from "./query-keys";
+import type { ApiDocsResponse } from "./types/api-docs.types";
 import type {
 	AgentRecord,
 	CommandHistoryRecord,
@@ -62,6 +63,17 @@ export function useTokenUsageQuery(
 	return useQuery({
 		queryKey: serverStateQueryKeys.tokenUsage,
 		queryFn: () => apiClient.listTokenUsage(),
+		enabled: options?.enabled,
+		refetchInterval: resolveRefetchInterval(options),
+	});
+}
+
+export function useApiDocsQuery(
+	options?: ServerStateQueryOptions,
+): UseQueryResult<ApiDocsResponse, Error> {
+	return useQuery({
+		queryKey: serverStateQueryKeys.apiDocs,
+		queryFn: () => apiClient.listApiDocs(),
 		enabled: options?.enabled,
 		refetchInterval: resolveRefetchInterval(options),
 	});

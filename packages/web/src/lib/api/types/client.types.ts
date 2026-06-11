@@ -1,12 +1,5 @@
-import type {
-	ChatMessageCreateRequest,
-	ChatMessageRecord,
-	ChatSendRequest,
-	ChatSendResponse,
-	ChatSessionCreateRequest,
-	ChatSessionRecord,
-	ChatSessionUpdateRequest,
-} from "./chat.types";
+import type { ApiDocsApiMethods } from "./api-docs.types";
+import type { ChatApiClientMethods } from "./chat-api-client.types";
 import type {
 	CliCommandStreamHandler,
 	CliCommandStreamRequest,
@@ -129,7 +122,9 @@ export interface ApiClientOptions {
 }
 
 export interface ApiClient
-	extends WorkflowComputerApiMethods,
+	extends ApiDocsApiMethods,
+		ChatApiClientMethods,
+		WorkflowComputerApiMethods,
 		GitHubApiMethods {
 	getHealth(options?: HealthRequestOptions): Promise<HealthResponse>;
 	getCurrentWorkspace(
@@ -151,33 +146,6 @@ export interface ApiClient
 	listCommandHistory(
 		options?: HealthRequestOptions,
 	): Promise<CommandHistoryRecord[]>;
-	listChatSessions(
-		workspaceId: string,
-		options?: HealthRequestOptions,
-	): Promise<ChatSessionRecord[]>;
-	createChatSession(
-		request: ChatSessionCreateRequest,
-		options?: HealthRequestOptions,
-	): Promise<ChatSessionRecord>;
-	updateChatSession(
-		sessionId: string,
-		request: ChatSessionUpdateRequest,
-		options?: HealthRequestOptions,
-	): Promise<ChatSessionRecord>;
-	listChatMessages(
-		sessionId: string,
-		options?: HealthRequestOptions,
-	): Promise<ChatMessageRecord[]>;
-	appendChatMessage(
-		sessionId: string,
-		request: ChatMessageCreateRequest,
-		options?: HealthRequestOptions,
-	): Promise<ChatMessageRecord>;
-	sendChatMessage(
-		sessionId: string,
-		request: ChatSendRequest,
-		options?: HealthRequestOptions,
-	): Promise<ChatSendResponse>;
 	listPollingStatus(
 		options?: HealthRequestOptions,
 	): Promise<PollingStatusResponse>;
