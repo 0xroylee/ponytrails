@@ -63,15 +63,18 @@ describe("chat to workflow poll e2e", () => {
 			{},
 		);
 
-		const unclear = await requestJson<{
-			issue: { id: string; status: string; title: string };
-			messages: Array<{ content: string; kind: string }>;
-			session: { pendingRequest: string | null };
-		}>(app, "POST", `/api/chat/sessions/${created.id}/send`, {
-			content: "Submit ur idea for an agent handoff",
-		});
+		await requestJson<unknown>(
+			app,
+			"POST",
+			`/api/chat/sessions/${created.id}/send`,
+			{
+				content: "Submit ur idea for an agent handoff",
+			},
+		);
+		await waitForEvent(setup.events, "chat.session.updated");
+		const unclear = await readChatState(app, created.id);
 
-		expect(unclear.issue).toMatchObject({
+		expect(findIssueEvent(setup.events)).toMatchObject({
 			id: created.taskId,
 			status: "backlog",
 			title: "Untitled chat",
@@ -84,15 +87,20 @@ describe("chat to workflow poll e2e", () => {
 			"Submit ur idea for an agent handoff",
 		);
 
-		const answered = await requestJson<{
-			issue: { content: string; id: string; status: string };
-			session: { pendingRequest: string | null };
-		}>(app, "POST", `/api/chat/sessions/${created.id}/send`, {
-			content: "codex",
-			answers: [{ question: "Which agent should own it?", answer: "codex" }],
-		});
+		setup.events.length = 0;
+		await requestJson<unknown>(
+			app,
+			"POST",
+			`/api/chat/sessions/${created.id}/send`,
+			{
+				content: "codex",
+				answers: [{ question: "Which agent should own it?", answer: "codex" }],
+			},
+		);
+		await waitForEvent(setup.events, "chat.session.updated");
+		const answered = await readChatState(app, created.id);
 
-		expect(answered.issue).toMatchObject({
+		expect(findIssueEvent(setup.events)).toMatchObject({
 			id: created.taskId,
 			content: "Create an agent handoff from chat.",
 			status: "plan",
@@ -110,14 +118,13 @@ describe("chat to workflow poll e2e", () => {
 			"GET",
 			`/api/tasks/${created.taskId}`,
 		);
-		expect(finalTask.status).toBe("reviewing");
+		expect(finalTask.status).toBe("in_review");
 		const runState = await loadRunState(
 			setup.workspacePath,
 			"default",
 			finalTask.taskKey,
 		);
 		expect(runState).toMatchObject({
-			brainstormSummary: "Smallest coherent scope.",
 			implementationSummary: "Implemented chat handoff.",
 			planSummary: expect.stringContaining("PLANNING_RESULT: READY"),
 			stage: "done",
@@ -148,6 +155,54 @@ describe("chat to workflow poll e2e", () => {
 	});
 });
 
+interface ChatRouteState {
+	messages: Array<{ content: string; kind: string }>;
+	session: { pendingRequest: string | null };
+}
+
+async function readChatState(
+	app: (request: Request) => Response | Promise<Response>,
+	sessionId: string,
+): Promise<ChatRouteState> {
+	const messages = await requestJson<ChatRouteState["messages"]>(
+		app,
+		"GET",
+		`/api/chat/sessions/${sessionId}/messages`,
+	);
+	const sessions = await requestJson<ChatRouteState["session"][]>(
+		app,
+		"GET",
+		"/api/chat/sessions?workspaceId=owner-1",
+	);
+	const session = sessions.find((item) => item.pendingRequest !== undefined);
+	if (!session) {
+		throw new Error("Missing chat session state");
+	}
+	return { messages, session };
+}
+
+async function waitForEvent(
+	events: Array<{ type: string }>,
+	type: string,
+): Promise<void> {
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		if (events.some((event) => event.type === type)) {
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+	throw new Error(`Timed out waiting for ${type}`);
+}
+
+function findIssueEvent(
+	events: Array<{ type: string }>,
+): Record<string, unknown> | undefined {
+	const event = events.find(
+		(candidate) => candidate.type === "issue.updated",
+	) as { issue?: Record<string, unknown> } | undefined;
+	return event?.issue;
+}
+
 async function expectTaskActivity(
 	app: (request: Request) => Response | Promise<Response>,
 	taskId: string,
@@ -158,7 +213,7 @@ async function expectTaskActivity(
 		`/api/tasks/${taskId}/activity`,
 	);
 	const activityText = JSON.stringify(activity);
-	expect(activityText).toContain("devos.ing started planning.");
+	expect(activityText).toContain("Planning completed; implementation started.");
 	expect(activityText).toContain("Implementation completed");
 	expect(activityText).toContain("Review/testing passed");
 }
@@ -168,12 +223,17 @@ async function expectPollingStatus(
 ): Promise<void> {
 	const pollingStatus = await requestJson<{
 		events: Array<{ eventType: string }>;
-		pollers: Array<{ id: string; lastReadyTaskCount: number }>;
+		pollers: Array<{
+			id: string;
+			lastIssueCount: number;
+			sourceType: string;
+		}>;
 	}>(app, "GET", "/api/polling/status");
 	expect(pollingStatus.pollers).toContainEqual(
 		expect.objectContaining({
-			id: "linear:default",
-			lastReadyTaskCount: 1,
+			id: "tasks:default",
+			lastIssueCount: 1,
+			sourceType: "tasks",
 		}),
 	);
 	expect(pollingStatus.events.map((event) => event.eventType)).toContain(
