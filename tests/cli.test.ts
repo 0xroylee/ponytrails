@@ -320,6 +320,8 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("claude: would install"))).toBe(true);
       expect(logs.some((line) => line.includes("copilot: would install"))).toBe(true);
       expect(logs.some((line) => line.includes("codex: would install"))).toBe(true);
+      expect(logs.some((line) => line.includes("cursor: would install"))).toBe(true);
+      expect(logs.some((line) => line.includes(".cursor/rules/pony-trail.mdc"))).toBe(true);
     } finally {
       console.log = originalLog;
       await rm(homeDir, { recursive: true, force: true });
@@ -376,6 +378,7 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes(".claude/hooks/ponytrail"))).toBe(true);
       expect(logs.some((line) => line.includes("codex: would install"))).toBe(true);
       expect(logs.some((line) => line.includes("copilot: would install"))).toBe(true);
+      expect(logs.some((line) => line.includes("cursor: would install"))).toBe(true);
     } finally {
       console.log = originalLog;
       await rm(homeDir, { recursive: true, force: true });

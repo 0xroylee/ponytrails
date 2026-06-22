@@ -528,8 +528,8 @@ function configureSkillInstallCommand(command: Command, rootDir: string): Comman
     .argument("[source-or-name]", "bundled skill name or local skill directory", "pony-trail")
     .option(
       "-a, --agents <agents>",
-      "comma-separated targets: claude,copilot,codex",
-      "claude,copilot,codex",
+      "comma-separated targets: claude,copilot,codex,cursor",
+      "claude,copilot,codex,cursor",
     )
     .option("--home <dir>", "home directory that contains agent config folders", homedir())
     .option("--dry-run", "show install destinations without writing files", false)

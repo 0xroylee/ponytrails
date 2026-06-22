@@ -8,7 +8,7 @@ import {
   type SkillInstallAgent,
 } from "../src/plugins/skill-installer";
 
-const allAgents: SkillInstallAgent[] = ["claude", "copilot", "codex"];
+const allAgents: SkillInstallAgent[] = ["claude", "copilot", "codex", "cursor"];
 
 describe("skill installer", () => {
   test("resolves the bundled pony trail skill by name", async () => {
@@ -33,7 +33,7 @@ describe("skill installer", () => {
     }
   });
 
-  test("installs a bundled skill into Claude, Copilot/shared, and Codex skill folders", async () => {
+  test("installs a bundled skill into Claude, Copilot/shared, Codex, and Cursor targets", async () => {
     const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
 
     try {
@@ -48,6 +48,7 @@ describe("skill installer", () => {
         "installed",
         "installed",
         "installed",
+        "installed",
       ]);
 
       await expect(
@@ -59,6 +60,31 @@ describe("skill installer", () => {
       await expect(
         stat(join(homeDir, ".codex", "skills", "pony-trail", "SKILL.md")),
       ).resolves.toBeTruthy();
+      const cursorRulePath = join(homeDir, ".cursor", "rules", "pony-trail.mdc");
+      await expect(stat(cursorRulePath)).resolves.toBeTruthy();
+      expect(await readFile(cursorRulePath, "utf8")).toContain("name: pony-trail");
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("dry-runs Cursor rule installation", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
+
+    try {
+      const result = await installAgentSkill({
+        source: "pony-trail",
+        homeDir,
+        agents: ["cursor"],
+        dryRun: true,
+      });
+
+      expect(result.targets[0]).toMatchObject({
+        agent: "cursor",
+        destination: join(homeDir, ".cursor", "rules", "pony-trail.mdc"),
+        status: "would_install",
+      });
+      await expect(stat(join(homeDir, ".cursor", "rules", "pony-trail.mdc"))).rejects.toThrow();
     } finally {
       await rm(homeDir, { recursive: true, force: true });
     }

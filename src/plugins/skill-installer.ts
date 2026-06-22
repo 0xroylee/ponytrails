@@ -3,7 +3,8 @@ import { access, chmod, cp, mkdir, readFile, rm, stat, writeFile } from "node:fs
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type SkillInstallAgent = "claude" | "copilot" | "codex";
+export type SkillInstallAgent = "claude" | "copilot" | "codex" | "cursor";
+type HookCapableSkillInstallAgent = Exclude<SkillInstallAgent, "cursor">;
 
 export type SkillInstallStatus =
   | "installed"
@@ -64,20 +65,26 @@ const bundledSkillsDirCandidates = [
   resolve(moduleDir, "..", "bundled-skills"),
 ];
 
-const agentSkillDirs: Record<SkillInstallAgent, string[]> = {
-  claude: [".claude", "skills"],
-  copilot: [".agents", "skills"],
-  codex: [".codex", "skills"],
+const agentSkillTargets: Record<
+  SkillInstallAgent,
+  { kind: "directory"; path: string[] } | { kind: "cursor_rule"; path: string[] }
+> = {
+  claude: { kind: "directory", path: [".claude", "skills"] },
+  copilot: { kind: "directory", path: [".agents", "skills"] },
+  codex: { kind: "directory", path: [".codex", "skills"] },
+  cursor: { kind: "cursor_rule", path: [".cursor", "rules"] },
 };
 
 const prehookScriptName = "ponytrail-prehook.sh";
 const prehookMatchers = ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"];
-const agentPrehookPaths: Record<SkillInstallAgent, { hookDir: string[]; settingsPath: string[] }> =
-  {
-    claude: { hookDir: [".claude", "hooks"], settingsPath: [".claude", "settings.json"] },
-    copilot: { hookDir: [".agents", "hooks"], settingsPath: [".agents", "hooks.json"] },
-    codex: { hookDir: [".codex", "hooks"], settingsPath: [".codex", "hooks.json"] },
-  };
+const agentPrehookPaths: Record<
+  HookCapableSkillInstallAgent,
+  { hookDir: string[]; settingsPath: string[] }
+> = {
+  claude: { hookDir: [".claude", "hooks"], settingsPath: [".claude", "settings.json"] },
+  copilot: { hookDir: [".agents", "hooks"], settingsPath: [".agents", "hooks.json"] },
+  codex: { hookDir: [".codex", "hooks"], settingsPath: [".codex", "hooks.json"] },
+};
 
 export async function installAgentSkill(
   input: InstallAgentSkillInput,
@@ -90,7 +97,7 @@ export async function installAgentSkill(
   const prehooks: SkillInstallPrehookResult[] = [];
 
   for (const agent of input.agents) {
-    const destination = join(input.homeDir, ...agentSkillDirs[agent], source.name);
+    const destination = getSkillDestination(input.homeDir, agent, source.name);
     const exists = await pathExists(destination);
     const status = getInstallStatus({
       exists,
@@ -102,13 +109,12 @@ export async function installAgentSkill(
       if (exists) {
         await rm(destination, { recursive: true, force: true });
       }
-      await mkdir(dirname(destination), { recursive: true });
-      await cp(source.path, destination, { recursive: true });
+      await installSkillTarget({ agent, source, destination });
     }
 
     targets.push({ agent, destination, status });
 
-    if (input.installPrehook) {
+    if (input.installPrehook && hasPrehookSupport(agent)) {
       prehooks.push(
         await installAgentSkillPrehook({
           agent,
@@ -194,8 +200,39 @@ async function resolvePathSkill(path: string): Promise<ResolvedInstallSkillSourc
   return { kind: "path", name, path };
 }
 
-async function installAgentSkillPrehook(input: {
+function getSkillDestination(homeDir: string, agent: SkillInstallAgent, skillName: string): string {
+  const target = agentSkillTargets[agent];
+  if (target.kind === "cursor_rule") {
+    return join(homeDir, ...target.path, `${skillName}.mdc`);
+  }
+
+  return join(homeDir, ...target.path, skillName);
+}
+
+async function installSkillTarget(input: {
   agent: SkillInstallAgent;
+  source: ResolvedInstallSkillSource;
+  destination: string;
+}): Promise<void> {
+  const target = agentSkillTargets[input.agent];
+  await mkdir(dirname(input.destination), { recursive: true });
+
+  if (target.kind === "cursor_rule") {
+    await writeFile(input.destination, await renderCursorRule(input.source));
+    return;
+  }
+
+  await cp(input.source.path, input.destination, { recursive: true });
+}
+
+async function renderCursorRule(source: ResolvedInstallSkillSource): Promise<string> {
+  const content = await readFile(join(source.path, "SKILL.md"), "utf8");
+
+  return `---\nalwaysApply: true\n---\n\n${content.trim()}\n`;
+}
+
+async function installAgentSkillPrehook(input: {
+  agent: HookCapableSkillInstallAgent;
   source: ResolvedInstallSkillSource;
   homeDir: string;
   dryRun: boolean;
@@ -365,7 +402,11 @@ function getPrehookStatus(input: {
 }
 
 function isSkillInstallAgent(agent: string): agent is SkillInstallAgent {
-  return agent === "claude" || agent === "copilot" || agent === "codex";
+  return agent === "claude" || agent === "copilot" || agent === "codex" || agent === "cursor";
+}
+
+function hasPrehookSupport(agent: SkillInstallAgent): agent is HookCapableSkillInstallAgent {
+  return agent !== "cursor";
 }
 
 function looksLikePath(value: string): boolean {
