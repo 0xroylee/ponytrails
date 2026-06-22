@@ -132,6 +132,6 @@ For CLI changes, also run a smoke check against a scratch directory under
 `work/`, such as:
 
 ```bash
-rtk bun run dev -- onboard --dir work/smoke-runtime --name "Smoke Runtime" --yes
+rtk bun run dev -- onboard --dir work/smoke-runtime --name "Smoke Runtime"
 rtk bun run dev -- bots --manifest work/smoke-runtime/.ponytrail/manifest.json
 ```

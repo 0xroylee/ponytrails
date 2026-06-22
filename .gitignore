@@ -7,5 +7,5 @@ coverage/
 .pony-trail/
 work/
 .DS_Store
-docs/superpowers
+docs/superpowers/
 .codegraph

@@ -32,6 +32,19 @@ Include detailed commit metadata:
 ponytrail history --details
 ```
 
+Effect preview:
+
+```text
+Snapshot history
+* ponytrail-skills
+  * skill-install-20260622064256Z-99fa03fd (pre/post)
+    action: install skill
+    summary: Installed pony-trail skill for claude, copilot, codex
+    checks: ponytrail skills install pony-trail --home . --agents claude, copilot, codex
+    result: claude:installed, copilot:installed, codex:installed
+    rollback: Remove or reinstall the affected agent skill folders, then record another snapshot.
+```
+
 Filter to one session or print machine-readable output:
 
 ```bash
@@ -62,8 +75,12 @@ ponytrail revert <snapshot-id> --dry-run
 Apply the revert:
 
 ```bash
-ponytrail revert <snapshot-id> --yes
+npx ponytrail revert <snapshot-id>
 ```
+
+The CLI prints the planned file actions and asks before applying them. In
+non-interactive environments, Ponytrail prints the plan and cancels without
+changing files.
 
 Revert restores files from the snapshot's `pre` state. If a file did not exist before the snapshot, Ponytrail deletes it during the revert.
 

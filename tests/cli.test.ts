@@ -20,6 +20,17 @@ describe("cli", () => {
       "revert",
       "skills",
     ]);
+
+    const onboardCommand = program.commands.find((command) => command.name() === "onboard");
+    const revertCommand = program.commands.find((command) => command.name() === "revert");
+
+    expect(onboardCommand?.options.map((option) => option.long)).toEqual([
+      "--dir",
+      "--name",
+      "--agents",
+      "--home",
+    ]);
+    expect(revertCommand?.options.map((option) => option.long)).toEqual(["--dry-run"]);
   });
 
   test("runs onboarding and manifest-backed commands", async () => {
@@ -33,7 +44,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -152,7 +163,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -186,7 +197,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -243,7 +254,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir, streamRunner, clarificationPrompter }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -282,7 +293,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -494,6 +505,108 @@ describe("cli", () => {
       expect(logs).toContain("Snapshot revert plan");
       expect(logs.some((line) => line.includes("Would restore notes.txt"))).toBe(true);
       expect(logs.some((line) => line.includes("Would delete created.txt"))).toBe(true);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("revert asks for approval before applying", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const approvalRequests: Array<{ snapshotId: string; actions: number }> = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await writeSampleSnapshotLog(rootDir);
+      const { writeFile } = await import("node:fs/promises");
+      await writeFile(join(rootDir, "notes.txt"), "after\n");
+      await writeFile(join(rootDir, "created.txt"), "created\n");
+
+      await buildProgram({
+        cwd: rootDir,
+        revertApprovalPrompter: async ({ snapshotId, actions }) => {
+          approvalRequests.push({ snapshotId, actions: actions.length });
+          return true;
+        },
+      }).parseAsync(["revert", "snapshot-001"], { from: "user" });
+
+      expect(approvalRequests).toEqual([{ snapshotId: "snapshot-001", actions: 2 }]);
+      expect(logs).toContain("Snapshot revert plan");
+      expect(logs.some((line) => line.includes("Would restore notes.txt"))).toBe(true);
+      expect(logs.some((line) => line.includes("Would delete created.txt"))).toBe(true);
+      expect(logs.some((line) => line.includes("Reverted snapshot snapshot-001"))).toBe(true);
+      expect(await readFile(join(rootDir, "notes.txt"), "utf8")).toBe("before\n");
+      await expect(stat(join(rootDir, "created.txt"))).rejects.toThrow();
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("revert asks for approval and leaves files unchanged when cancelled", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await writeSampleSnapshotLog(rootDir);
+      const { writeFile } = await import("node:fs/promises");
+      await writeFile(join(rootDir, "notes.txt"), "after\n");
+      await writeFile(join(rootDir, "created.txt"), "created\n");
+
+      await buildProgram({
+        cwd: rootDir,
+        revertApprovalPrompter: async () => false,
+      }).parseAsync(["revert", "snapshot-001"], { from: "user" });
+
+      expect(logs).toContain("Snapshot revert plan");
+      expect(logs.some((line) => line.includes("Would restore notes.txt"))).toBe(true);
+      expect(logs.some((line) => line.includes("Revert cancelled."))).toBe(true);
+      expect(await readFile(join(rootDir, "notes.txt"), "utf8")).toBe("after\n");
+      expect(await readFile(join(rootDir, "created.txt"), "utf8")).toBe("created\n");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("revert does not apply in non-interactive mode", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await writeSampleSnapshotLog(rootDir);
+      const { writeFile } = await import("node:fs/promises");
+      await writeFile(join(rootDir, "notes.txt"), "after\n");
+      await writeFile(join(rootDir, "created.txt"), "created\n");
+
+      await buildProgram({ cwd: rootDir }).parseAsync(["revert", "snapshot-001"], {
+        from: "user",
+      });
+
+      expect(logs).toContain("Snapshot revert plan");
+      expect(
+        logs.some((line) =>
+          line.includes("Run from an interactive terminal to approve the revert."),
+        ),
+      ).toBe(true);
+      expect(logs.some((line) => line.includes("Revert cancelled."))).toBe(true);
+      expect(await readFile(join(rootDir, "notes.txt"), "utf8")).toBe("after\n");
+      expect(await readFile(join(rootDir, "created.txt"), "utf8")).toBe("created\n");
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
