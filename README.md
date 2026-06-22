@@ -32,6 +32,19 @@ Include detailed commit metadata:
 ponytrail history --details
 ```
 
+Effect preview:
+
+```text
+Snapshot history
+* ponytrail-skills
+  * skill-install-20260622064256Z-99fa03fd (pre/post)
+    action: install skill
+    summary: Installed pony-trail skill for claude, copilot, codex
+    checks: ponytrail skills install pony-trail --home . --agents claude, copilot, codex
+    result: claude:installed, copilot:installed, codex:installed
+    rollback: Remove or reinstall the affected agent skill folders, then record another snapshot.
+```
+
 Filter to one session or print machine-readable output:
 
 ```bash
