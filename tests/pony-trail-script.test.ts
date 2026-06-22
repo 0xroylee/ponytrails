@@ -159,6 +159,73 @@ describe("pony-trail shell helper", () => {
     }
   });
 
+  test("optionally records hashed instruction context without raw instruction text", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "pony-trail-instructions-"));
+    const snapshotId = "instruction-context-test-001";
+
+    try {
+      await writeFile(join(rootDir, "AGENTS.md"), "Do useful work.\n");
+      await writeFile(join(rootDir, "notes.txt"), "before\n");
+
+      await execFileAsync("sh", [
+        shellHelperPath,
+        "--root",
+        rootDir,
+        "--session-id",
+        "session-alpha",
+        "--instruction-context",
+        "pre",
+        "--snapshot-id",
+        snapshotId,
+        "--files",
+        "notes.txt",
+        "--action",
+        "edit note",
+        "--purpose",
+        "Exercise instruction context capture",
+        "--reason",
+        "Snapshots should explain active instruction files without recording prompts",
+        "--expected",
+        "A pre snapshot includes instruction hashes",
+        "--verify",
+        "Run this test",
+        "--rollback",
+        "Restore the stored pre snapshot",
+      ]);
+
+      const [entry] = (await readFile(join(rootDir, ".pony-trail", "snapshots.jsonl"), "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+
+      expect(entry.instruction_context).toMatchObject({
+        mode: "opt_in",
+        raw_instruction_text_included: false,
+        raw_prompts_included: false,
+      });
+      expect(entry.instruction_context.files).toContainEqual(
+        expect.objectContaining({
+          path: "AGENTS.md",
+          status: "captured",
+          bytes: 16,
+        }),
+      );
+      expect(entry.instruction_context.files).toContainEqual(
+        expect.objectContaining({
+          path: "CLAUDE.md",
+          status: "missing",
+        }),
+      );
+      expect(JSON.stringify(entry.instruction_context)).not.toContain("Do useful work");
+      const agentsFile = entry.instruction_context.files.find(
+        (file: { path: string; sha256?: string }) => file.path === "AGENTS.md",
+      );
+      expect(agentsFile?.sha256).toBeString();
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("pre-file-change hook emits pony-trail context", async () => {
     const hook = await execFileAsync("sh", [preFileChangeHookPath]);
 

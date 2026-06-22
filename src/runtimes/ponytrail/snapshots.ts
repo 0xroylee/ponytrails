@@ -19,6 +19,21 @@ export interface SnapshotFileState {
   sha256?: string | undefined;
 }
 
+export interface SnapshotInstructionContextFile {
+  path: string;
+  status: "captured" | "missing" | "unreadable" | "skipped_not_file";
+  sha256?: string | undefined;
+  bytes?: number | undefined;
+}
+
+export interface SnapshotInstructionContext {
+  mode: "opt_in";
+  captured_at: string;
+  raw_instruction_text_included: false;
+  raw_prompts_included: false;
+  files: SnapshotInstructionContextFile[];
+}
+
 export interface SnapshotLogEntry {
   snapshot_id: string;
   session_id: string;
@@ -34,6 +49,7 @@ export interface SnapshotLogEntry {
   checks?: string | null | undefined;
   result?: string | null | undefined;
   files: SnapshotFileState[];
+  instruction_context?: SnapshotInstructionContext | undefined;
 }
 
 export interface SnapshotHistory {
@@ -58,6 +74,7 @@ export interface SnapshotCommit {
   result?: string | undefined;
   rollback?: string | undefined;
   files: SnapshotFileState[];
+  instructionContext?: SnapshotInstructionContext | undefined;
 }
 
 export type SnapshotRevertAction =
@@ -97,6 +114,7 @@ export interface RecordSnapshotPreInput {
   verify: string;
   rollback: string;
   files?: SnapshotFileState[] | undefined;
+  instructionContext?: SnapshotInstructionContext | undefined;
 }
 
 export interface RecordSnapshotPostInput {
@@ -108,6 +126,7 @@ export interface RecordSnapshotPostInput {
   checks: string;
   result: string;
   files?: SnapshotFileState[] | undefined;
+  instructionContext?: SnapshotInstructionContext | undefined;
 }
 
 interface SnapshotPair {
@@ -135,6 +154,7 @@ export async function recordSnapshotPre(
     verify: input.verify,
     rollback: input.rollback,
     files: input.files ?? [],
+    instruction_context: input.instructionContext,
   });
 }
 
@@ -152,6 +172,7 @@ export async function recordSnapshotPost(
     checks: input.checks,
     result: input.result,
     files: input.files ?? [],
+    instruction_context: input.instructionContext,
   });
 }
 
@@ -388,6 +409,8 @@ function parseSnapshotEntry(value: unknown, lineNumber: number): SnapshotLogEntr
     throw new Error(`Malformed snapshot log entry on line ${lineNumber}: files must be an array`);
   }
 
+  const instructionContext = value.instruction_context;
+
   return {
     snapshot_id: snapshotId,
     session_id: sessionId,
@@ -403,6 +426,76 @@ function parseSnapshotEntry(value: unknown, lineNumber: number): SnapshotLogEntr
     checks: readOptionalString(value.checks),
     result: readOptionalString(value.result),
     files: files.map((file, index) => parseSnapshotFile(file, lineNumber, index)),
+    instruction_context: instructionContext
+      ? parseInstructionContext(instructionContext, lineNumber)
+      : undefined,
+  };
+}
+
+function parseInstructionContext(value: unknown, lineNumber: number): SnapshotInstructionContext {
+  if (!isRecord(value)) {
+    throw new Error(
+      `Malformed snapshot log entry on line ${lineNumber}: instruction_context must be an object`,
+    );
+  }
+
+  const mode = readRequiredString(value, "mode", lineNumber);
+  if (mode !== "opt_in") {
+    throw new Error(
+      `Malformed snapshot log entry on line ${lineNumber}: invalid instruction_context mode`,
+    );
+  }
+
+  if (value.raw_instruction_text_included !== false || value.raw_prompts_included !== false) {
+    throw new Error(
+      `Malformed snapshot log entry on line ${lineNumber}: instruction_context must not include raw prompts or instruction text`,
+    );
+  }
+
+  if (!Array.isArray(value.files)) {
+    throw new Error(
+      `Malformed snapshot log entry on line ${lineNumber}: instruction_context files must be an array`,
+    );
+  }
+
+  return {
+    mode,
+    captured_at: readRequiredString(value, "captured_at", lineNumber),
+    raw_instruction_text_included: false,
+    raw_prompts_included: false,
+    files: value.files.map((file, index) => parseInstructionContextFile(file, lineNumber, index)),
+  };
+}
+
+function parseInstructionContextFile(
+  value: unknown,
+  lineNumber: number,
+  index: number,
+): SnapshotInstructionContextFile {
+  if (!isRecord(value)) {
+    throw new Error(
+      `Malformed snapshot log entry on line ${lineNumber}: instruction_context file ${index} must be an object`,
+    );
+  }
+
+  const status = readRequiredString(value, "status", lineNumber);
+  if (
+    status !== "captured" &&
+    status !== "missing" &&
+    status !== "unreadable" &&
+    status !== "skipped_not_file"
+  ) {
+    throw new Error(
+      `Malformed snapshot log entry on line ${lineNumber}: invalid instruction_context file status`,
+    );
+  }
+
+  return {
+    path: readRequiredString(value, "path", lineNumber),
+    status,
+    sha256: readOptionalString(value.sha256),
+    bytes:
+      typeof value.bytes === "number" && Number.isFinite(value.bytes) ? value.bytes : undefined,
   };
 }
 
@@ -456,6 +549,7 @@ function toSnapshotCommit(
     result: post?.result ?? undefined,
     rollback: pre?.rollback ?? undefined,
     files: Array.from(filesByPath.values()),
+    instructionContext: pre?.instruction_context ?? post?.instruction_context,
   };
 }
 

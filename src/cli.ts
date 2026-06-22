@@ -433,6 +433,11 @@ function printSnapshotCommitDetails(commit: SnapshotCommit): void {
   for (const file of commit.files) {
     console.log(`    ${formatSnapshotFile(file)}`);
   }
+  if (commit.instructionContext) {
+    console.log(
+      `    instruction_context: ${commit.instructionContext.files.length} files, raw_text=false`,
+    );
+  }
 }
 
 function parseSnapshotHistoryMode(mode: string): SnapshotHistoryMode {

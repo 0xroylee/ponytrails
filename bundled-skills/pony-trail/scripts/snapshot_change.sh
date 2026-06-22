@@ -6,9 +6,12 @@ DEFAULT_COPY_LIMIT=1048576
 
 usage() {
   cat <<'EOF'
-usage: snapshot_change.sh [--root DIR] [--store DIR] [--copy-limit BYTES] [--session-id ID] {pre,post} ...
+usage: snapshot_change.sh [--root DIR] [--store DIR] [--copy-limit BYTES] [--session-id ID] [--instruction-context] {pre,post} ...
 
 Record file-change rationale snapshots.
+
+Use --instruction-context to opt in to hashing known local instruction files
+without recording raw prompts, transcripts, or instruction text.
 
 pre:
   snapshot_change.sh pre --files FILE... --action TEXT --purpose TEXT --reason TEXT \
@@ -112,6 +115,62 @@ sha256_file() {
   else
     fail "Neither shasum nor sha256sum is available."
   fi
+}
+
+instruction_context_file_json() {
+  rel_path=$1
+  path=$root/$rel_path
+
+  printf '{"path":'
+  json_string "$rel_path"
+
+  if [ ! -e "$path" ]; then
+    printf ',"status":"missing"}'
+    return
+  fi
+
+  if [ ! -r "$path" ]; then
+    printf ',"status":"unreadable"}'
+    return
+  fi
+
+  if [ ! -f "$path" ]; then
+    printf ',"status":"skipped_not_file"}'
+    return
+  fi
+
+  size=$(stat_size "$path")
+  digest=$(sha256_file "$path")
+  printf ',"status":"captured","sha256":'
+  json_string "$digest"
+  printf ',"bytes":%s}' "$size"
+}
+
+append_instruction_context_file() {
+  rel_path=$1
+  if [ -n "$instruction_context_files_json" ]; then
+    instruction_context_files_json="$instruction_context_files_json,$(instruction_context_file_json "$rel_path")"
+  else
+    instruction_context_files_json="$(instruction_context_file_json "$rel_path")"
+  fi
+}
+
+instruction_context_json() {
+  instruction_context_files_json=""
+
+  append_instruction_context_file "AGENTS.md"
+  append_instruction_context_file "CLAUDE.md"
+  append_instruction_context_file ".github/copilot-instructions.md"
+
+  for candidate in "$root"/.cursor/rules/* "$root"/.ponytrail/skills/*; do
+    [ -e "$candidate" ] || continue
+    rel_path=${candidate#"$root"/}
+    append_instruction_context_file "$rel_path"
+  done
+
+  printf '{"mode":"opt_in","captured_at":'
+  json_string "$timestamp_utc"
+  printf ',"raw_instruction_text_included":false,"raw_prompts_included":false,"files":[%s]}' "$instruction_context_files_json"
 }
 
 dirname_of() {
@@ -236,6 +295,10 @@ entry_json() {
   json_string "$root"
   printf ',"git":'
   git_json
+  if [ "$instruction_context" = "1" ]; then
+    printf ',"instruction_context":'
+    instruction_context_json
+  fi
   printf ',"action":'
   json_optional_string "$action"
   printf ',"purpose":'
@@ -333,6 +396,7 @@ append_session_tree_entry() {
 root="."
 store="$DEFAULT_STORE"
 copy_limit="$DEFAULT_COPY_LIMIT"
+instruction_context="0"
 session_id="${PONYTRAIL_SESSION_ID:-${Ponytrail_SESSION_ID:-default}}"
 phase=""
 snapshot_id=""
@@ -368,6 +432,10 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || fail "--session-id requires a value."
       session_id=$2
       shift 2
+      ;;
+    --instruction-context)
+      instruction_context="1"
+      shift
       ;;
     pre|post)
       phase=$1
@@ -454,6 +522,10 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || fail "--result requires a value."
       result=$2
       shift 2
+      ;;
+    --instruction-context)
+      instruction_context="1"
+      shift
       ;;
     *)
       fail "Unknown option: $1"
