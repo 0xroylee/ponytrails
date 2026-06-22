@@ -95,21 +95,10 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
       "claude,copilot,codex",
     )
     .option("--home <dir>", "home directory that contains agent config folders", homedir())
-    .option("-y, --yes", "use defaults without prompting", false)
     .action(
-      async (commandOptions: {
-        dir: string;
-        name?: string;
-        agents: string;
-        home: string;
-        yes: boolean;
-      }) => {
+      async (commandOptions: { dir: string; name?: string; agents: string; home: string }) => {
         const targetDir = resolvePath(rootDir, commandOptions.dir);
-        const projectName =
-          commandOptions.name ??
-          (commandOptions.yes
-            ? basename(targetDir)
-            : await projectNamePrompter(basename(targetDir)));
+        const projectName = commandOptions.name ?? (await projectNamePrompter(basename(targetDir)));
 
         const result = await createOnboardingFiles({
           rootDir: targetDir,
@@ -248,29 +237,24 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .description("Restore files from a Pony Trail snapshot pre-state.")
     .argument("<snapshot-id>", "snapshot id to restore")
     .option("--dry-run", "show planned file actions without writing files", false)
-    .option("-y, --yes", "apply the revert", false)
     .action(
       async (
         snapshotId: string,
         commandOptions: {
           dryRun: boolean;
-          yes: boolean;
         },
       ) => {
         const plan = await planSnapshotRevert({ rootDir, snapshotId });
-        const shouldPreview = commandOptions.dryRun || !commandOptions.yes;
-        printSnapshotRevertPlan(plan.actions, shouldPreview);
+        printSnapshotRevertPlan(plan.actions, true);
 
         if (commandOptions.dryRun) {
           return;
         }
 
-        const approved =
-          commandOptions.yes ||
-          (await revertApprovalPrompter({
-            snapshotId,
-            actions: plan.actions,
-          }));
+        const approved = await revertApprovalPrompter({
+          snapshotId,
+          actions: plan.actions,
+        });
 
         if (!approved) {
           console.log(pc.dim("Revert cancelled."));
@@ -559,7 +543,7 @@ async function promptForGoalClarifications(
 
 async function promptForRevertApproval(input: RevertApprovalPromptInput): Promise<boolean> {
   if (!process.stdin.isTTY) {
-    console.log(pc.dim("Run from an interactive terminal or pass --yes to apply the revert."));
+    console.log(pc.dim("Run from an interactive terminal to approve the revert."));
     return false;
   }
 

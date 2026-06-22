@@ -78,8 +78,9 @@ Apply the revert:
 npx ponytrail revert <snapshot-id>
 ```
 
-The CLI prints the planned file actions and asks before applying them. Use
-`--yes` for non-interactive scripts.
+The CLI prints the planned file actions and asks before applying them. In
+non-interactive environments, Ponytrail prints the plan and cancels without
+changing files.
 
 Revert restores files from the snapshot's `pre` state. If a file did not exist before the snapshot, Ponytrail deletes it during the revert.
 

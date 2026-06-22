@@ -20,6 +20,17 @@ describe("cli", () => {
       "revert",
       "skills",
     ]);
+
+    const onboardCommand = program.commands.find((command) => command.name() === "onboard");
+    const revertCommand = program.commands.find((command) => command.name() === "revert");
+
+    expect(onboardCommand?.options.map((option) => option.long)).toEqual([
+      "--dir",
+      "--name",
+      "--agents",
+      "--home",
+    ]);
+    expect(revertCommand?.options.map((option) => option.long)).toEqual(["--dry-run"]);
   });
 
   test("runs onboarding and manifest-backed commands", async () => {
@@ -33,7 +44,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -152,7 +163,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -186,7 +197,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -243,7 +254,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir, streamRunner, clarificationPrompter }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -282,7 +293,7 @@ describe("cli", () => {
 
     try {
       await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--yes", "--home", rootDir],
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
@@ -500,7 +511,7 @@ describe("cli", () => {
     }
   });
 
-  test("revert asks for approval when --yes is omitted and applies when approved", async () => {
+  test("revert asks for approval before applying", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
     const approvalRequests: Array<{ snapshotId: string; actions: number }> = [];
@@ -537,7 +548,7 @@ describe("cli", () => {
     }
   });
 
-  test("revert asks for approval when --yes is omitted and leaves files unchanged when cancelled", async () => {
+  test("revert asks for approval and leaves files unchanged when cancelled", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
     const originalLog = console.log;
@@ -568,7 +579,7 @@ describe("cli", () => {
     }
   });
 
-  test("revert without --yes does not apply in non-interactive mode", async () => {
+  test("revert does not apply in non-interactive mode", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
     const originalLog = console.log;
@@ -590,7 +601,7 @@ describe("cli", () => {
       expect(logs).toContain("Snapshot revert plan");
       expect(
         logs.some((line) =>
-          line.includes("Run from an interactive terminal or pass --yes to apply the revert."),
+          line.includes("Run from an interactive terminal to approve the revert."),
         ),
       ).toBe(true);
       expect(logs.some((line) => line.includes("Revert cancelled."))).toBe(true);
