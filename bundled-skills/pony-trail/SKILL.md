@@ -22,13 +22,13 @@ Core principle: no file edit without a pre-change decision snapshot and a post-c
 
 ## Helper Script
 
-Use `scripts/snapshot_change.sh` from this skill directory. It writes JSONL under `.agent-change-snapshots/`, stores file hashes plus small before/after copies, and appends a per-session git-like tree under `.agent-change-snapshots/sessions/<session-id>/tree.md` without requiring Python. `scripts/snapshot_change.py` remains available for older environments that already call it.
+Use `scripts/snapshot_change.sh` from this skill directory. It writes JSONL under `.pony-trail/`, stores file hashes plus small before/after copies, and appends a per-session git-like tree under `.pony-trail/sessions/<session-id>/tree.md` without requiring Python. `scripts/snapshot_change.py` remains available for older environments that already call it.
 
 Pre-change:
 
 ```bash
 sh /path/to/pony-trail/scripts/snapshot_change.sh pre \
-  --session-id "${PONYTRAIL_SESSION_ID:-${DEVCOURT_SESSION_ID:-default}}" \
+  --session-id "${PONYTRAIL_SESSION_ID:-${Ponytrail_SESSION_ID:-default}}" \
   --files src/example.ts \
   --action "edit validation" \
   --purpose "Reject empty names before saving" \
@@ -42,7 +42,7 @@ Post-change:
 
 ```bash
 sh /path/to/pony-trail/scripts/snapshot_change.sh post \
-  --session-id "${PONYTRAIL_SESSION_ID:-${DEVCOURT_SESSION_ID:-default}}" \
+  --session-id "${PONYTRAIL_SESSION_ID:-${Ponytrail_SESSION_ID:-default}}" \
   --snapshot-id 20260621T120000Z-abc12345 \
   --files src/example.ts \
   --summary "Added empty-name guard and test coverage" \
@@ -55,14 +55,14 @@ The pre command prints the `snapshot_id` to reuse in the post command. It also p
 Session tree:
 
 ```text
-.agent-change-snapshots/
+.pony-trail/
   snapshots.jsonl
   sessions/<session-id>/
     commits.jsonl
     tree.md
 ```
 
-Use `--session-id <id>` or set `PONYTRAIL_SESSION_ID`. The legacy `DEVCOURT_SESSION_ID` still works as a fallback. If neither is set, the helper writes to `default`.
+Use `--session-id <id>` or set `PONYTRAIL_SESSION_ID`. The legacy `Ponytrail_SESSION_ID` still works as a fallback. If neither is set, the helper writes to `default`.
 
 ## What To Capture
 

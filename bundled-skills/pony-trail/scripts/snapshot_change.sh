@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-DEFAULT_STORE=".agent-change-snapshots"
+DEFAULT_STORE=".pony-trail"
 DEFAULT_COPY_LIMIT=1048576
 
 usage() {
@@ -333,7 +333,7 @@ append_session_tree_entry() {
 root="."
 store="$DEFAULT_STORE"
 copy_limit="$DEFAULT_COPY_LIMIT"
-session_id="${PONYTRAIL_SESSION_ID:-${DEVCOURT_SESSION_ID:-default}}"
+session_id="${PONYTRAIL_SESSION_ID:-${Ponytrail_SESSION_ID:-default}}"
 phase=""
 snapshot_id=""
 files=""

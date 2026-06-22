@@ -88,7 +88,7 @@ describe("pony-trail shell helper", () => {
         files: 1,
       });
 
-      const logPath = join(rootDir, ".agent-change-snapshots", "snapshots.jsonl");
+      const logPath = join(rootDir, ".pony-trail", "snapshots.jsonl");
       const entries = (await readFile(logPath, "utf8"))
         .trim()
         .split("\n")
@@ -120,15 +120,15 @@ describe("pony-trail shell helper", () => {
         ],
       });
       await expect(
-        stat(join(rootDir, ".agent-change-snapshots/files", snapshotId, "pre", "notes.txt")),
+        stat(join(rootDir, ".pony-trail/files", snapshotId, "pre", "notes.txt")),
       ).resolves.toBeTruthy();
       await expect(
-        stat(join(rootDir, ".agent-change-snapshots/files", snapshotId, "post", "notes.txt")),
+        stat(join(rootDir, ".pony-trail/files", snapshotId, "post", "notes.txt")),
       ).resolves.toBeTruthy();
 
       const sessionCommitLog = join(
         rootDir,
-        ".agent-change-snapshots",
+        ".pony-trail",
         "sessions",
         "session-alpha",
         "commits.jsonl",
@@ -141,7 +141,7 @@ describe("pony-trail shell helper", () => {
       expect(sessionCommits.map((commit) => commit.phase)).toEqual(["pre", "post"]);
 
       const sessionTree = await readFile(
-        join(rootDir, ".agent-change-snapshots", "sessions", "session-alpha", "tree.md"),
+        join(rootDir, ".pony-trail", "sessions", "session-alpha", "tree.md"),
         "utf8",
       );
       expect(sessionTree).toContain("# Ponytrail Session Tree");

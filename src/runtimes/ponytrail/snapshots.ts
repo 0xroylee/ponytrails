@@ -1,8 +1,9 @@
+import { randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { access, cp, mkdir, readFile, rm } from "node:fs/promises";
+import { access, appendFile, cp, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 
-const snapshotStoreDir = ".agent-change-snapshots";
+const snapshotStoreDir = ".pony-trail";
 const snapshotLogFile = "snapshots.jsonl";
 
 export interface SnapshotHistoryInput {
@@ -76,9 +77,82 @@ export interface SnapshotRevertPlan {
   actions: SnapshotRevertAction[];
 }
 
+export interface RecordedSnapshotCommit {
+  snapshotId: string;
+  sessionId: string;
+  logPath: string;
+  treePath: string;
+}
+
+export interface RecordSnapshotPreInput {
+  rootDir: string;
+  sessionId: string;
+  snapshotId?: string | undefined;
+  idPrefix?: string | undefined;
+  timestampUtc?: string | undefined;
+  action: string;
+  purpose: string;
+  reason: string;
+  expected: string;
+  verify: string;
+  rollback: string;
+  files?: SnapshotFileState[] | undefined;
+}
+
+export interface RecordSnapshotPostInput {
+  rootDir: string;
+  sessionId: string;
+  snapshotId: string;
+  timestampUtc?: string | undefined;
+  summary: string;
+  checks: string;
+  result: string;
+  files?: SnapshotFileState[] | undefined;
+}
+
 interface SnapshotPair {
   pre?: SnapshotLogEntry;
   post?: SnapshotLogEntry;
+}
+
+export async function recordSnapshotPre(
+  input: RecordSnapshotPreInput,
+): Promise<RecordedSnapshotCommit> {
+  const rootDir = resolve(input.rootDir);
+  const timestampUtc = input.timestampUtc ?? new Date().toISOString();
+  const snapshotId =
+    input.snapshotId ?? createSnapshotId(input.idPrefix ?? "snapshot", timestampUtc);
+
+  return appendSnapshotEntry(rootDir, {
+    snapshot_id: snapshotId,
+    session_id: input.sessionId,
+    phase: "pre",
+    timestamp_utc: timestampUtc,
+    action: input.action,
+    purpose: input.purpose,
+    reason: input.reason,
+    expected: input.expected,
+    verify: input.verify,
+    rollback: input.rollback,
+    files: input.files ?? [],
+  });
+}
+
+export async function recordSnapshotPost(
+  input: RecordSnapshotPostInput,
+): Promise<RecordedSnapshotCommit> {
+  const rootDir = resolve(input.rootDir);
+
+  return appendSnapshotEntry(rootDir, {
+    snapshot_id: input.snapshotId,
+    session_id: input.sessionId,
+    phase: "post",
+    timestamp_utc: input.timestampUtc ?? new Date().toISOString(),
+    summary: input.summary,
+    checks: input.checks,
+    result: input.result,
+    files: input.files ?? [],
+  });
 }
 
 export async function readSnapshotHistory(input: SnapshotHistoryInput): Promise<SnapshotHistory> {
@@ -179,6 +253,91 @@ export async function applySnapshotRevert(plan: SnapshotRevertPlan): Promise<voi
 
 function getSnapshotLogPath(rootDir: string): string {
   return join(rootDir, snapshotStoreDir, snapshotLogFile);
+}
+
+async function appendSnapshotEntry(
+  rootDir: string,
+  entry: SnapshotLogEntry,
+): Promise<RecordedSnapshotCommit> {
+  assertSafePathSegment(entry.session_id, "session id");
+
+  const logPath = getSnapshotLogPath(rootDir);
+  await mkdir(dirname(logPath), { recursive: true });
+  await appendFile(logPath, `${JSON.stringify(entry)}\n`);
+
+  const sessionDir = join(rootDir, snapshotStoreDir, "sessions", entry.session_id);
+  await mkdir(sessionDir, { recursive: true });
+  await appendFile(join(sessionDir, "commits.jsonl"), `${JSON.stringify(entry)}\n`);
+
+  const treePath = join(sessionDir, "tree.md");
+  if (!(await pathExists(treePath))) {
+    await appendFile(treePath, `# Ponytrail Session Tree\n\nSession: \`${entry.session_id}\`\n`);
+  }
+  await appendFile(treePath, formatSessionTreeEntry(entry));
+
+  return {
+    snapshotId: entry.snapshot_id,
+    sessionId: entry.session_id,
+    logPath,
+    treePath,
+  };
+}
+
+function formatSessionTreeEntry(entry: SnapshotLogEntry): string {
+  const lines = [
+    "",
+    `## commit ${entry.snapshot_id}`,
+    "",
+    `- phase: \`${entry.phase}\``,
+    `- time: \`${entry.timestamp_utc}\``,
+  ];
+
+  appendTreeField(lines, "action", entry.action);
+  appendTreeField(lines, "purpose", entry.purpose);
+  appendTreeField(lines, "reason", entry.reason);
+  appendTreeField(lines, "expected", entry.expected);
+  appendTreeField(lines, "verify", entry.verify);
+  appendTreeField(lines, "rollback", entry.rollback);
+  appendTreeField(lines, "summary", entry.summary);
+  appendTreeField(lines, "checks", entry.checks);
+  appendTreeField(lines, "result", entry.result);
+  lines.push("- files:");
+
+  if (entry.files.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const file of entry.files) {
+      lines.push(formatSessionTreeFile(file));
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function appendTreeField(lines: string[], label: string, value: string | null | undefined): void {
+  if (value) {
+    lines.push(`- ${label}: ${value}`);
+  }
+}
+
+function formatSessionTreeFile(file: SnapshotFileState): string {
+  if (!file.exists) {
+    return `  - \`${file.path}\` missing`;
+  }
+
+  const parts = [`  - \`${file.path}\` ${file.type ?? "file"}`];
+  if (file.sha256) {
+    parts.push(`sha256=\`${file.sha256}\``);
+  }
+  if (file.stored_copy) {
+    parts.push(`stored: \`${file.stored_copy}\``);
+  }
+  return parts.join(" ");
+}
+
+function createSnapshotId(prefix: string, timestampUtc: string): string {
+  const compactTimestamp = timestampUtc.replace(/\D/g, "").slice(0, 14);
+  return `${prefix}-${compactTimestamp}Z-${randomBytes(4).toString("hex")}`;
 }
 
 async function readSnapshotEntries(logPath: string): Promise<SnapshotLogEntry[]> {
@@ -325,6 +484,12 @@ function assertInside(path: string, rootDir: string, message: string): void {
   const normalizedRoot = resolve(rootDir);
   if (path !== normalizedRoot && !path.startsWith(`${normalizedRoot}${sep}`)) {
     throw new Error(message);
+  }
+}
+
+function assertSafePathSegment(value: string, label: string): void {
+  if (!value || value === "." || value === ".." || value.includes("/") || value.includes("\\")) {
+    throw new Error(`Invalid ${label}: ${value}`);
   }
 }
 

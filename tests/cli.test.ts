@@ -385,7 +385,61 @@ describe("cli", () => {
     }
   });
 
-  test("history supports simple, details, and JSON output", async () => {
+  test("skills install records a local project history commit", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["skills", "install", "pony-trail", "--home", homeDir, "--agents", "codex"],
+        { from: "user" },
+      );
+
+      await expect(
+        stat(join(homeDir, ".codex", "skills", "pony-trail", "SKILL.md")),
+      ).resolves.toBeTruthy();
+      expect(logs.some((line) => line.includes("Local history:"))).toBe(true);
+
+      await buildProgram({ cwd: rootDir }).parseAsync(["history", "--details"], { from: "user" });
+      const historyLogs = logs.splice(0).map(stripAnsi);
+
+      expect(historyLogs.some((line) => line.includes("ponytrail-skills"))).toBe(true);
+      expect(historyLogs.some((line) => line.includes("action: install skill"))).toBe(true);
+      expect(
+        historyLogs.some((line) => line.includes("summary: Installed pony-trail skill for codex")),
+      ).toBe(true);
+
+      const entries = (await readFile(join(rootDir, ".pony-trail", "snapshots.jsonl"), "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(entries.map((entry) => entry.phase)).toEqual(["pre", "post"]);
+      expect(entries.map((entry) => entry.session_id)).toEqual([
+        "ponytrail-skills",
+        "ponytrail-skills",
+      ]);
+      expect(entries[0].snapshot_id).toStartWith("skill-install-");
+
+      const sessionTree = await readFile(
+        join(rootDir, ".pony-trail", "sessions", "ponytrail-skills", "tree.md"),
+        "utf8",
+      );
+      expect(sessionTree).toContain("Session: `ponytrail-skills`");
+      expect(sessionTree).toContain("## commit skill-install-");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("history supports tree, details, and JSON output", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
     const originalLog = console.log;
@@ -398,17 +452,18 @@ describe("cli", () => {
       await writeSampleSnapshotLog(rootDir);
 
       await buildProgram({ cwd: rootDir }).parseAsync(["history"], { from: "user" });
-      const simpleLogs = logs.splice(0);
-      await buildProgram({ cwd: rootDir }).parseAsync(["history", "--mode", "details"], {
-        from: "user",
-      });
+      const treeLogs = logs.splice(0).map(stripAnsi);
+      await buildProgram({ cwd: rootDir }).parseAsync(["history", "--details"], { from: "user" });
       const detailsLogs = logs.splice(0);
       await buildProgram({ cwd: rootDir }).parseAsync(["history", "--json"], { from: "user" });
       const jsonLogs = logs.splice(0);
 
-      expect(simpleLogs.map(stripAnsi)).toEqual(["snapshot-001"]);
-      expect(simpleLogs.some((line) => line.includes("snapshot-001"))).toBe(true);
-      expect(simpleLogs.some((line) => line.includes("Updated note"))).toBe(false);
+      expect(treeLogs).toEqual([
+        "Snapshot history",
+        "* session-alpha",
+        "  * snapshot-001 (pre/post)",
+      ]);
+      expect(treeLogs.some((line) => line.includes("Updated note"))).toBe(false);
       expect(detailsLogs).toContain("Snapshot history");
       expect(detailsLogs.some((line) => line.includes("session-alpha"))).toBe(true);
       expect(detailsLogs.some((line) => line.includes("snapshot-001"))).toBe(true);
@@ -448,7 +503,7 @@ describe("cli", () => {
 
 async function writeSampleSnapshotLog(rootDir: string): Promise<void> {
   const { mkdir, writeFile } = await import("node:fs/promises");
-  const snapshotDir = join(rootDir, ".agent-change-snapshots");
+  const snapshotDir = join(rootDir, ".pony-trail");
   await mkdir(join(snapshotDir, "files", "snapshot-001", "pre"), { recursive: true });
   await writeFile(join(snapshotDir, "files", "snapshot-001", "pre", "notes.txt"), "before\n");
   await writeFile(

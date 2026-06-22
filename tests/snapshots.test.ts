@@ -64,14 +64,7 @@ describe("snapshot history", () => {
         {
           type: "restore",
           path: "notes.txt",
-          source: join(
-            rootDir,
-            ".agent-change-snapshots",
-            "files",
-            "snapshot-001",
-            "pre",
-            "notes.txt",
-          ),
+          source: join(rootDir, ".pony-trail", "files", "snapshot-001", "pre", "notes.txt"),
         },
         {
           type: "delete",
@@ -98,7 +91,7 @@ describe("snapshot history", () => {
         "Unknown snapshot: missing",
       );
 
-      await rm(join(rootDir, ".agent-change-snapshots", "files"), {
+      await rm(join(rootDir, ".pony-trail", "files"), {
         recursive: true,
         force: true,
       });
@@ -113,7 +106,7 @@ describe("snapshot history", () => {
 });
 
 async function writeSampleSnapshot(rootDir: string): Promise<void> {
-  const snapshotDir = join(rootDir, ".agent-change-snapshots");
+  const snapshotDir = join(rootDir, ".pony-trail");
   await mkdir(join(snapshotDir, "files", "snapshot-001", "pre"), { recursive: true });
   await writeFile(join(snapshotDir, "files", "snapshot-001", "pre", "notes.txt"), "before\n");
   await writeFile(

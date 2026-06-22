@@ -17,8 +17,11 @@ import {
   loadManifest,
   planSnapshotRevert,
   prepareGoalDiscussion,
+  type RecordedSnapshotCommit,
   type RequirementCourtResult,
   readSnapshotHistory,
+  recordSnapshotPost,
+  recordSnapshotPre,
   runRequirementCourt,
   type SnapshotCommit,
   type SnapshotFileState,
@@ -49,9 +52,10 @@ export type GoalClarificationPrompter = (
 
 export type ProjectNamePrompter = (defaultName: string) => Promise<string>;
 
-type SnapshotHistoryMode = "simple" | "details";
+type SnapshotHistoryMode = "tree" | "details";
 
 const defaultManifestPath = ".ponytrail/manifest.json";
+const skillInstallHistorySessionId = "ponytrail-skills";
 
 export interface BuildProgramOptions {
   cwd?: string;
@@ -106,14 +110,17 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
         console.log(pc.green("Ponytrail onboarding complete"));
         console.log(pc.dim(`Manifest: ${result.manifestPath}`));
 
-        const skillResult = await installAgentSkill({
+        const skillResult = await installSkillWithLocalHistory({
+          rootDir: targetDir,
           source: "pony-trail",
-          cwd: rootDir,
           homeDir: resolveHomePath(commandOptions.home),
           agents: parseSkillInstallAgents(commandOptions.agents),
+          dryRun: false,
+          force: false,
+          installPrehook: false,
         });
 
-        printSkillInstallResult(skillResult);
+        printSkillInstallResult(skillResult.skillInstall, skillResult.history);
       },
     );
 
@@ -200,21 +207,32 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .command("history")
     .description("Show Pony Trail snapshot history.")
     .option("-s, --session <id>", "only show one snapshot session")
-    .option("--mode <mode>", "history output mode: simple,details", "simple")
+    .option("--mode <mode>", "history output mode: tree,details", "tree")
+    .option("--details", "include detailed snapshot metadata", false)
     .option("--json", "print JSON output", false)
-    .action(async (commandOptions: { session?: string; mode: string; json: boolean }) => {
-      const history = await readSnapshotHistory({
-        rootDir,
-        sessionId: commandOptions.session,
-      });
+    .action(
+      async (commandOptions: {
+        session?: string;
+        mode: string;
+        details: boolean;
+        json: boolean;
+      }) => {
+        const history = await readSnapshotHistory({
+          rootDir,
+          sessionId: commandOptions.session,
+        });
 
-      if (commandOptions.json) {
-        console.log(JSON.stringify(history, null, 2));
-        return;
-      }
+        if (commandOptions.json) {
+          console.log(JSON.stringify(history, null, 2));
+          return;
+        }
 
-      printSnapshotHistory(history.sessions, parseSnapshotHistoryMode(commandOptions.mode));
-    });
+        printSnapshotHistory(
+          history.sessions,
+          commandOptions.details ? "details" : parseSnapshotHistoryMode(commandOptions.mode),
+        );
+      },
+    );
 
   program
     .command("revert")
@@ -368,60 +386,60 @@ function printSnapshotHistory(
     return;
   }
 
-  if (mode === "simple") {
-    printSimpleSnapshotHistory(sessions);
+  if (mode === "tree") {
+    printSnapshotHistoryTree(sessions, false);
     return;
   }
 
-  printDetailedSnapshotHistory(sessions);
+  printSnapshotHistoryTree(sessions, true);
 }
 
-function printSimpleSnapshotHistory(
+function printSnapshotHistoryTree(
   sessions: Array<{ sessionId: string; commits: SnapshotCommit[] }>,
+  includeDetails: boolean,
 ): void {
+  console.log(pc.cyan("Snapshot history"));
   for (const session of sessions) {
+    console.log(`* ${session.sessionId}`);
     for (const commit of session.commits) {
-      console.log(pc.yellow(commit.snapshotId));
+      console.log(`  * ${pc.yellow(commit.snapshotId)} ${formatSnapshotStatus(commit)}`);
+      if (includeDetails) {
+        printSnapshotCommitDetails(commit);
+      }
     }
   }
 }
 
-function printDetailedSnapshotHistory(
-  sessions: Array<{ sessionId: string; commits: SnapshotCommit[] }>,
-): void {
-  console.log(pc.cyan("Snapshot history"));
-  for (const session of sessions) {
-    console.log(`${pc.dim("Session:")} ${session.sessionId}`);
-    for (const commit of session.commits) {
-      console.log(`- ${commit.snapshotId} ${formatSnapshotStatus(commit)}`);
-      if (commit.action) {
-        console.log(`  action: ${commit.action}`);
-      }
-      if (commit.summary) {
-        console.log(`  summary: ${commit.summary}`);
-      }
-      if (commit.checks) {
-        console.log(`  checks: ${commit.checks}`);
-      }
-      if (commit.result) {
-        console.log(`  result: ${commit.result}`);
-      }
-      if (commit.rollback) {
-        console.log(`  rollback: ${commit.rollback}`);
-      }
-      for (const file of commit.files) {
-        console.log(`  ${formatSnapshotFile(file)}`);
-      }
-    }
+function printSnapshotCommitDetails(commit: SnapshotCommit): void {
+  if (commit.action) {
+    console.log(`    action: ${commit.action}`);
+  }
+  if (commit.summary) {
+    console.log(`    summary: ${commit.summary}`);
+  }
+  if (commit.checks) {
+    console.log(`    checks: ${commit.checks}`);
+  }
+  if (commit.result) {
+    console.log(`    result: ${commit.result}`);
+  }
+  if (commit.rollback) {
+    console.log(`    rollback: ${commit.rollback}`);
+  }
+  for (const file of commit.files) {
+    console.log(`    ${formatSnapshotFile(file)}`);
   }
 }
 
 function parseSnapshotHistoryMode(mode: string): SnapshotHistoryMode {
-  if (mode === "simple" || mode === "details") {
+  if (mode === "tree" || mode === "details") {
     return mode;
   }
+  if (mode === "simple") {
+    return "tree";
+  }
 
-  throw new Error(`Unknown history mode: ${mode}. Use simple or details.`);
+  throw new Error(`Unknown history mode: ${mode}. Use tree or details.`);
 }
 
 function formatSnapshotStatus(commit: SnapshotCommit): string {
@@ -546,9 +564,9 @@ function configureSkillInstallCommand(command: Command, rootDir: string): Comman
           force: boolean;
         },
       ) => {
-        const result = await installAgentSkill({
+        const result = await installSkillWithLocalHistory({
+          rootDir,
           source: sourceOrName,
-          cwd: rootDir,
           homeDir: resolveHomePath(commandOptions.home),
           agents: parseSkillInstallAgents(commandOptions.agents),
           dryRun: commandOptions.dryRun,
@@ -556,9 +574,83 @@ function configureSkillInstallCommand(command: Command, rootDir: string): Comman
           installPrehook: commandOptions.prehook,
         });
 
-        printSkillInstallResult(result);
+        printSkillInstallResult(result.skillInstall, result.history);
       },
     );
+}
+
+interface InstallSkillWithLocalHistoryInput {
+  rootDir: string;
+  source: string;
+  homeDir: string;
+  agents: ReturnType<typeof parseSkillInstallAgents>;
+  dryRun: boolean;
+  force: boolean;
+  installPrehook: boolean;
+}
+
+interface InstallSkillWithLocalHistoryResult {
+  skillInstall: SkillInstallResult;
+  history?: RecordedSnapshotCommit | undefined;
+}
+
+async function installSkillWithLocalHistory(
+  input: InstallSkillWithLocalHistoryInput,
+): Promise<InstallSkillWithLocalHistoryResult> {
+  const commandText = formatSkillInstallCommand(input);
+  let history: RecordedSnapshotCommit | undefined;
+
+  if (!input.dryRun) {
+    history = await recordSnapshotPre({
+      rootDir: input.rootDir,
+      sessionId: skillInstallHistorySessionId,
+      idPrefix: "skill-install",
+      action: "install skill",
+      purpose: `Install ${input.source} skill for ${formatAgentList(input.agents)}`,
+      reason: "Keep project-local history before changing agent skill files.",
+      expected: "The skill install result is captured in local Ponytrail history.",
+      verify: "ponytrail history --details",
+      rollback:
+        "Remove or reinstall the affected agent skill folders, then record another snapshot.",
+    });
+  }
+
+  try {
+    const skillInstall = await installAgentSkill({
+      source: input.source,
+      cwd: input.rootDir,
+      homeDir: input.homeDir,
+      agents: input.agents,
+      dryRun: input.dryRun,
+      force: input.force,
+      installPrehook: input.installPrehook,
+    });
+
+    if (history) {
+      history = await recordSnapshotPost({
+        rootDir: input.rootDir,
+        sessionId: history.sessionId,
+        snapshotId: history.snapshotId,
+        summary: formatSkillInstallSummary(skillInstall),
+        checks: commandText,
+        result: formatSkillInstallHistoryResult(skillInstall),
+      });
+    }
+
+    return { skillInstall, history };
+  } catch (error) {
+    if (history) {
+      await recordSnapshotPost({
+        rootDir: input.rootDir,
+        sessionId: history.sessionId,
+        snapshotId: history.snapshotId,
+        summary: `Failed to install ${input.source} skill for ${formatAgentList(input.agents)}`,
+        checks: commandText,
+        result: `fail: ${formatErrorMessage(error)}`,
+      });
+    }
+    throw error;
+  }
 }
 
 function resolveHomePath(path: string): string {
@@ -571,7 +663,10 @@ function resolveHomePath(path: string): string {
   return isAbsolute(path) ? path : resolve(path);
 }
 
-function printSkillInstallResult(result: SkillInstallResult): void {
+function printSkillInstallResult(
+  result: SkillInstallResult,
+  history?: RecordedSnapshotCommit | undefined,
+): void {
   console.log(pc.cyan(result.dryRun ? "Skill install plan" : "Skill install result"));
   console.log(`Skill: ${result.skillName}`);
   console.log(`${pc.dim("Source:")} ${result.source.path}`);
@@ -592,6 +687,12 @@ function printSkillInstallResult(result: SkillInstallResult): void {
         )} ${pc.dim(`settings: ${prehook.settingsPath}`)}`,
       );
     }
+  }
+
+  if (history) {
+    console.log("");
+    console.log(`${pc.dim("Local history:")} ${history.snapshotId}`);
+    console.log(`${pc.dim("History log:")} ${history.logPath}`);
   }
 }
 
@@ -614,6 +715,40 @@ function formatSkillInstallStatus(status: SkillInstallResult["targets"][number][
     case "already_present":
       return "already present";
   }
+}
+
+function formatSkillInstallCommand(input: InstallSkillWithLocalHistoryInput): string {
+  const flags = [
+    `--home ${input.homeDir}`,
+    `--agents ${formatAgentList(input.agents)}`,
+    input.force ? "--force" : "",
+    input.installPrehook ? "--prehook" : "",
+  ].filter(Boolean);
+  return ["ponytrail skills install", input.source, ...flags].join(" ");
+}
+
+function formatSkillInstallSummary(result: SkillInstallResult): string {
+  return `Installed ${result.skillName} skill for ${formatAgentList(
+    result.targets.map((target) => target.agent),
+  )}`;
+}
+
+function formatSkillInstallHistoryResult(result: SkillInstallResult): string {
+  const targetStatuses = result.targets
+    .map((target) => `${target.agent}:${target.status}`)
+    .join(", ");
+  const prehookStatuses = result.prehooks
+    .map((prehook) => `${prehook.agent}:prehook:${prehook.status}`)
+    .join(", ");
+  return [targetStatuses, prehookStatuses].filter(Boolean).join("; ");
+}
+
+function formatAgentList(agents: string[]): string {
+  return agents.join(", ");
+}
+
+function formatErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 if (import.meta.main) {

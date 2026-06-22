@@ -1,3 +1,5 @@
+<img src="/assets/pony-trail.png" alt="Pony Trail" width="640" />
+
 # Ponytrail
 
 Ponytrail records agent file-change snapshots, shows the snapshot history tree, and can restore files from a previous snapshot.
@@ -18,16 +20,16 @@ bunx ponytrail onboard
 
 ## View History
 
-Show the simple history view. This prints only snapshot ids:
+Show the local snapshot tree:
 
 ```bash
 ponytrail history
 ```
 
-Show the detailed history tree:
+Include detailed commit metadata:
 
 ```bash
-ponytrail history --mode details
+ponytrail history --details
 ```
 
 Filter to one session or print machine-readable output:
@@ -40,10 +42,14 @@ ponytrail history --json
 Snapshots are read from:
 
 ```text
-.agent-change-snapshots/
+.pony-trail/
   snapshots.jsonl
   sessions/<session-id>/tree.md
 ```
+
+`ponytrail skills install` and `ponytrail onboard` also record a project-local
+skill-install commit before they write agent skill files, so the install can be
+found later in `ponytrail history --details`.
 
 ## Revert A Snapshot
 

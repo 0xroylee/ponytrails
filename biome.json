@@ -13,18 +13,6 @@
     }
   },
   "files": {
-    "includes": [
-      "**",
-      "!node_modules",
-      "!bun.lock",
-      "!.ponytrail",
-      "!.goal-court",
-      "!.agent-change-snapshots",
-      "!.codegraph",
-      "!.cursor",
-      "!coverage",
-      "!dist",
-      "!work"
-    ]
+    "includes": ["**", "!node_modules", "!bun.lock", "!.*", "!coverage", "!dist", "!work"]
   }
 }

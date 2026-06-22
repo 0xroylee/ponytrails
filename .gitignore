@@ -4,6 +4,7 @@ bun.lock
 dist/
 coverage/
 .agent-change-snapshots/
+.pony-trail/
 work/
 .DS_Store
 docs/superpowers
