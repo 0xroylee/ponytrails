@@ -20,7 +20,7 @@ describe("package metadata", () => {
       "bun build --target=bun --outfile=dist/cli.js src/cli.ts",
     );
     expect(packageMetadata.scripts?.prepack).toBe("bun run build");
-    expect(packageMetadata.bin?.["goal-court"]).toBe("./dist/cli.js");
+    expect(packageMetadata.bin?.ponytrail).toBe("./dist/cli.js");
     expect(packageMetadata.files).toContain("dist");
     expect(packageMetadata.files).toContain("bundled-skills");
   });

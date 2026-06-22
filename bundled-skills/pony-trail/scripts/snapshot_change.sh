@@ -261,7 +261,7 @@ ensure_session_tree() {
   mkdir -p "$session_dir"
   if [ ! -f "$session_tree_path" ]; then
     {
-      printf '# PonyTrail Session Tree\n\n'
+      printf '# Ponytrail Session Tree\n\n'
       printf 'Session: `%s`\n\n' "$session_id"
       printf 'Each commit records agent intent, changed files, stored copies, checks, and rollback context.\n'
     } >"$session_tree_path"

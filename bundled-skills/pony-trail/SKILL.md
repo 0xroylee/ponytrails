@@ -3,7 +3,7 @@ name: pony-trail
 description: Use when an agent is about to create, edit, move, or delete files and must preserve decision snapshots, action rationale, file-change intent, rollback context, or a git-like audit trail for every file mutation.
 ---
 
-# PonyTrail
+# Ponytrail
 
 ## Overview
 
@@ -28,7 +28,7 @@ Pre-change:
 
 ```bash
 sh /path/to/pony-trail/scripts/snapshot_change.sh pre \
-  --session-id "${PONYTRAIL_SESSION_ID:-default}" \
+  --session-id "${PONYTRAIL_SESSION_ID:-${DEVCOURT_SESSION_ID:-default}}" \
   --files src/example.ts \
   --action "edit validation" \
   --purpose "Reject empty names before saving" \
@@ -42,7 +42,7 @@ Post-change:
 
 ```bash
 sh /path/to/pony-trail/scripts/snapshot_change.sh post \
-  --session-id "${PONYTRAIL_SESSION_ID:-default}" \
+  --session-id "${PONYTRAIL_SESSION_ID:-${DEVCOURT_SESSION_ID:-default}}" \
   --snapshot-id 20260621T120000Z-abc12345 \
   --files src/example.ts \
   --summary "Added empty-name guard and test coverage" \

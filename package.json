@@ -1,9 +1,9 @@
 {
-  "name": "goal-court",
+  "name": "ponytrail",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "goal-court": "./dist/cli.js"
+    "ponytrail": "./dist/cli.js"
   },
   "files": [
     "dist",

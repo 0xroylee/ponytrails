@@ -12,13 +12,19 @@ import {
   type SkillInstallResult,
 } from "./plugins";
 import {
+  applySnapshotRevert,
   createOnboardingFiles,
   loadManifest,
+  planSnapshotRevert,
   prepareGoalDiscussion,
   type RequirementCourtResult,
+  readSnapshotHistory,
   runRequirementCourt,
+  type SnapshotCommit,
+  type SnapshotFileState,
+  type SnapshotRevertAction,
   tallyVotes,
-} from "./runtimes/goal-court";
+} from "./runtimes/ponytrail";
 
 export type ClarificationMode = "custom" | "open_question" | "skip";
 
@@ -41,49 +47,80 @@ export type GoalClarificationPrompter = (
   input: GoalClarificationPromptInput,
 ) => Promise<GoalClarificationPromptResult>;
 
+export type ProjectNamePrompter = (defaultName: string) => Promise<string>;
+
+type SnapshotHistoryMode = "simple" | "details";
+
+const defaultManifestPath = ".ponytrail/manifest.json";
+
 export interface BuildProgramOptions {
   cwd?: string;
   streamRunner?: CliStreamRunner;
   clarificationPrompter?: GoalClarificationPrompter;
+  projectNamePrompter?: ProjectNamePrompter;
 }
 
 export function buildProgram(options: BuildProgramOptions = {}): Command {
   const rootDir = options.cwd ?? process.cwd();
   const clarificationPrompter = options.clarificationPrompter ?? promptForGoalClarifications;
+  const projectNamePrompter = options.projectNamePrompter ?? promptForProjectName;
   const program = new Command();
 
   program
-    .name("goal-court")
+    .name("ponytrail")
     .description("Requirement-first runtime for supervising Codex, Claude, and other AI workers.")
     .version("0.1.0");
 
   program
     .command("onboard")
-    .description("Create a local .goal-court manifest and onboarding files.")
+    .description("Create local .ponytrail files and install the default Pony Trail skill.")
     .option("-d, --dir <dir>", "target directory", rootDir)
     .option("-n, --name <name>", "project name")
+    .option(
+      "-a, --agents <agents>",
+      "comma-separated skill install targets: claude,copilot,codex",
+      "claude,copilot,codex",
+    )
+    .option("--home <dir>", "home directory that contains agent config folders", homedir())
     .option("-y, --yes", "use defaults without prompting", false)
-    .action(async (commandOptions: { dir: string; name?: string; yes: boolean }) => {
-      const targetDir = resolvePath(rootDir, commandOptions.dir);
-      const projectName =
-        commandOptions.name ??
-        (commandOptions.yes
-          ? basename(targetDir)
-          : await promptForProjectName(basename(targetDir)));
+    .action(
+      async (commandOptions: {
+        dir: string;
+        name?: string;
+        agents: string;
+        home: string;
+        yes: boolean;
+      }) => {
+        const targetDir = resolvePath(rootDir, commandOptions.dir);
+        const projectName =
+          commandOptions.name ??
+          (commandOptions.yes
+            ? basename(targetDir)
+            : await projectNamePrompter(basename(targetDir)));
 
-      const result = await createOnboardingFiles({
-        rootDir: targetDir,
-        projectName,
-      });
+        const result = await createOnboardingFiles({
+          rootDir: targetDir,
+          projectName,
+        });
 
-      console.log(pc.green("Goal Court onboarding complete"));
-      console.log(pc.dim(`Manifest: ${result.manifestPath}`));
-    });
+        console.log(pc.green("Ponytrail onboarding complete"));
+        console.log(pc.dim(`Manifest: ${result.manifestPath}`));
+
+        const skillResult = await installAgentSkill({
+          source: "pony-trail",
+          cwd: rootDir,
+          homeDir: resolveHomePath(commandOptions.home),
+          agents: parseSkillInstallAgents(commandOptions.agents),
+        });
+
+        printSkillInstallResult(skillResult);
+      },
+    );
 
   program
     .command("bots")
     .description("List bots from the manifest.")
-    .option("-m, --manifest <path>", "manifest path", ".goal-court/manifest.json")
+    .option("-m, --manifest <path>", "manifest path", defaultManifestPath)
     .action(async (commandOptions: { manifest: string }) => {
       const manifest = await loadManifest(resolvePath(rootDir, commandOptions.manifest));
 
@@ -98,7 +135,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .command("goal")
     .description("Clarify, discuss, and summarize a requirement-first goal.")
     .argument("<request...>", "raw goal request")
-    .option("-m, --manifest <path>", "manifest path", ".goal-court/manifest.json")
+    .option("-m, --manifest <path>", "manifest path", defaultManifestPath)
     .option("-w, --worker <id>", "accepted for compatibility; worker execution is gated")
     .option("--json", "print JSON output", false)
     .action(
@@ -118,7 +155,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
   program
     .command("vote")
     .description("Apply the manifest decision rule to a JSON array of bot votes.")
-    .option("-m, --manifest <path>", "manifest path", ".goal-court/manifest.json")
+    .option("-m, --manifest <path>", "manifest path", defaultManifestPath)
     .requiredOption("--votes <json>", "JSON array of bot votes")
     .option("--json", "print JSON output", false)
     .action(async (commandOptions: { manifest: string; votes: string; json: boolean }) => {
@@ -146,7 +183,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .command("stream-goal")
     .description("Compatibility alias for goal.")
     .argument("<request...>", "raw goal request")
-    .option("-m, --manifest <path>", "manifest path", ".goal-court/manifest.json")
+    .option("-m, --manifest <path>", "manifest path", defaultManifestPath)
     .option("-w, --worker <id>", "accepted for compatibility; worker execution is gated")
     .action(
       async (requestParts: string[], commandOptions: { manifest: string; worker?: string }) => {
@@ -156,6 +193,54 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
           manifestPath: commandOptions.manifest,
           printJson: false,
         });
+      },
+    );
+
+  program
+    .command("history")
+    .description("Show Pony Trail snapshot history.")
+    .option("-s, --session <id>", "only show one snapshot session")
+    .option("--mode <mode>", "history output mode: simple,details", "simple")
+    .option("--json", "print JSON output", false)
+    .action(async (commandOptions: { session?: string; mode: string; json: boolean }) => {
+      const history = await readSnapshotHistory({
+        rootDir,
+        sessionId: commandOptions.session,
+      });
+
+      if (commandOptions.json) {
+        console.log(JSON.stringify(history, null, 2));
+        return;
+      }
+
+      printSnapshotHistory(history.sessions, parseSnapshotHistoryMode(commandOptions.mode));
+    });
+
+  program
+    .command("revert")
+    .description("Restore files from a Pony Trail snapshot pre-state.")
+    .argument("<snapshot-id>", "snapshot id to restore")
+    .option("--dry-run", "show planned file actions without writing files", false)
+    .option("-y, --yes", "apply the revert", false)
+    .action(
+      async (
+        snapshotId: string,
+        commandOptions: {
+          dryRun: boolean;
+          yes: boolean;
+        },
+      ) => {
+        if (!commandOptions.dryRun && !commandOptions.yes) {
+          throw new Error("Use --dry-run to preview or --yes to apply the revert.");
+        }
+
+        const plan = await planSnapshotRevert({ rootDir, snapshotId });
+        printSnapshotRevertPlan(plan.actions, commandOptions.dryRun);
+
+        if (!commandOptions.dryRun) {
+          await applySnapshotRevert(plan);
+          console.log(pc.green(`Reverted snapshot ${snapshotId}`));
+        }
       },
     );
 
@@ -172,7 +257,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
 }
 
 async function promptForProjectName(defaultName: string): Promise<string> {
-  intro(pc.cyan("Goal Court onboarding"));
+  intro(pc.cyan("Ponytrail onboarding"));
   const answer = await text({
     message: "Project name",
     placeholder: defaultName,
@@ -274,6 +359,97 @@ function printList(label: string, values: string[]): void {
   }
 }
 
+function printSnapshotHistory(
+  sessions: Array<{ sessionId: string; commits: SnapshotCommit[] }>,
+  mode: SnapshotHistoryMode,
+): void {
+  if (sessions.length === 0) {
+    console.log(pc.dim("No snapshot history found."));
+    return;
+  }
+
+  if (mode === "simple") {
+    printSimpleSnapshotHistory(sessions);
+    return;
+  }
+
+  printDetailedSnapshotHistory(sessions);
+}
+
+function printSimpleSnapshotHistory(
+  sessions: Array<{ sessionId: string; commits: SnapshotCommit[] }>,
+): void {
+  for (const session of sessions) {
+    for (const commit of session.commits) {
+      console.log(pc.yellow(commit.snapshotId));
+    }
+  }
+}
+
+function printDetailedSnapshotHistory(
+  sessions: Array<{ sessionId: string; commits: SnapshotCommit[] }>,
+): void {
+  console.log(pc.cyan("Snapshot history"));
+  for (const session of sessions) {
+    console.log(`${pc.dim("Session:")} ${session.sessionId}`);
+    for (const commit of session.commits) {
+      console.log(`- ${commit.snapshotId} ${formatSnapshotStatus(commit)}`);
+      if (commit.action) {
+        console.log(`  action: ${commit.action}`);
+      }
+      if (commit.summary) {
+        console.log(`  summary: ${commit.summary}`);
+      }
+      if (commit.checks) {
+        console.log(`  checks: ${commit.checks}`);
+      }
+      if (commit.result) {
+        console.log(`  result: ${commit.result}`);
+      }
+      if (commit.rollback) {
+        console.log(`  rollback: ${commit.rollback}`);
+      }
+      for (const file of commit.files) {
+        console.log(`  ${formatSnapshotFile(file)}`);
+      }
+    }
+  }
+}
+
+function parseSnapshotHistoryMode(mode: string): SnapshotHistoryMode {
+  if (mode === "simple" || mode === "details") {
+    return mode;
+  }
+
+  throw new Error(`Unknown history mode: ${mode}. Use simple or details.`);
+}
+
+function formatSnapshotStatus(commit: SnapshotCommit): string {
+  if (commit.hasPre && commit.hasPost) {
+    return pc.dim("(pre/post)");
+  }
+  if (commit.hasPre) {
+    return pc.dim("(pre only)");
+  }
+  return pc.dim("(post only)");
+}
+
+function formatSnapshotFile(file: SnapshotFileState): string {
+  return file.exists ? `file: ${file.path}` : `missing before: ${file.path}`;
+}
+
+function printSnapshotRevertPlan(actions: SnapshotRevertAction[], dryRun: boolean): void {
+  console.log(pc.cyan("Snapshot revert plan"));
+  for (const action of actions) {
+    if (action.type === "restore") {
+      console.log(`${dryRun ? "Would restore" : "Restore"} ${action.path}`);
+      continue;
+    }
+
+    console.log(`${dryRun ? "Would delete" : "Delete"} ${action.path}`);
+  }
+}
+
 function buildClarifiedRequest(answers: GoalClarificationAnswer[]): string | null {
   const customAnswers = answers
     .filter((answer) => answer.mode === "custom" && answer.answer.trim())
@@ -357,7 +533,7 @@ function configureSkillInstallCommand(command: Command, rootDir: string): Comman
     )
     .option("--home <dir>", "home directory that contains agent config folders", homedir())
     .option("--dry-run", "show install destinations without writing files", false)
-    .option("--prehook", "also install a PonyTrail prehook reminder for file mutations", false)
+    .option("--prehook", "also install a Ponytrail prehook reminder for file mutations", false)
     .option("-f, --force", "overwrite existing installed skill folders", false)
     .action(
       async (
