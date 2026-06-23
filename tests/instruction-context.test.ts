@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -207,6 +207,10 @@ describe("instruction context", () => {
 
 async function currentWorktreeGitDir(): Promise<string> {
   const gitPath = join(process.cwd(), ".git");
+  if ((await stat(gitPath)).isDirectory()) {
+    return gitPath;
+  }
+
   const content = await readFile(gitPath, "utf8");
   const gitDirPrefix = "gitdir:";
   if (content.startsWith(gitDirPrefix)) {
