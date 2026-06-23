@@ -46,13 +46,17 @@ export interface RunRequirementCourtInput {
   manifest: Manifest;
 }
 
-const ROLE_MESSAGES: Record<string, (contract: GoalContract) => string> = {
+type DiscussionMessageFactory = (contract: GoalContract, bot: Manifest["bots"][number]) => string;
+
+const ROLE_MESSAGES: Record<string, DiscussionMessageFactory> = {
   product_manager_bot: (contract) =>
     `I think this requirement preserves the user's product intent: ${contract.intent}. Keep the outcome explicit and avoid expanding beyond the requested workflow.`,
   project_manager_bot: (contract) =>
     `I think this can become a manageable unit of work if the delivery boundary stays tied to: ${contract.title}. Dependencies and completion evidence should stay visible.`,
   engineer_bot: (contract) =>
     `I think the requirement is feasible if the worker keeps the technical boundary aligned to: ${contract.title}. Large architecture choices should be raised before execution.`,
+  senior_engineer_bot: (contract) =>
+    `I think the requirement is feasible if the worker keeps the technical boundary aligned to: ${contract.title}. Large architecture choices and risky dependencies should be raised before execution.`,
   testing_bot: (contract) =>
     `I think this needs observable acceptance criteria and evidence for: ${contract.title}. Edge cases and smoke verification should be named before work starts.`,
 };
@@ -61,6 +65,7 @@ const ROLE_LABELS: Record<string, string> = {
   product_manager_bot: "product",
   project_manager_bot: "project",
   engineer_bot: "engineering",
+  senior_engineer_bot: "senior engineering",
   testing_bot: "testing",
 };
 
@@ -107,23 +112,30 @@ function createDiscussionEntry(
     throw new Error(`Missing requirement court bot ${botId}`);
   }
 
-  const messageFactory = ROLE_MESSAGES[botId];
-  if (!messageFactory) {
-    throw new Error(`Missing discussion message factory for ${botId}`);
-  }
-
-  const message = messageFactory(contract);
+  const messageFactory = ROLE_MESSAGES[botId] ?? createGenericDiscussionMessage;
+  const message = messageFactory(contract, bot);
 
   return {
     botId,
     displayName: bot.displayName,
-    role: ROLE_LABELS[botId] ?? "review",
+    role: ROLE_LABELS[botId] ?? createRoleLabel(bot),
     message,
     line: `${botId}: ${message}`,
     vote: "approve",
     confidence: 0.8,
     requiredChanges: [],
   };
+}
+
+function createGenericDiscussionMessage(
+  contract: GoalContract,
+  bot: Manifest["bots"][number],
+): string {
+  return `I think this requirement can proceed from the ${bot.displayName} perspective if the worker keeps the scope tied to: ${contract.title}. Any role-specific risk should be raised before execution.`;
+}
+
+function createRoleLabel(bot: Manifest["bots"][number]): string {
+  return bot.displayName.replace(/\s+Bot$/u, "").toLowerCase();
 }
 
 function toVote(entry: RequirementDiscussionEntry): ReviewVote {
