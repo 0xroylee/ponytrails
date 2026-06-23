@@ -70,7 +70,8 @@ describe("skill installer", () => {
 
   test("updates existing bundled skill targets when requested", async () => {
     const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
-    const installedSkillPath = join(homeDir, ".codex", "skills", "pony-trail", "SKILL.md");
+    const installedSkillPath = join(homeDir, ".agents", "skills", "pony-trail", "SKILL.md");
+    const legacyInstalledSkillPath = join(homeDir, ".codex", "skills", "pony-trail", "SKILL.md");
 
     try {
       await installAgentSkill({
@@ -79,6 +80,7 @@ describe("skill installer", () => {
         agents: ["codex"],
       });
       await writeFile(installedSkillPath, "stale skill");
+      await writeFile(legacyInstalledSkillPath, "stale legacy skill");
 
       const dryRun = await installAgentSkill({
         source: "pony-trail",
@@ -106,6 +108,7 @@ describe("skill installer", () => {
         status: "updated",
       });
       expect(await readFile(installedSkillPath, "utf8")).toContain("name: pony-trail");
+      expect(await readFile(legacyInstalledSkillPath, "utf8")).toContain("name: pony-trail");
     } finally {
       await rm(homeDir, { recursive: true, force: true });
     }
@@ -276,7 +279,7 @@ describe("skill installer", () => {
     const rootDir = await mkdtemp(join(tmpdir(), "skill-installer-source-"));
     const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
     const sourceDir = join(rootDir, "custom-skill");
-    const existingSkillDir = join(homeDir, ".codex", "skills", "custom-skill");
+    const existingSkillDir = join(homeDir, ".agents", "skills", "custom-skill");
 
     try {
       await mkdir(sourceDir, { recursive: true });

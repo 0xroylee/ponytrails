@@ -787,6 +787,8 @@ function printSkillInstallResult(
     console.log(`${pc.dim("Local history:")} ${history.snapshotId}`);
     console.log(`${pc.dim("History log:")} ${history.logPath}`);
   }
+
+  printPostSkillChangeWelcome(result);
 }
 
 function formatSkillInstallStatus(status: SkillInstallResult["targets"][number]["status"]): string {
@@ -841,6 +843,16 @@ function formatSkillInstallHistoryResult(result: SkillInstallResult): string {
     .map((prehook) => `${prehook.agent}:prehook:${prehook.status}`)
     .join(", ");
   return [targetStatuses, prehookStatuses].filter(Boolean).join("; ");
+}
+
+function printPostSkillChangeWelcome(result: SkillInstallResult): void {
+  if (result.dryRun) {
+    return;
+  }
+
+  console.log("");
+  console.log(pc.green("Welcome to Ponytrail."));
+  console.log("Restart your agent IDE so it loads the latest Pony Trail skill.");
 }
 
 function formatAgentList(agents: string[]): string {

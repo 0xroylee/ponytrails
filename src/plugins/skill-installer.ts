@@ -74,7 +74,7 @@ const agentSkillTargets: Record<
 > = {
   claude: { kind: "directory", path: [".claude", "skills"] },
   copilot: { kind: "directory", path: [".agents", "skills"] },
-  codex: { kind: "directory", path: [".codex", "skills"] },
+  codex: { kind: "directory", path: [".agents", "skills"] },
   cursor: { kind: "cursor_rule", path: [".cursor", "rules"] },
 };
 
@@ -100,13 +100,47 @@ export async function installAgentSkill(
   const prehooks: SkillInstallPrehookResult[] = [];
   const operation = input.operation ?? "install";
   const refreshExisting = operation === "update" || input.refreshExisting === true;
+  const handledDestinations = new Map<string, SkillInstallStatus>();
 
   for (const agent of input.agents) {
     const destination = getSkillDestination(input.homeDir, agent, source.name);
+    const mirrorDestinations = getSkillMirrorDestinations(input.homeDir, agent, source.name);
+    const handledStatus = handledDestinations.get(destination);
+    if (handledStatus) {
+      if (
+        !input.dryRun &&
+        handledStatus !== "skipped_exists" &&
+        handledStatus !== "already_present"
+      ) {
+        for (const mirrorDestination of mirrorDestinations) {
+          if (await pathExists(mirrorDestination)) {
+            await rm(mirrorDestination, { recursive: true, force: true });
+          }
+          await installSkillTarget({ agent, source, destination: mirrorDestination });
+        }
+      }
+      targets.push({ agent, destination, status: handledStatus });
+      if (input.installPrehook && hasPrehookSupport(agent)) {
+        prehooks.push(
+          await installAgentSkillPrehook({
+            agent,
+            source,
+            homeDir: input.homeDir,
+            dryRun: input.dryRun ?? false,
+          }),
+        );
+      }
+      continue;
+    }
+
     const exists = await pathExists(destination);
     const matchesSource =
       exists && refreshExisting
-        ? await skillTargetMatchesSource({ agent, source, destination })
+        ? await skillTargetsMatchSource({
+            agent,
+            source,
+            destinations: [destination, ...mirrorDestinations],
+          })
         : false;
     const status = getInstallStatus({
       exists,
@@ -122,8 +156,15 @@ export async function installAgentSkill(
         await rm(destination, { recursive: true, force: true });
       }
       await installSkillTarget({ agent, source, destination });
+      for (const mirrorDestination of mirrorDestinations) {
+        if (await pathExists(mirrorDestination)) {
+          await rm(mirrorDestination, { recursive: true, force: true });
+        }
+        await installSkillTarget({ agent, source, destination: mirrorDestination });
+      }
     }
 
+    handledDestinations.set(destination, status);
     targets.push({ agent, destination, status });
 
     if (input.installPrehook && hasPrehookSupport(agent)) {
@@ -221,6 +262,17 @@ function getSkillDestination(homeDir: string, agent: SkillInstallAgent, skillNam
   return join(homeDir, ...target.path, skillName);
 }
 
+function getSkillMirrorDestinations(
+  homeDir: string,
+  agent: SkillInstallAgent,
+  skillName: string,
+): string[] {
+  if (agent !== "codex") {
+    return [];
+  }
+  return [join(homeDir, ".codex", "skills", skillName)];
+}
+
 async function installSkillTarget(input: {
   agent: SkillInstallAgent;
   source: ResolvedInstallSkillSource;
@@ -237,21 +289,29 @@ async function installSkillTarget(input: {
   await cp(input.source.path, input.destination, { recursive: true });
 }
 
-async function skillTargetMatchesSource(input: {
+async function skillTargetsMatchSource(input: {
   agent: SkillInstallAgent;
   source: ResolvedInstallSkillSource;
-  destination: string;
+  destinations: string[];
 }): Promise<boolean> {
-  try {
-    const target = agentSkillTargets[input.agent];
-    if (target.kind === "cursor_rule") {
-      return (await readFile(input.destination, "utf8")) === (await renderCursorRule(input.source));
-    }
+  for (const destination of input.destinations) {
+    try {
+      const target = agentSkillTargets[input.agent];
+      if (target.kind === "cursor_rule") {
+        if ((await readFile(destination, "utf8")) !== (await renderCursorRule(input.source))) {
+          return false;
+        }
+        continue;
+      }
 
-    return directoryContentsMatch(input.source.path, input.destination);
-  } catch {
-    return false;
+      if (!(await directoryContentsMatch(input.source.path, destination))) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
   }
+  return true;
 }
 
 async function directoryContentsMatch(sourceDir: string, targetDir: string): Promise<boolean> {
