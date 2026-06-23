@@ -110,6 +110,8 @@ The shell environment for this workspace expects commands to be prefixed with
 - Keep interfaces small and deep. Callers should use runtime exports instead of
   reaching into internal files unnecessarily.
 - Use Zod for manifest and user-provided JSON validation.
+- Use Zod schemas to replace `any` types with validated `unknown` inputs and
+  inferred TypeScript types.
 - Keep onboarding deterministic and safe to run repeatedly in a scratch
   directory.
 - Do not add live Codex, Claude, network, or filesystem side effects to core
