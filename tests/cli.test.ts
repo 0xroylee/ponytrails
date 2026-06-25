@@ -607,6 +607,8 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Title: Add CSV import to admin dashboard"))).toBe(
         true,
       );
+      expect(stripAnsiLines(logs)).toContain("What will change:");
+      expect(logs.some((line) => line === "- Add CSV import to admin dashboard")).toBe(true);
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
@@ -653,6 +655,8 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Title: Add CSV import to admin dashboard"))).toBe(
         true,
       );
+      expect(stripAnsiLines(logs)).toContain("What will change:");
+      expect(logs.some((line) => line === "- Add CSV import to admin dashboard")).toBe(true);
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });

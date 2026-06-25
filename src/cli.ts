@@ -757,10 +757,21 @@ function printRequirementCourtResult(
   console.log(pc.cyan("Detailed requirement"));
   console.log(`Title: ${result.detailedRequirement.title}`);
   console.log(`Intent: ${result.detailedRequirement.intent}`);
+  printList("What will change", getDetailedRequirementChanges(result.detailedRequirement));
+  printList("What will not change", result.detailedRequirement.exclude);
   printList("Acceptance criteria", result.detailedRequirement.acceptanceCriteria);
   printList("Evidence required", result.detailedRequirement.evidenceRequired);
   printList("Risks", result.detailedRequirement.risks);
+  printList("Open questions", result.detailedRequirement.openQuestions);
   console.log(`Human confirmation: ${result.humanConfirmation}`);
+}
+
+function getDetailedRequirementChanges(
+  detailedRequirement: RequirementCourtResult["detailedRequirement"],
+): string[] {
+  return detailedRequirement.include.length > 0
+    ? detailedRequirement.include
+    : [detailedRequirement.intent];
 }
 
 function printVisibleThinkingTranscript(result: RequirementCourtResult): void {
