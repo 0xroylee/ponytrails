@@ -19,30 +19,33 @@ function botColor(botId: string): (s: string) => string {
   return BOT_COLORS[botId] ?? pc.white;
 }
 
-// ─── MLP-style running pony (3 gallop frames) ─────────────────────────────
+// ─── Front-facing pony (3 gallop frames) ──────────────────────────────────
 //
-// Inspired by the round anime eyes, wavy mane, and chubby body of MLP ponies.
-// Each pony faces left (tail flows right) and is ~10 chars wide.
+// Design from user's script: /)  (\  ears, •_• dot eyes, /|   |\ shoulders.
+// drawFrame and the lineup renderer each prepend 2 spaces, so body strings
+// carry 6/5/4/3 leading spaces matching the original's 8/7/6/5.
 
-const COL_W = 12; // column width per pony in the lineup
+const COL_W = 15; // column width per pony in the lineup
 
 // Shared head/body lines — same for every gallop frame.
 const PONY_BODY = [
-  "  /~~~\\  ", // mane bump + ears
-  " / O   \\ ", // big round eye
-  "(       )~", // chubby body + tail nub
-  " \\_____/ ", // body bottom / hooves base
+  "      /)  (\\", // ears
+  "     ( •_• )", // dot eyes
+  "    /|   |\\", // shoulders
 ];
 
-// Three leg positions for the gallop cycle.
+// Three leg positions for the gallop cycle (one line each).
+//   frame 0 — original flat stance
+//   frame 1 — hooves lifted (trot)
+//   frame 2 — wider planted stance (gallop)
 const PONY_LEGS = [
-  ["  /\\  /\\ ", " /    \\/ "], // stride: legs spread
-  ["   |    | ", "   |    | "], // trot: legs together
-  ["  /\\  /\\ ", " \\/    / "], // stride: reverse
+  ["   /_|___|_\\"], // hooves flat
+  ["    / |_| \\ "], // hooves raised
+  ["  /___|___|\\"], // wide stance
 ];
 
-// Total lines per animation frame (body + legs + label).
-const FRAME_H = PONY_BODY.length + 2 + 1; // 4 + 2 + 1 = 7
+// Total lines per animation frame (body + 1 leg line + label).
+const FRAME_H = PONY_BODY.length + 1 + 1; // 3 + 1 + 1 = 5
 
 // ─── Header: starting lineup ───────────────────────────────────────────────
 
