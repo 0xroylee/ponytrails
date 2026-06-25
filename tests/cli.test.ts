@@ -13,6 +13,21 @@ import type { CliInvocation, CliStreamRunner } from "../src/plugins";
 import type { RequirementPonyRunner } from "../src/runtimes/ponytrail";
 import { createDefaultSetupReviewBots } from "../src/runtimes/ponytrail/manifest";
 
+async function writeSuperpowersBrainstormingSkill(path: string): Promise<void> {
+  await mkdir(path, { recursive: true });
+  await writeFile(
+    join(path, "SKILL.md"),
+    [
+      "---",
+      "name: brainstorming",
+      'description: "You MUST use this before any creative work."',
+      "---",
+      "",
+      "# Brainstorming Ideas Into Designs",
+    ].join("\n"),
+  );
+}
+
 describe("cli", () => {
   test("registers setup, onboarding, bot listing, goal drafting, and vote commands", () => {
     const program = buildProgram();
@@ -322,6 +337,48 @@ describe("cli", () => {
     }
   });
 
+  test("setup warns and continues when optional superpowers brainstorming is missing", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const setupPrompter: SetupPrompter = async (defaults) => ({
+      ...defaults,
+      projectName: "Optional Superpowers Setup",
+      agents: "codex",
+    });
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir, setupPrompter }).parseAsync(["setup", "--home", homeDir], {
+        from: "user",
+      });
+
+      await expect(
+        stat(join(homeDir, ".agents", "skills", "ponyrace", "SKILL.md")),
+      ).resolves.toBeTruthy();
+      await expect(
+        stat(join(homeDir, ".agents", "skills", "superpowers-brainstorming", "SKILL.md")),
+      ).rejects.toThrow();
+      expect(logs.some((line) => line.includes("Ponyrace setup complete"))).toBe(true);
+      expect(logs.some((line) => line.includes("Superpowers brainstorming skill not found"))).toBe(
+        true,
+      );
+      expect(
+        logs.some((line) =>
+          line.includes("ponyrace skills install superpowers:brainstorming --agents codex --home"),
+        ),
+      ).toBe(true);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
   test("setup prompt recalculates custom approval default from selected bot count", async () => {
     const textDefaults: Array<{ message: string; defaultValue: string }> = [];
     const promptIo: SetupPromptIo = {
@@ -546,6 +603,60 @@ describe("cli", () => {
 
       expect(await readFile(installedSkillPath, "utf8")).toContain("name: pony-trail");
       expect(logs.some((line) => line.includes("codex: updated"))).toBe(true);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("onboard installs optional superpowers brainstorming when available", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
+    const sourceDir = join(
+      homeDir,
+      ".codex",
+      "plugins",
+      "cache",
+      "openai-curated",
+      "superpowers",
+      "fake-plugin",
+      "skills",
+      "brainstorming",
+    );
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await writeSuperpowersBrainstormingSkill(sourceDir);
+
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        [
+          "onboard",
+          "--name",
+          "Optional Superpowers Onboard",
+          "--home",
+          homeDir,
+          "--agents",
+          "codex",
+        ],
+        { from: "user" },
+      );
+
+      await expect(
+        stat(join(homeDir, ".agents", "skills", "superpowers-brainstorming", "SKILL.md")),
+      ).resolves.toBeTruthy();
+      await expect(
+        stat(join(homeDir, ".codex", "skills", "superpowers-brainstorming", "SKILL.md")),
+      ).resolves.toBeTruthy();
+      expect(logs.some((line) => line.includes("Skill: superpowers-brainstorming"))).toBe(true);
+      expect(logs.some((line) => line.includes("Superpowers brainstorming skill not found"))).toBe(
+        false,
+      );
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });

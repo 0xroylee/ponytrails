@@ -12,7 +12,9 @@ import {
   createLocalRequirementPonyRunner,
   getCliWorkerAdapterForCommand,
   installAgentSkill,
+  isMissingSuperpowersBrainstormingSkillError,
   parseSkillInstallAgents,
+  resolveInstallSkillSource,
   type SkillInstallResult,
   streamCliInvocation,
 } from "./plugins";
@@ -109,6 +111,7 @@ type SkillChangeOperation = "install" | "update";
 
 const defaultManifestPath = ".ponyrace/manifest.json";
 const skillInstallHistorySessionId = "ponyrace-skills";
+const optionalSuperpowersBrainstormingSource = "superpowers:brainstorming";
 const clackSetupPromptIo: SetupPromptIo = {
   get isTty() {
     return process.stdin.isTTY === true;
@@ -215,6 +218,12 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
           printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
         }
 
+        await installOptionalSuperpowersBrainstormingSkill({
+          rootDir: targetDir,
+          homeDir: resolveHomePath(commandOptions.home),
+          agents: installAgents,
+        });
+
         console.log(pc.green("Ponyrace setup complete"));
         console.log(`Next: restart Codex or Claude, then run /ponyrace your requirement`);
       },
@@ -261,6 +270,12 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
 
           printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
         }
+
+        await installOptionalSuperpowersBrainstormingSkill({
+          rootDir: targetDir,
+          homeDir: resolveHomePath(commandOptions.home),
+          agents: installAgents,
+        });
 
         console.log(`Next: restart Codex or Claude, then run /ponyrace your requirement`);
       },
@@ -1193,6 +1208,51 @@ async function installSkillWithLocalHistory(
     }
     throw error;
   }
+}
+
+async function installOptionalSuperpowersBrainstormingSkill(input: {
+  rootDir: string;
+  homeDir: string;
+  agents: ReturnType<typeof parseSkillInstallAgents>;
+}): Promise<void> {
+  try {
+    await resolveInstallSkillSource(optionalSuperpowersBrainstormingSource, {
+      cwd: input.rootDir,
+      homeDir: input.homeDir,
+    });
+  } catch (error) {
+    if (isMissingSuperpowersBrainstormingSkillError(error)) {
+      printOptionalSuperpowersBrainstormingInstallWarning(input);
+      return;
+    }
+    throw error;
+  }
+
+  const skillResult = await installSkillWithLocalHistory({
+    rootDir: input.rootDir,
+    operation: "install",
+    source: optionalSuperpowersBrainstormingSource,
+    homeDir: input.homeDir,
+    agents: input.agents,
+    dryRun: false,
+    force: false,
+    refreshExisting: true,
+    installPrehook: false,
+  });
+
+  printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+}
+
+function printOptionalSuperpowersBrainstormingInstallWarning(input: {
+  homeDir: string;
+  agents: ReturnType<typeof parseSkillInstallAgents>;
+}): void {
+  console.log(pc.yellow("Superpowers brainstorming skill not found."));
+  console.log(
+    `Install or enable the Superpowers plugin, then run: ponyrace skills install superpowers:brainstorming --agents ${formatAgentList(
+      input.agents,
+    )} --home ${input.homeDir}`,
+  );
 }
 
 function resolveHomePath(path: string): string {
