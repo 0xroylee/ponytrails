@@ -32,8 +32,8 @@ src/
 - create project onboarding files
 - run the requirements brainstorm gate
 - draft a goal contract from a raw request
-- run each requirement-court pony through a `PonySubagentRunner`
-- tally the 4-bot / 3-approval requirement court plus a non-voting Judge
+- run each requirement-court pony through a `RequirementPonyRunner`
+- tally the requirement court with the manifest decision rule plus a non-voting Judge
 - read Pony Trail snapshot history and plan file-level reverts
 - print visible role-bot discussion before worker execution is allowed
 
@@ -47,7 +47,7 @@ The CLI should call this runtime through its exported interface instead of knowi
 
 The runtime treats `provider` and `name` as configuration values. This keeps goal discussion model selection editable in `.ponytrail/manifest.json` without coupling the core runtime to a specific vendor SDK or CLI flag shape.
 
-`requirement-court.ts` exposes a `PonySubagentRunner` seam. The default runner is deterministic so the CLI works offline, while tests and future plugins can inject process-backed or model-backed subagents. The court invokes the runner once per configured voter in each manifest-defined round, stores the visible round discussion, and tallies final-round votes through the manifest decision rule.
+`requirement-court.ts` exposes a `RequirementPonyRunner` seam. The deterministic default keeps the CLI offline-friendly, while tests and future plugins can inject process-backed or model-backed ponies. The court invokes the runner for each configured voter in each round until the manifest decision rule approves the direction or the maximum round count is reached.
 
 ## Plugins
 
@@ -72,7 +72,7 @@ Each worker adapter folder uses the same shape:
 - `utils.ts` stores adapter-local constants and config.
 - `index.ts` exports the public adapter surface.
 
-The adapter modules build invocation descriptions, run them through injected process runners, and stream them through injected stream runners. Worker execution remains behind this seam and is gated by requirement-court approval plus human confirmation. `goal` and the compatibility `stream-goal` command now focus on requirement discussion by default instead of launching a worker. The default Bun-backed stream runner is `src/plugins/adapters/stream-runner.ts`; process spawning must stay behind this seam, not inside `src/cli.ts`.
+The adapter modules build invocation descriptions, run them through injected process runners, and stream them through injected stream runners. Worker execution remains behind this seam and is gated by requirement-court approval plus human confirmation. `goal` and `ponyrace` focus on requirement discussion by default instead of launching a worker. The default Bun-backed stream runner is `src/plugins/adapters/stream-runner.ts`; process spawning must stay behind this seam, not inside `src/cli.ts`.
 
 ## Skills
 
@@ -110,9 +110,9 @@ Human request
   -> ponytrail runtime
   -> requirements brainstorm
   -> ask human for details when unclear
-  -> Product Manager, Project Manager, Engineer, and Testing pony subagents discuss by round
+  -> Product Manager, Project Manager, Engineer, and Testing ponies discuss by round
   -> visible round discussion is printed
-  -> 3 of 4 voting bots approve the direction
+  -> manifest-defined voting ponies approve the direction
   -> Requirement Judge summarizes and merges one detailed requirement
   -> human confirms the direction
   -> worker adapter execution remains gated

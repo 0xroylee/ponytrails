@@ -14,14 +14,12 @@
         "id": "codex",
         "adapter": "cli",
         "command": "codex",
-        "goalCommand": "exec",
         "notes": "Pass the locked goal contract into a non-interactive Codex exec session."
       },
       {
         "id": "claude",
         "adapter": "cli",
         "command": "claude",
-        "goalCommand": "/goal",
         "notes": "Pass the locked goal contract into the Claude session before implementation."
       }
     ]
@@ -103,7 +101,7 @@
   "deliberation": {
     "panelId": "requirement_court",
     "purpose": "Decide whether the proposed requirement direction is clear, valuable, feasible, plannable, and verifiable.",
-    "maxRounds": 2,
+    "maxRounds": 3,
     "stages": [
       {
         "id": "brainstorm",

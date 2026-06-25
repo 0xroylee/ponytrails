@@ -11,6 +11,21 @@ previous snapshot.
 It keeps the trail in `.pony-trail/` inside your project. Treat that folder as
 local runtime state; it should stay out of git.
 
+## Set Up Ponytrail
+
+Configure the local bot team, write `.ponytrail/manifest.json`, and install the
+bundled skills for Codex, Claude, and Cursor:
+
+```bash
+npx ponytrail setup
+```
+
+Then start a requirement discussion:
+
+```bash
+npx ponytrail ponyrace "add CSV import"
+```
+
 ## Install The Skill
 
 Install the bundled `pony-trail` skill into your local agent tools:
@@ -19,10 +34,23 @@ Install the bundled `pony-trail` skill into your local agent tools:
 npx ponytrail skills install pony-trail
 ```
 
+Install the bundled `ponyrace` skill to trigger requirement discussion from
+agent chat:
+
+```bash
+npx ponytrail skills install ponyrace
+```
+
 With Bun:
 
 ```bash
 bunx ponytrail skills install pony-trail
+```
+
+Install `ponyrace` with Bun:
+
+```bash
+bunx ponytrail skills install ponyrace
 ```
 
 The installer records a local skill-install snapshot before writing agent skill
@@ -33,6 +61,24 @@ Refresh an installed bundled skill later:
 ```bash
 npx ponytrail skills update pony-trail
 ```
+
+## Run A Pony Race
+
+Discuss a requirement before implementation:
+
+```bash
+npx ponytrail ponyrace "add CSV import"
+```
+
+Inside an agent chat, use the same trigger language:
+
+```text
+/ponyrace add CSV import
+```
+
+The Product Manager, Project Manager, Engineer, and Testing ponies discuss the
+direction. The default rule requires 3 of 4 approvals before the human owner can
+lock the direction for implementation.
 
 ## View History
 

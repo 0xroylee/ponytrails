@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { draftGoalContract } from "../src/runtimes/ponytrail/goal";
-import { createDefaultManifest } from "../src/runtimes/ponytrail/manifest";
+import {
+  createDefaultManifest,
+  createDefaultSetupReviewBots,
+  createSetupManifest,
+} from "../src/runtimes/ponytrail/manifest";
 
 describe("goal contracts", () => {
   test("drafts a requirement-first goal contract from a raw request", () => {
@@ -25,5 +29,34 @@ describe("goal contracts", () => {
     expect(contract.evidenceRequired).toContain("role_bot_discussion");
     expect(contract.evidenceRequired).toContain("judge_summary");
     expect(contract.evidenceRequired).not.toContain("bot_critiques");
+  });
+
+  test("formats approval criteria from the manifest approval rule", () => {
+    const manifest = createSetupManifest({
+      reviewBots: [
+        ...createDefaultSetupReviewBots(),
+        {
+          id: "security_bot",
+          displayName: "Security Bot",
+          role: "Security",
+          panel: "requirement_court",
+          instruction: "Review data, permission, and security risk before voting.",
+          modelId: "security_model",
+          modelName: "security-review-model",
+          votes: true,
+        },
+      ],
+    });
+
+    const contract = draftGoalContract("Add CSV import to the admin dashboard", { manifest });
+
+    expect(contract.approvalRule.goalDirectionPanel.requiredApprovals).toBe(4);
+    expect(contract.approvalRule.goalDirectionPanel.voters).toHaveLength(5);
+    expect(contract.acceptanceCriteria).toContain(
+      "Requirement court reaches the configured 4-of-5 approval threshold.",
+    );
+    expect(contract.acceptanceCriteria).not.toContain(
+      "Requirement court reaches the configured 3-of-4 approval threshold.",
+    );
   });
 });

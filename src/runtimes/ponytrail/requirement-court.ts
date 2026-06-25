@@ -8,16 +8,11 @@ export interface RequirementDiscussionEntry {
   role: string;
   round: number;
   message: string;
+  visibleThinking: RequirementPonyVisibleThinking;
   line: string;
   vote: ReviewVote["vote"];
   confidence: number;
   requiredChanges: string[];
-  transcript: string[];
-}
-
-export interface RequirementDiscussionRound {
-  round: number;
-  discussion: RequirementDiscussionEntry[];
 }
 
 export interface RequirementJudgeResult {
@@ -37,11 +32,18 @@ export interface DetailedRequirement {
   openQuestions: string[];
 }
 
+export interface RequirementCourtRound {
+  round: number;
+  discussion: RequirementDiscussionEntry[];
+  votes: ReviewVote[];
+  verdict: VoteVerdict;
+}
+
 export interface RequirementCourtResult {
   rawRequest: string;
   clarifiedRequest: string;
   draft: GoalContract;
-  rounds: RequirementDiscussionRound[];
+  rounds: RequirementCourtRound[];
   discussion: RequirementDiscussionEntry[];
   votes: ReviewVote[];
   verdict: VoteVerdict;
@@ -52,16 +54,47 @@ export interface RequirementCourtResult {
 
 export interface RunRequirementCourtInput {
   manifest: Manifest;
-  ponySubagentRunner?: PonySubagentRunner | undefined;
+  ponyRunner?: RequirementPonyRunner;
 }
 
-const ROLE_MESSAGES: Record<string, (contract: GoalContract) => string> = {
+export interface RequirementPonyRunInput {
+  manifest: Manifest;
+  bot: Manifest["bots"][number];
+  model: Manifest["models"][number];
+  contract: GoalContract;
+  round: number;
+  priorDiscussion: readonly RequirementDiscussionEntry[];
+}
+
+export interface RequirementPonyResponse {
+  message: string;
+  visibleThinking?: RequirementPonyVisibleThinking;
+  vote: ReviewVote["vote"];
+  confidence: number;
+  requiredChanges: string[];
+}
+
+export interface RequirementPonyVisibleThinking {
+  focus: string;
+  concern: string;
+  recommendation: string;
+}
+
+export type RequirementPonyRunner = (
+  input: RequirementPonyRunInput,
+) => RequirementPonyResponse | Promise<RequirementPonyResponse>;
+
+type DiscussionMessageFactory = (contract: GoalContract, bot: Manifest["bots"][number]) => string;
+
+const ROLE_MESSAGES: Record<string, DiscussionMessageFactory> = {
   product_manager_bot: (contract) =>
     `I think this requirement preserves the user's product intent: ${contract.intent}. Keep the outcome explicit and avoid expanding beyond the requested workflow.`,
   project_manager_bot: (contract) =>
     `I think this can become a manageable unit of work if the delivery boundary stays tied to: ${contract.title}. Dependencies and completion evidence should stay visible.`,
   engineer_bot: (contract) =>
     `I think the requirement is feasible if the worker keeps the technical boundary aligned to: ${contract.title}. Large architecture choices should be raised before execution.`,
+  senior_engineer_bot: (contract) =>
+    `I think the requirement is feasible if the worker keeps the technical boundary aligned to: ${contract.title}. Large architecture choices and risky dependencies should be raised before execution.`,
   testing_bot: (contract) =>
     `I think this needs observable acceptance criteria and evidence for: ${contract.title}. Edge cases and smoke verification should be named before work starts.`,
 };
@@ -70,60 +103,64 @@ const ROLE_LABELS: Record<string, string> = {
   product_manager_bot: "product",
   project_manager_bot: "project",
   engineer_bot: "engineering",
+  senior_engineer_bot: "senior engineering",
   testing_bot: "testing",
 };
 
-type RequirementCourtBot = Manifest["bots"][number];
-
-export interface PonySubagentRunInput {
-  botId: string;
-  displayName: string;
-  role: string;
-  model: string;
-  instruction: string;
-  skills: string[];
-  approvalConditions: string[];
-  rejectOrAmendConditions: string[];
-  contract: GoalContract;
-  round: number;
-  priorRounds: RequirementDiscussionRound[];
-}
-
-export interface PonySubagentRunResult {
-  message: string;
-  vote: ReviewVote["vote"];
-  confidence: number;
-  requiredChanges: string[];
-  transcript?: string[] | undefined;
-}
-
-export type PonySubagentRunner = (
-  input: PonySubagentRunInput,
-) => PonySubagentRunResult | Promise<PonySubagentRunResult>;
+export const deterministicRequirementPonyRunner: RequirementPonyRunner = ({ bot, contract }) =>
+  createDeterministicPonyResponse(bot, contract);
 
 export async function runRequirementCourt(
   contract: GoalContract,
   input: RunRequirementCourtInput,
 ): Promise<RequirementCourtResult> {
-  const runner = input.ponySubagentRunner ?? runDefaultPonySubagent;
-  const rounds: RequirementDiscussionRound[] = [];
-  const maxRounds = Math.max(1, input.manifest.deliberation.maxRounds);
+  const ponyRunner = input.ponyRunner ?? deterministicRequirementPonyRunner;
+  const discussion: RequirementDiscussionEntry[] = [];
+  const rounds: RequirementCourtRound[] = [];
 
-  for (let round = 1; round <= maxRounds; round++) {
-    const priorRounds = rounds.slice();
-    const discussion = await Promise.all(
-      input.manifest.deliberation.decisionRule.voterIds.map((botId) =>
-        createDiscussionEntry(botId, contract, input.manifest, runner, round, priorRounds),
-      ),
+  for (let round = 1; round <= input.manifest.deliberation.maxRounds; round += 1) {
+    const priorDiscussion = [...discussion];
+    const roundDiscussion = await Promise.all(
+      input.manifest.deliberation.decisionRule.voterIds.map(async (botId) => {
+        const bot = findRequirementCourtBot(botId, input.manifest);
+        const model = findRequirementCourtModel(bot, input.manifest);
+        const response = await ponyRunner({
+          manifest: input.manifest,
+          bot,
+          model,
+          contract,
+          round,
+          priorDiscussion,
+        });
+
+        return createDiscussionEntry(bot, response, round);
+      }),
     );
+    const votes = roundDiscussion.map(toVote);
+    const verdict = tallyVotes(votes, input.manifest.deliberation.decisionRule);
 
-    rounds.push({ round, discussion });
+    discussion.push(...roundDiscussion);
+    rounds.push({
+      round,
+      discussion: roundDiscussion,
+      votes,
+      verdict,
+    });
+
+    if (verdict.approved) {
+      break;
+    }
   }
 
-  const discussion = rounds.at(-1)?.discussion ?? [];
-  const votes = discussion.map(toVote);
-  const verdict = tallyVotes(votes, input.manifest.deliberation.decisionRule);
-  const judge = createJudgeResult(verdict, input.manifest.deliberation.decisionRule.voters);
+  const finalRound = rounds.at(-1);
+  if (!finalRound) {
+    throw new Error("Requirement court did not run any voting rounds.");
+  }
+
+  const judge = createJudgeResult(
+    finalRound.verdict,
+    input.manifest.deliberation.decisionRule.voters,
+  );
 
   return {
     rawRequest: contract.rawRequest,
@@ -131,8 +168,8 @@ export async function runRequirementCourt(
     draft: contract,
     rounds,
     discussion,
-    votes,
-    verdict,
+    votes: finalRound.votes,
+    verdict: finalRound.verdict,
     judge,
     detailedRequirement: {
       title: contract.title,
@@ -148,89 +185,98 @@ export async function runRequirementCourt(
   };
 }
 
-async function createDiscussionEntry(
-  botId: string,
-  contract: GoalContract,
-  manifest: Manifest,
-  runner: PonySubagentRunner,
+function createDiscussionEntry(
+  bot: Manifest["bots"][number],
+  response: RequirementPonyResponse,
   round: number,
-  priorRounds: RequirementDiscussionRound[],
-): Promise<RequirementDiscussionEntry> {
+): RequirementDiscussionEntry {
+  const message = response.message.trim();
+  if (!message) {
+    throw new Error(`Requirement pony ${bot.id} returned an empty discussion message.`);
+  }
+  if (response.confidence < 0 || response.confidence > 1) {
+    throw new Error(`Requirement pony ${bot.id} returned confidence outside 0..1.`);
+  }
+
+  const visibleThinking = response.visibleThinking ?? createDefaultVisibleThinking(bot, message);
+
+  return {
+    botId: bot.id,
+    displayName: bot.displayName,
+    role: ROLE_LABELS[bot.id] ?? createRoleLabel(bot),
+    round,
+    message,
+    visibleThinking,
+    line: `${bot.id}: ${message}`,
+    vote: response.vote,
+    confidence: response.confidence,
+    requiredChanges: response.requiredChanges,
+  };
+}
+
+function createDeterministicPonyResponse(
+  bot: Manifest["bots"][number],
+  contract: GoalContract,
+): RequirementPonyResponse {
+  const messageFactory = ROLE_MESSAGES[bot.id] ?? createGenericDiscussionMessage;
+
+  return {
+    message: messageFactory(contract, bot),
+    vote: "approve",
+    confidence: 0.8,
+    requiredChanges: [],
+  };
+}
+
+function createGenericDiscussionMessage(
+  contract: GoalContract,
+  bot: Manifest["bots"][number],
+): string {
+  return `I think this requirement can proceed from the ${bot.displayName} perspective if the worker keeps the scope tied to: ${contract.title}. Any role-specific risk should be raised before execution.`;
+}
+
+function createDefaultVisibleThinking(
+  bot: Manifest["bots"][number],
+  message: string,
+): RequirementPonyVisibleThinking {
+  return {
+    focus: bot.instruction,
+    concern: formatVisibleThinkingList(
+      bot.rejectOrAmendConditions ?? [
+        `No blocking ${createRoleLabel(bot)} concern was raised for this round.`,
+      ],
+    ),
+    recommendation: message,
+  };
+}
+
+function createRoleLabel(bot: Manifest["bots"][number]): string {
+  return bot.displayName.replace(/\s+Bot$/u, "").toLowerCase();
+}
+
+function formatVisibleThinkingList(values: string[]): string {
+  return values.join(" ");
+}
+
+function findRequirementCourtBot(botId: string, manifest: Manifest): Manifest["bots"][number] {
   const bot = manifest.bots.find((candidate) => candidate.id === botId);
   if (!bot) {
     throw new Error(`Missing requirement court bot ${botId}`);
   }
 
-  const role = ROLE_LABELS[botId] ?? "review";
-
-  const result = await runner({
-    botId,
-    displayName: bot.displayName,
-    role,
-    model: bot.model,
-    instruction: bot.instruction,
-    skills: bot.skills,
-    approvalConditions: bot.approvalConditions ?? [],
-    rejectOrAmendConditions: bot.rejectOrAmendConditions ?? [],
-    contract,
-    round,
-    priorRounds,
-  });
-  const normalized = normalizePonySubagentResult(bot, result);
-
-  return {
-    botId,
-    displayName: bot.displayName,
-    role,
-    round,
-    message: normalized.message,
-    line: `${botId}: ${normalized.message}`,
-    vote: normalized.vote,
-    confidence: normalized.confidence,
-    requiredChanges: normalized.requiredChanges,
-    transcript: normalized.transcript ?? [],
-  };
+  return bot;
 }
 
-function runDefaultPonySubagent(input: PonySubagentRunInput): PonySubagentRunResult {
-  const messageFactory = ROLE_MESSAGES[input.botId];
-  if (!messageFactory) {
-    throw new Error(`Missing discussion message factory for ${input.botId}`);
+function findRequirementCourtModel(
+  bot: Manifest["bots"][number],
+  manifest: Manifest,
+): Manifest["models"][number] {
+  const model = manifest.models.find((candidate) => candidate.id === bot.model);
+  if (!model) {
+    throw new Error(`Requirement court bot ${bot.id} references missing model ${bot.model}`);
   }
 
-  const message = messageFactory(input.contract);
-
-  return {
-    message,
-    vote: "approve",
-    confidence: 0.8,
-    requiredChanges: [],
-    transcript: [
-      `${input.displayName} reviewed the draft requirement as the ${input.role} pony.`,
-      `${input.displayName} voted approve with confidence 0.8.`,
-    ],
-  };
-}
-
-function normalizePonySubagentResult(
-  bot: RequirementCourtBot,
-  result: PonySubagentRunResult,
-): PonySubagentRunResult {
-  if (!result.message.trim()) {
-    throw new Error(`Pony subagent ${bot.id} returned an empty discussion message`);
-  }
-
-  if (result.confidence < 0 || result.confidence > 1) {
-    throw new Error(`Pony subagent ${bot.id} returned confidence outside 0..1`);
-  }
-
-  return {
-    message: result.message.trim(),
-    vote: result.vote,
-    confidence: result.confidence,
-    requiredChanges: result.requiredChanges,
-    transcript: result.transcript?.map((line) => line.trim()).filter(Boolean),
-  };
+  return model;
 }
 
 function toVote(entry: RequirementDiscussionEntry): ReviewVote {

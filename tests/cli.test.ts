@@ -2,16 +2,23 @@ import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildProgram, type GoalClarificationPrompter } from "../src/cli";
-import type { CliInvocation, CliStreamRunner } from "../src/plugins/adapters";
-import type { PonySubagentRunner } from "../src/runtimes/ponytrail";
+import {
+  buildProgram,
+  type GoalClarificationPrompter,
+  promptForSetup,
+  type SetupPrompter,
+  type SetupPromptIo,
+} from "../src/cli";
+import type { RequirementPonyRunner } from "../src/runtimes/ponytrail";
+import { createDefaultSetupReviewBots } from "../src/runtimes/ponytrail/manifest";
 
 describe("cli", () => {
-  test("registers onboarding, bot listing, goal drafting, and vote commands", () => {
+  test("registers setup, onboarding, bot listing, goal drafting, and vote commands", () => {
     const program = buildProgram();
 
     expect(program.name()).toBe("ponytrail");
     expect(program.commands.map((command) => command.name())).toEqual([
+      "setup",
       "onboard",
       "bots",
       "goal",
@@ -23,18 +30,57 @@ describe("cli", () => {
       "skills",
     ]);
 
+    const setupCommand = program.commands.find((command) => command.name() === "setup");
     const onboardCommand = program.commands.find((command) => command.name() === "onboard");
+    const ponyraceCommand = program.commands.find((command) => command.name() === "ponyrace");
+    const streamGoalCommand = program.commands.find((command) => command.name() === "stream-goal");
     const revertCommand = program.commands.find((command) => command.name() === "revert");
     const skillsCommand = program.commands.find((command) => command.name() === "skills");
 
+    expect(setupCommand?.options.map((option) => option.long)).toEqual([
+      "--dir",
+      "--name",
+      "--agents",
+      "--home",
+    ]);
     expect(onboardCommand?.options.map((option) => option.long)).toEqual([
       "--dir",
       "--name",
       "--agents",
       "--home",
     ]);
+    expect(ponyraceCommand?.options.map((option) => option.long)).toEqual([
+      "--manifest",
+      "--worker",
+      "--json",
+    ]);
+    expect(streamGoalCommand?.options.map((option) => option.long)).toEqual([
+      "--manifest",
+      "--worker",
+    ]);
     expect(revertCommand?.options.map((option) => option.long)).toEqual(["--dry-run"]);
     expect(skillsCommand?.commands.map((command) => command.name())).toEqual(["install", "update"]);
+  });
+
+  test("prints the CLI version with -v", async () => {
+    const program = buildProgram();
+    const expectedVersion = "0.2.0";
+    const output: string[] = [];
+
+    expect(program.version()).toBe(expectedVersion);
+
+    program.exitOverride();
+    program.configureOutput({
+      writeOut: (value) => output.push(value),
+      writeErr: (value) => output.push(value),
+    });
+
+    await expect(program.parseAsync(["-v"], { from: "user" })).rejects.toMatchObject({
+      code: "commander.version",
+      exitCode: 0,
+      message: expectedVersion,
+    });
+    expect(output.join("")).toBe(`${expectedVersion}\n`);
   });
 
   test("runs onboarding and manifest-backed commands", async () => {
@@ -113,7 +159,7 @@ describe("cli", () => {
     }
   });
 
-  test("onboard prompts for the workspace name and installs the bundled skill", async () => {
+  test("onboard prompts for the workspace name and installs the bundled skills", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
     const logs: string[] = [];
@@ -133,24 +179,340 @@ describe("cli", () => {
         },
       }).parseAsync(["onboard", "--home", homeDir], { from: "user" });
 
-      await expect(
-        stat(join(homeDir, ".claude", "skills", "pony-trail", "SKILL.md")),
-      ).resolves.toBeTruthy();
-      await expect(
-        stat(join(homeDir, ".agents", "skills", "pony-trail", "SKILL.md")),
-      ).resolves.toBeTruthy();
-      await expect(
-        stat(join(homeDir, ".codex", "skills", "pony-trail", "SKILL.md")),
-      ).resolves.toBeTruthy();
+      for (const skill of ["pony-trail", "ponyrace"]) {
+        await expect(
+          stat(join(homeDir, ".claude", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(
+          stat(join(homeDir, ".agents", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(
+          stat(join(homeDir, ".codex", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+      }
       const manifest = JSON.parse(
         await readFile(join(rootDir, ".ponytrail", "manifest.json"), "utf8"),
       );
       expect(manifest.metadata.name).toBe("Prompted Workspace");
       expect(promptedDefaults).toEqual([rootDir.slice(rootDir.lastIndexOf("/") + 1)]);
       expect(logs.some((line) => line.includes("Skill install result"))).toBe(true);
+      expect(logs.some((line) => line.includes("Skill: pony-trail"))).toBe(true);
+      expect(logs.some((line) => line.includes("Skill: ponyrace"))).toBe(true);
       expect(logs.some((line) => line.includes("Ponytrail onboarding complete"))).toBe(true);
       expect(stripAnsiLines(logs)).toContain("Welcome to Ponytrail.");
       expect(logs.some((line) => line.includes("Restart your agent IDE"))).toBe(true);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("setup creates a manifest and installs ponytrail skills for default agent targets", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
+    const logs: string[] = [];
+    const promptedDefaults: Array<{
+      projectName: string;
+      agents: string;
+      botCount: number;
+    }> = [];
+    const originalLog = console.log;
+    const clarificationPrompter: GoalClarificationPrompter = async () => {
+      throw new Error("setup must not ask goal clarification");
+    };
+    const setupPrompter: SetupPrompter = async (defaults) => {
+      promptedDefaults.push({
+        projectName: defaults.projectName,
+        agents: defaults.agents,
+        botCount: defaults.bots.length,
+      });
+
+      return { ...defaults, projectName: "Setup Court" };
+    };
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir, setupPrompter, clarificationPrompter }).parseAsync(
+        ["setup", "--home", homeDir],
+        { from: "user" },
+      );
+
+      for (const skill of ["pony-trail", "ponyrace"]) {
+        await expect(
+          stat(join(homeDir, ".claude", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(
+          stat(join(homeDir, ".codex", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(
+          stat(join(homeDir, ".agents", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(stat(join(homeDir, ".cursor", "rules", `${skill}.mdc`))).resolves.toBeTruthy();
+      }
+
+      const manifest = JSON.parse(
+        await readFile(join(rootDir, ".ponytrail", "manifest.json"), "utf8"),
+      );
+      expect(manifest.metadata.name).toBe("Setup Court");
+      expect(manifest.kind).toBe("ai-work-runtime.ponytrail.setup");
+      expect(manifest).not.toHaveProperty("bots");
+      expect(manifest).not.toHaveProperty("models");
+      expect(manifest).not.toHaveProperty("deliberation");
+      expect(manifest.ponies.map((pony: { id: string }) => pony.id)).toEqual([
+        "product_manager_bot",
+        "project_manager_bot",
+        "senior_engineer_bot",
+        "testing_bot",
+      ]);
+      expect(manifest.approvalRule.requiredApprovals).toBe(3);
+      expect(promptedDefaults).toContainEqual({
+        projectName: rootDir.slice(rootDir.lastIndexOf("/") + 1),
+        agents: "codex,claude,cursor",
+        botCount: 4,
+      });
+      expect(logs.some((line) => line.includes("Ponytrail setup complete"))).toBe(true);
+      expect(logs.some((line) => line.includes("Next: ponytrail ponyrace"))).toBe(true);
+      expect(logs.some((line) => line.includes("Pony race"))).toBe(false);
+      expect(logs.some((line) => line.includes("Requirement discussion"))).toBe(false);
+      expect(logs.some((line) => line.includes("Detailed requirement"))).toBe(false);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("setup does not print completion when skill install fails after manifest creation", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const invalidHomePath = join(rootDir, "home-file");
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const setupPrompter: SetupPrompter = async (defaults) => ({
+      ...defaults,
+      projectName: "Install Failure Setup",
+    });
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await writeFile(invalidHomePath, "not a directory");
+
+      await expect(
+        buildProgram({ cwd: rootDir, setupPrompter }).parseAsync(
+          ["setup", "--home", invalidHomePath],
+          { from: "user" },
+        ),
+      ).rejects.toThrow();
+
+      await expect(stat(join(rootDir, ".ponytrail", "manifest.json"))).resolves.toBeTruthy();
+      expect(logs.some((line) => line.includes("Ponytrail setup complete"))).toBe(false);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("setup prompt recalculates custom approval default from selected bot count", async () => {
+    const textDefaults: Array<{ message: string; defaultValue: string }> = [];
+    const promptIo: SetupPromptIo = {
+      isTty: true,
+      intro: () => {},
+      outro: () => {},
+      text: async ({ message, defaultValue }) => {
+        textDefaults.push({ message, defaultValue });
+        if (message === "Workspace name") {
+          return "Prompted Setup";
+        }
+        if (message === "Review bot count") {
+          return "5";
+        }
+        if (message === "Skill install targets") {
+          return "codex";
+        }
+        return defaultValue;
+      },
+      select: async () => "custom",
+      confirm: async () => true,
+      isCancel: () => false,
+    };
+
+    const result = await promptForSetup(
+      {
+        projectName: "Default Setup",
+        bots: createDefaultSetupReviewBots(),
+        requiredApprovals: 3,
+        agents: "codex,claude,cursor",
+      },
+      promptIo,
+    );
+
+    expect(result.projectName).toBe("Prompted Setup");
+    expect(result.bots.length).toBe(5);
+    expect(result.bots.at(-1)?.id).toBe("review_bot_5");
+    expect(result.requiredApprovals).toBe(4);
+    expect(result.agents).toBe("codex");
+    expect(textDefaults).toContainEqual({ message: "Required approvals", defaultValue: "4" });
+  });
+
+  test("setup prompt captures panel, instruction, and non-voting bot choices", async () => {
+    const promptIo: SetupPromptIo = {
+      isTty: true,
+      intro: () => {},
+      outro: () => {},
+      text: async ({ message, defaultValue }) => {
+        if (message === "Review bot count") {
+          return "2";
+        }
+        if (message === "Bot 2 display name") {
+          return "Observer Bot";
+        }
+        if (message === "Observer Bot role") {
+          return "Observer";
+        }
+        if (message === "Observer Bot id") {
+          return "observer_bot";
+        }
+        if (message === "Observer Bot panel") {
+          return "advisory_panel";
+        }
+        if (message === "Observer Bot instruction") {
+          return "Observe the discussion without voting.";
+        }
+        if (message === "Observer Bot model id") {
+          return "observer_model";
+        }
+        if (message === "Observer Bot model name") {
+          return "observer-review-model";
+        }
+        return defaultValue;
+      },
+      select: async () => "default",
+      confirm: async ({ message }) => message !== "Observer Bot votes",
+      isCancel: () => false,
+    };
+
+    const result = await promptForSetup(
+      {
+        projectName: "Default Setup",
+        bots: createDefaultSetupReviewBots(),
+        requiredApprovals: 3,
+        agents: "codex,claude,cursor",
+      },
+      promptIo,
+    );
+
+    expect(result.bots).toHaveLength(2);
+    expect(result.bots[1]).toMatchObject({
+      id: "observer_bot",
+      displayName: "Observer Bot",
+      role: "Observer",
+      panel: "advisory_panel",
+      instruction: "Observe the discussion without voting.",
+      modelId: "observer_model",
+      modelName: "observer-review-model",
+      votes: false,
+    });
+    expect(result.requiredApprovals).toBe(1);
+  });
+
+  test("setup accepts a custom bot roster and approval count", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const clarificationPrompter: GoalClarificationPrompter = async () => {
+      throw new Error("setup must not ask goal clarification");
+    };
+    const setupPrompter: SetupPrompter = async (defaults) => ({
+      ...defaults,
+      projectName: "Custom Setup",
+      agents: "codex",
+      requiredApprovals: 2,
+      bots: [
+        {
+          id: "product_bot",
+          displayName: "Product Bot",
+          role: "Product",
+          modelId: "product_model",
+          modelName: "product-review-model",
+          votes: true,
+        },
+        {
+          id: "engineering_bot",
+          displayName: "Engineering Bot",
+          role: "Engineering",
+          modelId: "engineering_model",
+          modelName: "engineering-review-model",
+          votes: true,
+        },
+        {
+          id: "observer_bot",
+          displayName: "Observer Bot",
+          role: "Observer",
+          modelId: "observer_model",
+          modelName: "observer-review-model",
+          votes: false,
+        },
+      ],
+    });
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir, setupPrompter, clarificationPrompter }).parseAsync(
+        ["setup", "--name", "Ignored By Prompter", "--home", homeDir],
+        { from: "user" },
+      );
+
+      for (const skill of ["pony-trail", "ponyrace"]) {
+        await expect(
+          stat(join(homeDir, ".codex", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(
+          stat(join(homeDir, ".agents", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(stat(join(homeDir, ".claude", "skills", skill, "SKILL.md"))).rejects.toThrow();
+        await expect(stat(join(homeDir, ".cursor", "rules", `${skill}.mdc`))).rejects.toThrow();
+      }
+
+      const manifest = JSON.parse(
+        await readFile(join(rootDir, ".ponytrail", "manifest.json"), "utf8"),
+      );
+      expect(manifest.metadata.name).toBe("Custom Setup");
+      expect(manifest.kind).toBe("ai-work-runtime.ponytrail.setup");
+      expect(manifest).not.toHaveProperty("bots");
+      expect(manifest).not.toHaveProperty("models");
+      expect(manifest).not.toHaveProperty("deliberation");
+      expect(
+        manifest.ponies
+          .filter((pony: { votes?: boolean }) => pony.votes !== false)
+          .map((pony: { id: string }) => pony.id),
+      ).toEqual(["product_bot", "engineering_bot"]);
+      expect(manifest.approvalRule.requiredApprovals).toBe(2);
+      expect(manifest.ponies.some((pony: { id: string }) => pony.id === "observer_bot")).toBe(true);
+      expect(
+        manifest.ponies.find((pony: { id: string; modelId?: string }) => pony.id === "observer_bot")
+          ?.modelId,
+      ).toBe("observer_model");
+      expect(
+        manifest.ponies.some(
+          (pony: { modelId: string; modelName: string }) =>
+            pony.modelId === "observer_model" && pony.modelName === "observer-review-model",
+        ),
+      ).toBe(true);
+      expect(logs.some((line) => line.includes("Skill: pony-trail"))).toBe(true);
+      expect(logs.some((line) => line.includes("Skill: ponyrace"))).toBe(true);
+      expect(logs.some((line) => line.includes("Pony race"))).toBe(false);
+      expect(logs.some((line) => line.includes("Requirement discussion"))).toBe(false);
+      expect(logs.some((line) => line.includes("Detailed requirement"))).toBe(false);
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
@@ -217,26 +579,19 @@ describe("cli", () => {
   test("goal prints requirement court discussion and does not stream by default", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
-    const invocations: CliInvocation[] = [];
     const originalLog = console.log;
-    const streamRunner: CliStreamRunner = async function* (invocation) {
-      invocations.push(invocation);
-      yield { type: "start", invocation };
-      yield { type: "stdout", chunk: "model started" };
-      yield { type: "exit", exitCode: 0 };
-    };
 
     console.log = (...values: unknown[]) => {
       logs.push(values.join(" "));
     };
 
     try {
-      await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
+      await buildProgram({ cwd: rootDir }).parseAsync(
         ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
-      await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
+      await buildProgram({ cwd: rootDir }).parseAsync(
         ["goal", "Add", "CSV", "import", "to", "admin", "dashboard"],
         { from: "user" },
       );
@@ -252,7 +607,183 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Title: Add CSV import to admin dashboard"))).toBe(
         true,
       );
-      expect(invocations).toEqual([]);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("ponyrace prints pony race discussion and does not stream by default", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
+        { from: "user" },
+      );
+
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["ponyrace", "Add", "CSV", "import", "to", "admin", "dashboard"],
+        { from: "user" },
+      );
+
+      expect(stripAnsiLines(logs)).toContain("Pony race");
+      expect(logs.some((line) => line.includes("product_manager_bot: I think"))).toBe(true);
+      expect(logs.some((line) => line.includes("project_manager_bot: I think"))).toBe(true);
+      expect(logs.some((line) => line.includes("engineer_bot: I think"))).toBe(true);
+      expect(logs.some((line) => line.includes("testing_bot: I think"))).toBe(true);
+      expect(stripAnsiLines(logs)).toContain("Visible thinking transcript");
+      expect(stripAnsiLines(logs)).toContain("Round 1");
+      expect(logs.some((line) => line.includes("Product Manager Bot (product_manager_bot)"))).toBe(
+        true,
+      );
+      expect(logs.some((line) => line.includes("Focus:"))).toBe(true);
+      expect(logs.some((line) => line.includes("Concern:"))).toBe(true);
+      expect(logs.some((line) => line.includes("Recommendation:"))).toBe(true);
+      expect(logs.some((line) => line.includes("Vote: approve"))).toBe(true);
+      expect(stripAnsiLines(logs)).toContain("Judge summary");
+      expect(logs.some((line) => line.includes("Approvals: 4/4"))).toBe(true);
+      expect(stripAnsiLines(logs)).toContain("Detailed requirement");
+      expect(logs.some((line) => line.includes("Title: Add CSV import to admin dashboard"))).toBe(
+        true,
+      );
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("ponyrace runs the configured pony runner and prints round output", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const ponyCalls: string[] = [];
+    const originalLog = console.log;
+    const ponyRunner: RequirementPonyRunner = async ({ bot, contract }) => {
+      ponyCalls.push(bot.id);
+
+      return {
+        message: `${bot.id} accepted ${contract.title}`,
+        visibleThinking: {
+          focus: `Evaluate as ${bot.displayName}.`,
+          concern: "Keep role-specific risks visible.",
+          recommendation: "Approve the direction.",
+        },
+        vote: "approve",
+        confidence: 0.91,
+        requiredChanges: [],
+      };
+    };
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir, ponyRunner }).parseAsync(
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
+        { from: "user" },
+      );
+
+      await buildProgram({ cwd: rootDir, ponyRunner }).parseAsync(
+        ["ponyrace", "Add", "CSV", "import", "to", "admin", "dashboard"],
+        { from: "user" },
+      );
+
+      expect(ponyCalls).toEqual([
+        "product_manager_bot",
+        "project_manager_bot",
+        "engineer_bot",
+        "testing_bot",
+      ]);
+      expect(stripAnsiLines(logs)).toContain("Pony race");
+      expect(stripAnsiLines(logs)).toContain("Round 1");
+      expect(logs.some((line) => line.includes("product_manager_bot accepted"))).toBe(true);
+      expect(stripAnsiLines(logs)).toContain("Visible thinking transcript");
+      expect(stripAnsiLines(logs)).toContain("Final votes");
+      expect(logs.some((line) => line.includes("product_manager_bot: approve (0.91)"))).toBe(true);
+      expect(logs.some((line) => line.includes("Human confirmation: pending"))).toBe(true);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("ponyrace JSON output includes court discussion results", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const ponyCalls: string[] = [];
+    const originalLog = console.log;
+    const ponyRunner: RequirementPonyRunner = async ({ bot }) => {
+      ponyCalls.push(bot.id);
+
+      return {
+        message: `${bot.id} json review`,
+        vote: "approve",
+        confidence: 0.88,
+        requiredChanges: [],
+      };
+    };
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir, ponyRunner }).parseAsync(
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
+        { from: "user" },
+      );
+
+      await buildProgram({ cwd: rootDir, ponyRunner }).parseAsync(
+        ["ponyrace", "--json", "Add", "CSV", "import", "to", "admin", "dashboard"],
+        { from: "user" },
+      );
+
+      const output = JSON.parse(logs.at(-1) ?? "{}");
+      expect(ponyCalls).toEqual([
+        "product_manager_bot",
+        "project_manager_bot",
+        "engineer_bot",
+        "testing_bot",
+      ]);
+      expect(output.rounds.map((round: { round: number }) => round.round)).toEqual([1]);
+      expect(output.discussion[0].message).toBe("product_manager_bot json review");
+      expect(output.votes[0].confidence).toBe(0.88);
+      expect(output.humanConfirmation).toBe("pending");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("stream-goal remains a compatibility alias for requirement discussion", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
+        { from: "user" },
+      );
+
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["stream-goal", "--worker", "claude", "Review", "checkout", "test", "plan", "evidence"],
+        { from: "user" },
+      );
+
+      expect(stripAnsiLines(logs)).toContain("Requirement discussion");
+      expect(logs.some((line) => line.includes("testing_bot: I think"))).toBe(true);
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
@@ -262,7 +793,6 @@ describe("cli", () => {
   test("goal asks for custom clarification answers before requirement court discussion", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
-    const invocations: CliInvocation[] = [];
     const originalLog = console.log;
     const clarificationPrompter: GoalClarificationPrompter = async ({ questions }) => ({
       answers: questions.map((question, index) => ({
@@ -276,24 +806,18 @@ describe("cli", () => {
           ][index] ?? "Clarified detail.",
       })),
     });
-    const streamRunner: CliStreamRunner = async function* (invocation) {
-      invocations.push(invocation);
-      yield { type: "start", invocation };
-      yield { type: "stdout", chunk: "worker accepted goal" };
-      yield { type: "exit", exitCode: 0 };
-    };
 
     console.log = (...values: unknown[]) => {
       logs.push(values.join(" "));
     };
 
     try {
-      await buildProgram({ cwd: rootDir, streamRunner, clarificationPrompter }).parseAsync(
+      await buildProgram({ cwd: rootDir, clarificationPrompter }).parseAsync(
         ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
-      await buildProgram({ cwd: rootDir, streamRunner, clarificationPrompter }).parseAsync(
+      await buildProgram({ cwd: rootDir, clarificationPrompter }).parseAsync(
         ["goal", "make", "it", "better"],
         { from: "user" },
       );
@@ -304,153 +828,6 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Create an admin dashboard CSV importer"))).toBe(
         true,
       );
-      expect(invocations).toEqual([]);
-    } finally {
-      console.log = originalLog;
-      await rm(rootDir, { recursive: true, force: true });
-    }
-  });
-
-  test("stream-goal remains a compatibility alias for requirement discussion", async () => {
-    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
-    const logs: string[] = [];
-    const invocations: CliInvocation[] = [];
-    const originalLog = console.log;
-    const streamRunner: CliStreamRunner = async function* (invocation) {
-      invocations.push(invocation);
-      yield { type: "start", invocation };
-      yield { type: "exit", exitCode: 0 };
-    };
-
-    console.log = (...values: unknown[]) => {
-      logs.push(values.join(" "));
-    };
-
-    try {
-      await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
-        { from: "user" },
-      );
-
-      await buildProgram({ cwd: rootDir, streamRunner }).parseAsync(
-        ["stream-goal", "--worker", "claude", "Review", "checkout", "test", "plan", "evidence"],
-        { from: "user" },
-      );
-
-      expect(stripAnsiLines(logs)).toContain("Requirement discussion");
-      expect(logs.some((line) => line.includes("testing_bot: I think"))).toBe(true);
-      expect(invocations).toEqual([]);
-    } finally {
-      console.log = originalLog;
-      await rm(rootDir, { recursive: true, force: true });
-    }
-  });
-
-  test("ponyrace runs each pony through the configured subagent runner", async () => {
-    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
-    const logs: string[] = [];
-    const ponyCalls: string[] = [];
-    const originalLog = console.log;
-    const ponySubagentRunner: PonySubagentRunner = async ({ botId, contract }) => {
-      ponyCalls.push(botId);
-
-      return {
-        message: `${botId} subagent accepted ${contract.title}`,
-        vote: "approve",
-        confidence: 0.91,
-        requiredChanges: [],
-        transcript: [`${botId} inspected requirement direction`],
-      };
-    };
-
-    console.log = (...values: unknown[]) => {
-      logs.push(values.join(" "));
-    };
-
-    try {
-      await buildProgram({ cwd: rootDir, ponySubagentRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
-        { from: "user" },
-      );
-
-      await buildProgram({ cwd: rootDir, ponySubagentRunner }).parseAsync(
-        ["ponyrace", "Add", "CSV", "import", "to", "admin", "dashboard"],
-        { from: "user" },
-      );
-
-      expect(ponyCalls).toEqual([
-        "product_manager_bot",
-        "project_manager_bot",
-        "engineer_bot",
-        "testing_bot",
-        "product_manager_bot",
-        "project_manager_bot",
-        "engineer_bot",
-        "testing_bot",
-      ]);
-      expect(stripAnsiLines(logs)).toContain("Requirement discussion");
-      expect(stripAnsiLines(logs)).toContain("Round 1");
-      expect(stripAnsiLines(logs)).toContain("Round 2");
-      expect(
-        logs.some((line) =>
-          line.includes("product_manager_bot: product_manager_bot subagent accepted"),
-        ),
-      ).toBe(true);
-      expect(stripAnsiLines(logs)).toContain("Pony transcripts");
-      expect(logs.some((line) => line.includes("inspected requirement direction"))).toBe(true);
-      expect(logs.some((line) => line.includes("Human confirmation: pending"))).toBe(true);
-    } finally {
-      console.log = originalLog;
-      await rm(rootDir, { recursive: true, force: true });
-    }
-  });
-
-  test("ponyrace JSON output includes subagent discussion results", async () => {
-    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
-    const logs: string[] = [];
-    const ponyCalls: string[] = [];
-    const originalLog = console.log;
-    const ponySubagentRunner: PonySubagentRunner = async ({ botId }) => {
-      ponyCalls.push(botId);
-
-      return {
-        message: `${botId} json review`,
-        vote: "approve",
-        confidence: 0.88,
-        requiredChanges: [],
-        transcript: [`${botId} json transcript`],
-      };
-    };
-
-    console.log = (...values: unknown[]) => {
-      logs.push(values.join(" "));
-    };
-
-    try {
-      await buildProgram({ cwd: rootDir, ponySubagentRunner }).parseAsync(
-        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
-        { from: "user" },
-      );
-
-      await buildProgram({ cwd: rootDir, ponySubagentRunner }).parseAsync(
-        ["ponyrace", "--json", "Add", "CSV", "import", "to", "admin", "dashboard"],
-        { from: "user" },
-      );
-
-      const output = JSON.parse(logs.at(-1) ?? "{}");
-      expect(ponyCalls).toEqual([
-        "product_manager_bot",
-        "project_manager_bot",
-        "engineer_bot",
-        "testing_bot",
-        "product_manager_bot",
-        "project_manager_bot",
-        "engineer_bot",
-        "testing_bot",
-      ]);
-      expect(output.rounds.map((round: { round: number }) => round.round)).toEqual([1, 2]);
-      expect(output.discussion[0].message).toBe("product_manager_bot json review");
-      expect(output.humanConfirmation).toBe("pending");
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });

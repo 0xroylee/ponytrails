@@ -5,26 +5,26 @@ import { basename, isAbsolute, join, resolve } from "node:path";
 import { confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
 import { Command } from "commander";
 import pc from "picocolors";
-import {
-  type CliStreamRunner,
-  installAgentSkill,
-  parseSkillInstallAgents,
-  type SkillInstallResult,
-} from "./plugins";
+import { installAgentSkill, parseSkillInstallAgents, type SkillInstallResult } from "./plugins";
 import {
   applySnapshotRevert,
+  calculateDefaultSetupRequiredApprovals,
+  createCompactSetupManifest,
+  createDefaultSetupReviewBots,
   createOnboardingFiles,
   type InstructionContext,
   loadManifest,
-  type PonySubagentRunner,
   planSnapshotRevert,
   prepareGoalDiscussion,
   type RecordedSnapshotCommit,
   type RequirementCourtResult,
+  type RequirementPonyRunner,
+  type RunRequirementCourtInput,
   readSnapshotHistory,
   recordSnapshotPost,
   recordSnapshotPre,
   runRequirementCourt,
+  type SetupReviewBotInput,
   type SnapshotCommit,
   type SnapshotFileState,
   type SnapshotRevertAction,
@@ -54,6 +54,35 @@ export type GoalClarificationPrompter = (
 
 export type ProjectNamePrompter = (defaultName: string) => Promise<string>;
 
+export interface SetupPromptDefaults {
+  projectName: string;
+  bots: SetupReviewBotInput[];
+  requiredApprovals: number;
+  agents: string;
+}
+
+export type SetupPromptResult = SetupPromptDefaults;
+
+export type SetupPrompter = (defaults: SetupPromptDefaults) => Promise<SetupPromptResult>;
+
+export interface SetupPromptIo {
+  isTty: boolean;
+  intro(message: string): void;
+  outro(message: string): void;
+  text(input: { message: string; placeholder: string; defaultValue: string }): Promise<unknown>;
+  select(input: {
+    message: string;
+    options: Array<{ value: "default" | "custom"; label: string }>;
+  }): Promise<unknown>;
+  confirm(input: {
+    message: string;
+    active: string;
+    inactive: string;
+    initialValue: boolean;
+  }): Promise<unknown>;
+  isCancel(value: unknown): boolean;
+}
+
 export interface RevertApprovalPromptInput {
   snapshotId: string;
   actions: SnapshotRevertAction[];
@@ -66,32 +95,118 @@ type SkillChangeOperation = "install" | "update";
 
 const defaultManifestPath = ".ponytrail/manifest.json";
 const skillInstallHistorySessionId = "ponytrail-skills";
+const clackSetupPromptIo: SetupPromptIo = {
+  get isTty() {
+    return process.stdin.isTTY === true;
+  },
+  intro,
+  outro,
+  text,
+  select,
+  confirm,
+  isCancel,
+};
 
 export interface BuildProgramOptions {
   cwd?: string;
-  streamRunner?: CliStreamRunner;
-  ponySubagentRunner?: PonySubagentRunner | undefined;
   clarificationPrompter?: GoalClarificationPrompter;
   projectNamePrompter?: ProjectNamePrompter;
+  setupPrompter?: SetupPrompter;
+  ponyRunner?: RequirementPonyRunner | undefined;
   revertApprovalPrompter?: RevertApprovalPrompter;
+}
+
+const CLI_VERSION = "0.2.0";
+
+interface CommanderVersionInternals {
+  _outputConfiguration: {
+    writeOut: (value: string) => void;
+  };
+  _exit: (exitCode: number, code: string, message: string) => never;
 }
 
 export function buildProgram(options: BuildProgramOptions = {}): Command {
   const rootDir = options.cwd ?? process.cwd();
   const clarificationPrompter = options.clarificationPrompter ?? promptForGoalClarifications;
-  const ponySubagentRunner = options.ponySubagentRunner;
   const projectNamePrompter = options.projectNamePrompter ?? promptForProjectName;
+  const setupPrompter = options.setupPrompter ?? promptForSetup;
+  const ponyRunner = options.ponyRunner;
   const revertApprovalPrompter = options.revertApprovalPrompter ?? promptForRevertApproval;
   const program = new Command();
 
   program
     .name("ponytrail")
     .description("Requirement-first runtime for supervising Codex, Claude, and other AI workers.")
-    .version("0.1.0");
+    .version(CLI_VERSION)
+    .option("-v", "output the version number");
+
+  program.on("option:v", () => {
+    outputVersionAndExit(program, CLI_VERSION);
+  });
+
+  program
+    .command("setup")
+    .description(
+      "Create local .ponytrail files, configure review bots, and install Ponytrail skills.",
+    )
+    .option("--dir <dir>", "target directory", rootDir)
+    .option("--name <name>", "project name")
+    .option(
+      "--agents <agents>",
+      "comma-separated skill install targets: codex,claude,cursor",
+      "codex,claude,cursor",
+    )
+    .option("--home <dir>", "home directory that contains agent config folders", homedir())
+    .action(
+      async (commandOptions: { dir: string; name?: string; agents: string; home: string }) => {
+        const targetDir = resolvePath(rootDir, commandOptions.dir);
+        const defaultBots = createDefaultSetupReviewBots();
+        const defaultVotingCount = defaultBots.filter((bot) => bot.votes !== false).length;
+        const setup = await setupPrompter({
+          projectName: commandOptions.name ?? basename(targetDir),
+          bots: defaultBots,
+          requiredApprovals: calculateDefaultSetupRequiredApprovals(defaultVotingCount),
+          agents: commandOptions.agents,
+        });
+        const installAgents = parseSkillInstallAgents(setup.agents);
+        const manifest = createCompactSetupManifest({
+          name: setup.projectName,
+          reviewBots: setup.bots,
+          requiredApprovals: setup.requiredApprovals,
+        });
+
+        const result = await createOnboardingFiles({
+          rootDir: targetDir,
+          projectName: setup.projectName,
+          manifest,
+        });
+
+        console.log(pc.dim(`Manifest: ${result.manifestPath}`));
+
+        for (const source of ["pony-trail", "ponyrace"]) {
+          const skillResult = await installSkillWithLocalHistory({
+            rootDir: targetDir,
+            operation: "install",
+            source,
+            homeDir: resolveHomePath(commandOptions.home),
+            agents: installAgents,
+            dryRun: false,
+            force: false,
+            refreshExisting: true,
+            installPrehook: false,
+          });
+
+          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+        }
+
+        console.log(pc.green("Ponytrail setup complete"));
+        console.log(`Next: ponytrail ponyrace "your requirement"`);
+      },
+    );
 
   program
     .command("onboard")
-    .description("Create local .ponytrail files and install the default Pony Trail skill.")
+    .description("Create local .ponytrail files and install the default Pony Trail skills.")
     .option("-d, --dir <dir>", "target directory", rootDir)
     .option("-n, --name <name>", "project name")
     .option(
@@ -113,19 +228,23 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
         console.log(pc.green("Ponytrail onboarding complete"));
         console.log(pc.dim(`Manifest: ${result.manifestPath}`));
 
-        const skillResult = await installSkillWithLocalHistory({
-          rootDir: targetDir,
-          operation: "install",
-          source: "pony-trail",
-          homeDir: resolveHomePath(commandOptions.home),
-          agents: parseSkillInstallAgents(commandOptions.agents),
-          dryRun: false,
-          force: false,
-          refreshExisting: true,
-          installPrehook: false,
-        });
+        const installAgents = parseSkillInstallAgents(commandOptions.agents);
 
-        printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+        for (const source of ["pony-trail", "ponyrace"]) {
+          const skillResult = await installSkillWithLocalHistory({
+            rootDir: targetDir,
+            operation: "install",
+            source,
+            homeDir: resolveHomePath(commandOptions.home),
+            agents: installAgents,
+            dryRun: false,
+            force: false,
+            refreshExisting: true,
+            installPrehook: false,
+          });
+
+          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+        }
       },
     );
 
@@ -159,7 +278,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
           rootDir,
           clarificationPrompter,
           manifestPath: commandOptions.manifest,
-          ponySubagentRunner,
+          ponyRunner,
           jsonOutput: commandOptions.json ? "contract" : false,
         });
       },
@@ -167,19 +286,27 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
 
   program
     .command("ponyrace")
-    .description("Run the requirement pony subagents and summarize their direction.")
-    .argument("<request...>", "raw requirement request")
+    .description("Run a pony race requirement discussion before implementation.")
+    .argument("<request...>", "raw goal request")
     .option("-m, --manifest <path>", "manifest path", defaultManifestPath)
+    .option("-w, --worker <id>", "accepted for compatibility; worker execution is gated")
     .option("--json", "print JSON output", false)
-    .action(async (requestParts: string[], commandOptions: { manifest: string; json: boolean }) => {
-      await runGoalFlow(requestParts, {
-        rootDir,
-        clarificationPrompter,
-        manifestPath: commandOptions.manifest,
-        ponySubagentRunner,
-        jsonOutput: commandOptions.json ? "court" : false,
-      });
-    });
+    .action(
+      async (
+        requestParts: string[],
+        commandOptions: { manifest: string; worker?: string; json: boolean },
+      ) => {
+        await runGoalFlow(requestParts, {
+          rootDir,
+          clarificationPrompter,
+          manifestPath: commandOptions.manifest,
+          ponyRunner,
+          jsonOutput: commandOptions.json ? "court" : false,
+          discussionHeading: "Pony race",
+          printVisibleThinking: true,
+        });
+      },
+    );
 
   program
     .command("vote")
@@ -220,7 +347,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
           rootDir,
           clarificationPrompter,
           manifestPath: commandOptions.manifest,
-          ponySubagentRunner,
+          ponyRunner,
           jsonOutput: false,
         });
       },
@@ -310,6 +437,114 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
   return program;
 }
 
+function outputVersionAndExit(program: Command, version: string): never {
+  const command = program as Command & CommanderVersionInternals;
+
+  command._outputConfiguration.writeOut(`${version}\n`);
+  return command._exit(0, "commander.version", version);
+}
+
+export async function promptForSetup(
+  defaults: SetupPromptDefaults,
+  promptIo: SetupPromptIo = clackSetupPromptIo,
+): Promise<SetupPromptResult> {
+  if (!promptIo.isTty) {
+    return defaults;
+  }
+
+  promptIo.intro(pc.cyan("Ponytrail setup"));
+
+  const projectName = await readSetupText(promptIo, "Workspace name", defaults.projectName);
+  const defaultBotCount = defaults.bots.length;
+  const botCount = parsePositiveIntegerInput(
+    await readSetupText(promptIo, "Review bot count", String(defaultBotCount)),
+    "Review bot count",
+  );
+  const bots: SetupReviewBotInput[] = [];
+
+  for (let index = 0; index < botCount; index += 1) {
+    const defaultBot = defaults.bots[index] ?? createFallbackSetupBot(index + 1);
+    const displayName = await readSetupText(
+      promptIo,
+      `Bot ${index + 1} display name`,
+      defaultBot.displayName,
+    );
+    const role = await readSetupText(promptIo, `${displayName} role`, defaultBot.role);
+    const id = await readSetupText(promptIo, `${displayName} id`, defaultBot.id);
+    const panel = await readSetupText(
+      promptIo,
+      `${displayName} panel`,
+      defaultBot.panel ?? "requirement_court",
+    );
+    const instruction = await readSetupText(
+      promptIo,
+      `${displayName} instruction`,
+      defaultBot.instruction ??
+        `Review the requirement direction from the ${role} perspective before voting.`,
+    );
+    const modelId = await readSetupText(promptIo, `${displayName} model id`, defaultBot.modelId);
+    const modelName = await readSetupText(
+      promptIo,
+      `${displayName} model name`,
+      defaultBot.modelName,
+    );
+    const votes = await readSetupConfirm(
+      promptIo,
+      `${displayName} votes`,
+      defaultBot.votes !== false,
+    );
+
+    bots.push({
+      ...defaultBot,
+      id,
+      displayName,
+      role,
+      panel,
+      instruction,
+      modelId,
+      modelName,
+      votes,
+    });
+  }
+
+  const voterCount = bots.filter((bot) => bot.votes !== false).length;
+  const defaultRequiredApprovals = calculateDefaultSetupRequiredApprovals(voterCount);
+  const approvalMode = await promptIo.select({
+    message: "Approval rule",
+    options: [
+      {
+        value: "default",
+        label: `Default (${defaultRequiredApprovals} of ${voterCount})`,
+      },
+      {
+        value: "custom",
+        label: "Custom",
+      },
+    ],
+  });
+
+  if (promptIo.isCancel(approvalMode)) {
+    throw new Error("Setup cancelled");
+  }
+
+  const requiredApprovals =
+    approvalMode === "default"
+      ? defaultRequiredApprovals
+      : parseApprovalCountInput(
+          await readSetupText(promptIo, "Required approvals", String(defaultRequiredApprovals)),
+          voterCount,
+        );
+  const agents = await readSetupText(promptIo, "Skill install targets", defaults.agents);
+
+  const shouldCreate = await readSetupConfirm(promptIo, "Create setup now?", true);
+  if (!shouldCreate) {
+    throw new Error("Setup cancelled");
+  }
+
+  promptIo.outro(pc.green("Creating setup files"));
+  return { projectName, bots, requiredApprovals, agents };
+}
+
 async function promptForProjectName(defaultName: string): Promise<string> {
   intro(pc.cyan("Ponytrail onboarding"));
   const answer = await text({
@@ -326,12 +561,81 @@ async function promptForProjectName(defaultName: string): Promise<string> {
   return String(answer);
 }
 
+async function readSetupText(
+  promptIo: SetupPromptIo,
+  message: string,
+  defaultValue: string,
+): Promise<string> {
+  const answer = await promptIo.text({
+    message,
+    placeholder: defaultValue,
+    defaultValue,
+  });
+
+  if (promptIo.isCancel(answer)) {
+    throw new Error("Setup cancelled");
+  }
+
+  return String(answer).trim() || defaultValue;
+}
+
+async function readSetupConfirm(
+  promptIo: SetupPromptIo,
+  message: string,
+  initialValue: boolean,
+): Promise<boolean> {
+  const answer = await promptIo.confirm({
+    message,
+    active: "Yes",
+    inactive: "No",
+    initialValue,
+  });
+
+  if (promptIo.isCancel(answer)) {
+    throw new Error("Setup cancelled");
+  }
+
+  return answer === true;
+}
+
+function parsePositiveIntegerInput(rawValue: string, label: string): number {
+  const value = Number(rawValue.trim());
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${label} must be a positive whole number.`);
+  }
+
+  return value;
+}
+
+function parseApprovalCountInput(rawValue: string, voterCount: number): number {
+  const value = parsePositiveIntegerInput(rawValue, "Required approvals");
+  if (value > voterCount) {
+    throw new Error(`Required approvals must be between 1 and ${voterCount}.`);
+  }
+
+  return value;
+}
+
+function createFallbackSetupBot(position: number): SetupReviewBotInput {
+  return {
+    id: `review_bot_${position}`,
+    displayName: `Review Bot ${position}`,
+    role: "Review",
+    panel: "requirement_court",
+    modelId: `review_bot_${position}_model`,
+    modelName: `review-bot-${position}-review-model`,
+    votes: true,
+  };
+}
+
 interface RunGoalFlowInput {
   rootDir: string;
   clarificationPrompter: GoalClarificationPrompter;
   manifestPath: string;
-  ponySubagentRunner?: PonySubagentRunner | undefined;
+  ponyRunner?: RequirementPonyRunner | undefined;
   jsonOutput: "contract" | "court" | false;
+  discussionHeading?: string;
+  printVisibleThinking?: boolean;
 }
 
 async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Promise<void> {
@@ -371,12 +675,15 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
       return;
     }
 
-    printRequirementCourtResult(
-      await runRequirementCourt(clarifiedDiscussion.contract, {
-        manifest,
-        ponySubagentRunner: input.ponySubagentRunner,
-      }),
+    const result = await runRequirementCourt(
+      clarifiedDiscussion.contract,
+      createRunRequirementCourtInput(manifest, input.ponyRunner),
     );
+
+    printRequirementCourtResult(result, {
+      discussionHeading: input.discussionHeading,
+      printVisibleThinking: input.printVisibleThinking,
+    });
     return;
   }
 
@@ -385,21 +692,45 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
     return;
   }
 
-  const result = await runRequirementCourt(preparedDiscussion.contract, {
-    manifest,
-    ponySubagentRunner: input.ponySubagentRunner,
-  });
+  const result = await runRequirementCourt(
+    preparedDiscussion.contract,
+    createRunRequirementCourtInput(manifest, input.ponyRunner),
+  );
 
   if (input.jsonOutput === "court") {
     console.log(JSON.stringify(result, null, 2));
     return;
   }
 
-  printRequirementCourtResult(result);
+  printRequirementCourtResult(result, {
+    discussionHeading: input.discussionHeading,
+    printVisibleThinking: input.printVisibleThinking,
+  });
 }
 
-function printRequirementCourtResult(result: RequirementCourtResult): void {
-  console.log(pc.cyan("Requirement discussion"));
+function createRunRequirementCourtInput(
+  manifest: RunRequirementCourtInput["manifest"],
+  ponyRunner: RequirementPonyRunner | undefined,
+): RunRequirementCourtInput {
+  const input: RunRequirementCourtInput = { manifest };
+
+  if (ponyRunner) {
+    input.ponyRunner = ponyRunner;
+  }
+
+  return input;
+}
+
+interface RequirementCourtOutputOptions {
+  discussionHeading?: string | undefined;
+  printVisibleThinking?: boolean | undefined;
+}
+
+function printRequirementCourtResult(
+  result: RequirementCourtResult,
+  options: RequirementCourtOutputOptions = {},
+): void {
+  console.log(pc.cyan(options.discussionHeading ?? "Requirement discussion"));
   for (const round of result.rounds) {
     console.log("");
     console.log(pc.cyan(`Round ${round.round}`));
@@ -408,24 +739,8 @@ function printRequirementCourtResult(result: RequirementCourtResult): void {
     }
   }
 
-  const transcriptRounds = result.rounds
-    .map((round) => ({
-      round: round.round,
-      lines: round.discussion.flatMap((entry) =>
-        entry.transcript.map((line) => `${entry.botId}: ${line}`),
-      ),
-    }))
-    .filter((round) => round.lines.length > 0);
-
-  if (transcriptRounds.length > 0) {
-    console.log("");
-    console.log(pc.cyan("Pony transcripts"));
-    for (const round of transcriptRounds) {
-      console.log(pc.cyan(`Round ${round.round}`));
-      for (const line of round.lines) {
-        console.log(line);
-      }
-    }
+  if (options.printVisibleThinking) {
+    printVisibleThinkingTranscript(result);
   }
 
   console.log("");
@@ -448,6 +763,22 @@ function printRequirementCourtResult(result: RequirementCourtResult): void {
   console.log(`Human confirmation: ${result.humanConfirmation}`);
 }
 
+function printVisibleThinkingTranscript(result: RequirementCourtResult): void {
+  console.log("");
+  console.log(pc.cyan("Visible thinking transcript"));
+  for (const round of result.rounds) {
+    console.log(`Round ${round.round}`);
+    for (const entry of round.discussion) {
+      console.log(`${entry.displayName} (${entry.botId})`);
+      console.log(`Focus: ${entry.visibleThinking.focus}`);
+      console.log(`Concern: ${entry.visibleThinking.concern}`);
+      console.log(`Recommendation: ${entry.visibleThinking.recommendation}`);
+      console.log(`Vote: ${entry.vote} (${Math.round(entry.confidence * 100)}% confidence)`);
+      printList("Required changes", entry.requiredChanges);
+    }
+  }
+}
+
 function printList(label: string, values: string[]): void {
   if (values.length === 0) {
     return;
@@ -458,6 +789,7 @@ function printList(label: string, values: string[]): void {
     console.log(`- ${value}`);
   }
 }
+
 function printSnapshotHistory(
   sessions: Array<{ sessionId: string; commits: SnapshotCommit[] }>,
   mode: SnapshotHistoryMode,

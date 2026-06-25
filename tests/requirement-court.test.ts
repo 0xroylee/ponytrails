@@ -1,8 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { draftGoalContract } from "../src/runtimes/ponytrail/goal";
-import { createDefaultManifest } from "../src/runtimes/ponytrail/manifest";
 import {
-  type PonySubagentRunner,
+  createDefaultManifest,
+  createDefaultSetupReviewBots,
+  createSetupManifest,
+} from "../src/runtimes/ponytrail/manifest";
+import {
+  type RequirementPonyRunner,
   runRequirementCourt,
 } from "../src/runtimes/ponytrail/requirement-court";
 
@@ -25,6 +29,11 @@ describe("requirement court", () => {
       expect.stringContaining("engineer_bot: I think"),
       expect.stringContaining("testing_bot: I think"),
     ]);
+    expect(result.discussion[0]?.visibleThinking).toEqual({
+      focus: expect.stringContaining("product"),
+      concern: expect.stringContaining("product"),
+      recommendation: expect.stringContaining("preserves the user's product intent"),
+    });
     expect(result.verdict.approved).toBe(true);
     expect(result.judge.botId).toBe("requirement_judge_bot");
     expect(result.judge.summary).toContain("Approvals: 4/4");
@@ -46,86 +55,141 @@ describe("requirement court", () => {
     expect(result.votes.some((vote) => vote.botId === "requirement_judge_bot")).toBe(false);
   });
 
-  test("uses final-round messages from each voting pony before tallying votes", async () => {
-    const manifest = createDefaultManifest();
+  test("creates discussion entries for setup-defined voter bots", async () => {
+    const manifest = createSetupManifest({
+      reviewBots: [
+        ...createDefaultSetupReviewBots(),
+        {
+          id: "security_bot",
+          displayName: "Security Bot",
+          role: "Security",
+          panel: "requirement_court",
+          instruction: "Review data, permission, and security risk before voting.",
+          modelId: "security_model",
+          modelName: "security-review-model",
+          votes: true,
+        },
+      ],
+    });
     const contract = draftGoalContract("Add CSV import to admin dashboard", { manifest });
-    const calls: string[] = [];
-    const ponySubagentRunner: PonySubagentRunner = async ({ botId, contract }) => {
-      calls.push(botId);
+
+    const result = await runRequirementCourt(contract, { manifest });
+
+    expect(result.discussion.map((entry) => entry.botId)).toEqual(
+      manifest.deliberation.decisionRule.voterIds,
+    );
+    expect(result.discussion.map((entry) => entry.line)).toEqual([
+      expect.stringContaining("product_manager_bot: I think"),
+      expect.stringContaining("project_manager_bot: I think"),
+      expect.stringContaining("senior_engineer_bot: I think"),
+      expect.stringContaining("testing_bot: I think"),
+      expect.stringContaining("security_bot: I think"),
+    ]);
+    expect(result.judge.summary).toContain("Approvals: 5/5");
+  });
+
+  test("runs one pony runner for each manifest voter with bot and model context", async () => {
+    const manifest = createSetupManifest({
+      reviewBots: [
+        ...createDefaultSetupReviewBots(),
+        {
+          id: "security_bot",
+          displayName: "Security Bot",
+          role: "Security",
+          panel: "requirement_court",
+          instruction: "Review data, permission, and security risk before voting.",
+          modelId: "security_model",
+          modelName: "security-review-model",
+          votes: true,
+        },
+      ],
+    });
+    const contract = draftGoalContract("Add CSV import to admin dashboard", { manifest });
+    const calls: Array<{
+      botId: string;
+      modelId: string;
+      round: number;
+      priorDiscussionCount: number;
+    }> = [];
+    const ponyRunner: RequirementPonyRunner = async ({ bot, model, round, priorDiscussion }) => {
+      calls.push({
+        botId: bot.id,
+        modelId: model.id,
+        round,
+        priorDiscussionCount: priorDiscussion.length,
+      });
 
       return {
-        message: `${botId} reviewed ${contract.title}`,
+        message: `${bot.id} approves with ${model.id}`,
+        visibleThinking: {
+          focus: `Evaluate as ${bot.displayName}.`,
+          concern: "Make sure the role-specific risk is surfaced.",
+          recommendation: "Approve the direction.",
+        },
         vote: "approve",
         confidence: 0.9,
         requiredChanges: [],
-        transcript: [`${botId} received the contract`, `${botId} returned approve`],
       };
     };
 
-    const result = await runRequirementCourt(contract, { manifest, ponySubagentRunner });
+    const result = await runRequirementCourt(contract, { manifest, ponyRunner });
 
-    expect(calls).toEqual([
-      "product_manager_bot",
-      "project_manager_bot",
-      "engineer_bot",
-      "testing_bot",
-      "product_manager_bot",
-      "project_manager_bot",
-      "engineer_bot",
-      "testing_bot",
-    ]);
-    expect(result.discussion.map((entry) => entry.message)).toEqual([
-      "product_manager_bot reviewed Add CSV import to admin dashboard",
-      "project_manager_bot reviewed Add CSV import to admin dashboard",
-      "engineer_bot reviewed Add CSV import to admin dashboard",
-      "testing_bot reviewed Add CSV import to admin dashboard",
-    ]);
-    expect(result.discussion[0]?.transcript).toEqual([
-      "product_manager_bot received the contract",
-      "product_manager_bot returned approve",
-    ]);
-    expect(result.verdict.approvals).toBe(4);
+    expect(calls.map((call) => call.botId)).toEqual(manifest.deliberation.decisionRule.voterIds);
+    expect(calls.every((call) => call.round === 1)).toBe(true);
+    expect(calls.every((call) => call.priorDiscussionCount === 0)).toBe(true);
+    expect(calls.map((call) => call.modelId)).toContain("security_model");
+    expect(result.discussion).toHaveLength(manifest.deliberation.decisionRule.voters);
+    expect(result.discussion.at(-1)).toMatchObject({
+      botId: "security_bot",
+      displayName: "Security Bot",
+      message: "security_bot approves with security_model",
+      visibleThinking: {
+        focus: "Evaluate as Security Bot.",
+        concern: "Make sure the role-specific risk is surfaced.",
+        recommendation: "Approve the direction.",
+      },
+      round: 1,
+      vote: "approve",
+    });
   });
 
-  test("runs each voting pony once per discussion round and votes from the final round", async () => {
+  test("iterates pony runners until a later round reaches the approval rule", async () => {
     const manifest = createDefaultManifest();
     const contract = draftGoalContract("Add CSV import to admin dashboard", { manifest });
-    const calls: Array<{ botId: string; round: number; priorRounds: number }> = [];
-    const ponySubagentRunner: PonySubagentRunner = async ({
-      botId,
-      contract,
-      priorRounds,
-      round,
-    }) => {
-      calls.push({ botId, round, priorRounds: priorRounds.length });
+    const calls: Array<{ botId: string; round: number; priorDiscussionCount: number }> = [];
+    const ponyRunner: RequirementPonyRunner = async ({ bot, round, priorDiscussion }) => {
+      calls.push({ botId: bot.id, round, priorDiscussionCount: priorDiscussion.length });
+
+      if (round === 1 && ["engineer_bot", "testing_bot"].includes(bot.id)) {
+        return {
+          message: `${bot.id} needs clearer evidence before approval.`,
+          vote: "amend",
+          confidence: 0.7,
+          requiredChanges: [`Clarify evidence for ${bot.id}.`],
+        };
+      }
 
       return {
-        message: `round ${round} ${botId} reviewed ${contract.title}`,
+        message: `${bot.id} approves round ${round}.`,
         vote: "approve",
-        confidence: round === 2 ? 0.92 : 0.72,
+        confidence: 0.9,
         requiredChanges: [],
-        transcript: [`${botId} saw ${priorRounds.length} prior rounds`],
       };
     };
 
-    const result = await runRequirementCourt(contract, { manifest, ponySubagentRunner });
+    const result = await runRequirementCourt(contract, { manifest, ponyRunner });
 
-    expect(result.rounds.map((round) => round.round)).toEqual([1, 2]);
-    expect(calls).toEqual([
-      { botId: "product_manager_bot", round: 1, priorRounds: 0 },
-      { botId: "project_manager_bot", round: 1, priorRounds: 0 },
-      { botId: "engineer_bot", round: 1, priorRounds: 0 },
-      { botId: "testing_bot", round: 1, priorRounds: 0 },
-      { botId: "product_manager_bot", round: 2, priorRounds: 1 },
-      { botId: "project_manager_bot", round: 2, priorRounds: 1 },
-      { botId: "engineer_bot", round: 2, priorRounds: 1 },
-      { botId: "testing_bot", round: 2, priorRounds: 1 },
+    expect(result.rounds).toHaveLength(2);
+    expect(result.rounds[0]?.verdict.approved).toBe(false);
+    expect(result.rounds[1]?.verdict.approved).toBe(true);
+    expect(result.discussion).toHaveLength(8);
+    expect(calls.filter((call) => call.round === 2)).toEqual([
+      { botId: "product_manager_bot", round: 2, priorDiscussionCount: 4 },
+      { botId: "project_manager_bot", round: 2, priorDiscussionCount: 4 },
+      { botId: "engineer_bot", round: 2, priorDiscussionCount: 4 },
+      { botId: "testing_bot", round: 2, priorDiscussionCount: 4 },
     ]);
-    expect(result.votes.map((vote) => vote.reason)).toEqual([
-      "round 2 product_manager_bot reviewed Add CSV import to admin dashboard",
-      "round 2 project_manager_bot reviewed Add CSV import to admin dashboard",
-      "round 2 engineer_bot reviewed Add CSV import to admin dashboard",
-      "round 2 testing_bot reviewed Add CSV import to admin dashboard",
-    ]);
+    expect(result.votes.every((vote) => vote.vote === "approve")).toBe(true);
+    expect(result.judge.summary).toContain("Approvals: 4/4");
   });
 });

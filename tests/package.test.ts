@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 interface PackageMetadata {
+  version?: string;
   bin?: Record<string, string>;
   files?: string[];
   scripts?: Record<string, string>;
@@ -16,6 +17,7 @@ describe("package metadata", () => {
   test("builds and publishes a bundled CLI binary", async () => {
     const packageMetadata = await readPackageMetadata();
 
+    expect(packageMetadata.version).toBe("0.2.0");
     expect(packageMetadata.scripts?.build).toBe(
       "bun build --target=bun --outfile=dist/cli.js src/cli.ts",
     );
