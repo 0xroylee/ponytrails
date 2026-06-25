@@ -69,7 +69,7 @@ Each worker adapter folder uses the same shape:
 - `utils.ts` stores adapter-local constants and config.
 - `index.ts` exports the public adapter surface.
 
-The adapter modules build invocation descriptions, run them through injected process runners, and stream them through injected stream runners. Worker execution remains behind this seam and is gated by requirement-court approval plus human confirmation. `goal` and the compatibility `stream-goal` command now focus on requirement discussion by default instead of launching a worker. The default Bun-backed stream runner is `src/plugins/adapters/stream-runner.ts`; process spawning must stay behind this seam, not inside `src/cli.ts`.
+The adapter modules build invocation descriptions, run them through injected process runners, and stream them through injected stream runners. Worker execution remains behind this seam and is gated by requirement-court approval plus human confirmation. `goal` and `ponyrace` focus on requirement discussion by default instead of launching a worker. The default Bun-backed stream runner is `src/plugins/adapters/stream-runner.ts`; process spawning must stay behind this seam, not inside `src/cli.ts`.
 
 ## Skills
 
@@ -107,9 +107,9 @@ Human request
   -> ponytrail runtime
   -> requirements brainstorm
   -> ask human for details when unclear
-  -> Product Manager, Project Manager, Engineer, and Testing bots discuss
-  -> visible role-bot discussion is printed
-  -> 3 of 4 voting bots approve the direction
+  -> Product Manager, Project Manager, Engineer, and Testing ponies discuss
+  -> visible role-pony discussion is printed
+  -> 3 of 4 voting ponies approve the direction
   -> Requirement Judge summarizes and merges one detailed requirement
   -> human confirms the direction
   -> worker adapter execution remains gated

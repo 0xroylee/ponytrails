@@ -1,10 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createDefaultManifest, writeManifest } from "./manifest";
+import {
+  type CompactSetupManifest,
+  createDefaultManifest,
+  type Manifest,
+  writeManifest,
+} from "./manifest";
 
 export interface CreateOnboardingFilesInput {
   rootDir: string;
   projectName: string;
+  manifest?: Manifest | CompactSetupManifest;
 }
 
 export interface CreateOnboardingFilesResult {
@@ -31,7 +37,10 @@ export async function createOnboardingFiles(
     mkdir(skillsDir, { recursive: true }),
     mkdir(runtimesDir, { recursive: true }),
   ]);
-  await writeManifest(manifestPath, createDefaultManifest({ name: input.projectName }));
+  await writeManifest(
+    manifestPath,
+    input.manifest ?? createDefaultManifest({ name: input.projectName }),
+  );
   await writeFile(readmePath, createReadme(input.projectName));
   await writeFile(gitkeepPath, "");
 
@@ -49,9 +58,9 @@ This directory stores requirement-first runtime files for AI agent work.
 
 ## Flow
 
-1. Draft a goal with \`/goal "<request>"\`.
-2. Let the Product, Engineering, and Verification bots discuss the direction.
-3. Lock the goal only after at least 2 of 3 bots approve and the human owner approves.
+1. Discuss a requirement with \`ponytrail ponyrace "<request>"\`.
+2. Let the configured review bots discuss the direction and vote with the manifest approval rule.
+3. Lock the goal only after the manifest approval rule passes and the human owner approves.
 4. Start Codex, Claude, or another worker agent with the locked goal contract.
 5. Use \`/amend-goal\` when execution discovers the goal must change.
 

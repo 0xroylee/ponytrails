@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createCliRequirementPonyRunner } from "../src/plugins";
 import {
   cliWorkerAdapters,
   getCliWorkerAdapter,
@@ -25,6 +26,8 @@ import type {
   CliStreamEvent,
   CliStreamRunner,
 } from "../src/plugins/adapters/types";
+import { draftGoalContract } from "../src/runtimes/ponytrail/goal";
+import { createDefaultManifest } from "../src/runtimes/ponytrail/manifest";
 
 describe("worker CLI adapters", () => {
   test("registers Codex, Claude, and GitHub Copilot CLI adapters", () => {
@@ -190,5 +193,67 @@ describe("worker CLI adapters", () => {
       },
       { type: "exit", exitCode: 0 },
     ]);
+  });
+
+  test("creates a CLI-backed pony runner that prompts one sub-agent and parses its vote", async () => {
+    const manifest = createDefaultManifest();
+    const contract = draftGoalContract("Add CSV import to admin dashboard", { manifest });
+    const bot = manifest.bots.find((candidate) => candidate.id === "engineer_bot");
+    const model = manifest.models.find((candidate) => candidate.id === bot?.model);
+    const invocations: CliInvocation[] = [];
+    const runner: CliProcessRunner = async (invocation) => {
+      invocations.push(invocation);
+      return {
+        invocation,
+        exitCode: 0,
+        stdout: JSON.stringify({
+          message: "Engineering approves with a smoke test.",
+          visibleThinking: {
+            focus: "Check implementation and verification shape.",
+            concern: "The plan needs a smoke test before approval.",
+            recommendation: "Approve with a focused CLI smoke check.",
+          },
+          vote: "approve",
+          confidence: 0.92,
+          requiredChanges: [],
+        }),
+        stderr: "",
+      };
+    };
+
+    if (!bot || !model) {
+      throw new Error("Default manifest is missing the engineer bot or model.");
+    }
+
+    const ponyRunner = createCliRequirementPonyRunner({
+      adapter: getCliWorkerAdapter("codex-cli"),
+      runner,
+    });
+
+    const response = await ponyRunner({
+      manifest,
+      bot,
+      model,
+      contract,
+      round: 1,
+      priorDiscussion: [],
+    });
+
+    expect(response).toEqual({
+      message: "Engineering approves with a smoke test.",
+      visibleThinking: {
+        focus: "Check implementation and verification shape.",
+        concern: "The plan needs a smoke test before approval.",
+        recommendation: "Approve with a focused CLI smoke check.",
+      },
+      vote: "approve",
+      confidence: 0.92,
+      requiredChanges: [],
+    });
+    expect(invocations).toHaveLength(1);
+    expect(invocations[0]?.args.join(" ")).toContain("Requirement pony review");
+    expect(invocations[0]?.args.join(" ")).toContain("Pony: Engineer Bot (engineer_bot)");
+    expect(invocations[0]?.args.join(" ")).toContain("visibleThinking");
+    expect(invocations[0]?.args.join(" ")).toContain("Return only JSON");
   });
 });

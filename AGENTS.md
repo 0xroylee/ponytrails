@@ -86,8 +86,6 @@ bun run dev -- bots         # List manifest-defined bots
 bun run dev -- goal "..."   # Draft a goal contract
 bun run build               # Build the packaged CLI bundle
 bun run dev -- vote --votes '[...]'
-bun run dev -- stream-goal "..."                  # Stream through the first configured worker
-bun run dev -- stream-goal --worker claude "..."  # Stream through a named manifest worker
 bun run dev -- history       # Show Pony Trail snapshot history
 bun run dev -- revert "..."  # Restore files from a snapshot pre-state
 bun test                    # Run Bun tests

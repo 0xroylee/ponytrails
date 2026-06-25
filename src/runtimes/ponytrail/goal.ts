@@ -22,6 +22,7 @@ export interface GoalContract {
 
 export function draftGoalContract(rawRequest: string, input: DraftGoalContractInput): GoalContract {
   const normalizedRequest = normalizeRequest(rawRequest);
+  const approvalRule = input.manifest.defaultGoalTemplate.approvalRule;
 
   return {
     title: normalizedRequest,
@@ -33,7 +34,9 @@ export function draftGoalContract(rawRequest: string, input: DraftGoalContractIn
     },
     acceptanceCriteria: [
       `Human owner confirms the detailed requirement matches this request: ${normalizedRequest}`,
-      "Requirement court reaches the configured 3-of-4 approval threshold.",
+      `Requirement court reaches the configured ${formatApprovalThreshold(
+        approvalRule.goalDirectionPanel,
+      )} approval threshold.`,
       "Worker execution remains gated until the human confirms the requirement direction.",
     ],
     evidenceRequired: [
@@ -49,9 +52,15 @@ export function draftGoalContract(rawRequest: string, input: DraftGoalContractIn
     ],
     risks: ["Goal may need refinement before execution if scope or verification remains unclear."],
     openQuestions: [],
-    approvalRule: input.manifest.defaultGoalTemplate.approvalRule,
+    approvalRule,
     status: "draft",
   };
+}
+
+function formatApprovalThreshold(
+  panel: Manifest["defaultGoalTemplate"]["approvalRule"]["goalDirectionPanel"],
+): string {
+  return `${panel.requiredApprovals}-of-${panel.voters.length}`;
 }
 
 function normalizeRequest(rawRequest: string): string {

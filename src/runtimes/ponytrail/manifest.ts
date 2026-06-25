@@ -8,7 +8,6 @@ export const WorkerAgentSchema = z.object({
   id: z.string().min(1),
   adapter: z.literal("cli"),
   command: z.string().min(1),
-  goalCommand: z.string().min(1),
   notes: z.string().min(1),
 });
 
@@ -41,6 +40,36 @@ export const BotSchema = z.object({
   outputs: z.array(z.string().min(1)).optional(),
   approvalConditions: z.array(z.string().min(1)).optional(),
   rejectOrAmendConditions: z.array(z.string().min(1)).optional(),
+});
+
+const ManifestMetadataSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+  owner: z.string().min(1),
+});
+
+const SetupReviewBotInputSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  role: z.string().min(1),
+  panel: z.string().min(1).optional(),
+  instruction: z.string().min(1).optional(),
+  modelId: z.string().min(1),
+  modelName: z.string().min(1),
+  votes: z.boolean().optional(),
+  skills: z.array(z.string().min(1)).optional(),
+  approvalConditions: z.array(z.string().min(1)).optional(),
+  rejectOrAmendConditions: z.array(z.string().min(1)).optional(),
+});
+
+export const CompactSetupManifestSchema = z.object({
+  manifestVersion: z.string().min(1),
+  kind: z.literal("ai-work-runtime.ponytrail.setup"),
+  metadata: ManifestMetadataSchema,
+  ponies: z.array(SetupReviewBotInputSchema).min(1),
+  approvalRule: z.object({
+    requiredApprovals: z.number().int().positive(),
+  }),
 });
 
 const DEFAULT_MODEL_CONFIGS = [
@@ -110,14 +139,26 @@ const DEFAULT_BOT_MODEL_IDS: Record<string, string> = {
   verification_bot: "testing_model",
 };
 
+const BUILT_IN_SETUP_MODEL_IDS = new Set(["requirements_model", "draft_model", "judge_model"]);
+
+const DEFAULT_SETUP_REVIEW_BOT_SKILLS = [
+  "intent_alignment",
+  "scope_control",
+  "feasibility_review",
+  "verification_design",
+  "risk_review",
+];
+
+const RESERVED_SETUP_BOT_IDS = new Set([
+  "requirements_brainstorm_bot",
+  "goal_draft_bot",
+  "requirement_judge_bot",
+]);
+
 const ManifestBaseSchema = z.object({
   manifestVersion: z.string().min(1),
   kind: z.union([z.literal("ai-work-runtime.ponytrail"), z.literal("ai-work-runtime.goal-court")]),
-  metadata: z.object({
-    name: z.string().min(1),
-    description: z.string().min(1),
-    owner: z.string().min(1),
-  }),
+  metadata: ManifestMetadataSchema,
   runtime: z.object({
     mode: z.literal("requirement_first"),
     defaultLanguage: z.string().min(1),
@@ -224,11 +265,26 @@ export const ManifestSchema = ManifestBaseSchema.superRefine((manifest, context)
 });
 
 export type Manifest = z.infer<typeof ManifestSchema>;
+export type CompactSetupManifest = z.infer<typeof CompactSetupManifestSchema>;
 export type DecisionRule = z.infer<typeof DecisionRuleSchema>;
 export type VoteValue = z.infer<typeof VoteValueSchema>;
 
 export interface DefaultManifestOptions {
   name?: string;
+}
+
+export type SetupReviewBotInput = z.infer<typeof SetupReviewBotInputSchema>;
+
+export interface SetupManifestOptions extends DefaultManifestOptions {
+  reviewBots?: SetupReviewBotInput[];
+  requiredApprovals?: number;
+}
+
+interface NormalizedSetupManifestOptions {
+  defaultManifest: Manifest;
+  setupReviewBots: SetupReviewBotInput[];
+  voterIds: string[];
+  requiredApprovals: number;
 }
 
 export function createDefaultManifest(options: DefaultManifestOptions = {}): Manifest {
@@ -251,14 +307,12 @@ export function createDefaultManifest(options: DefaultManifestOptions = {}): Man
           id: "codex",
           adapter: "cli",
           command: "codex",
-          goalCommand: "exec",
           notes: "Pass the locked goal contract into a non-interactive Codex exec session.",
         },
         {
           id: "claude",
           adapter: "cli",
           command: "claude",
-          goalCommand: "/goal",
           notes: "Pass the locked goal contract into the Claude session before implementation.",
         },
       ],
@@ -288,7 +342,7 @@ export function createDefaultManifest(options: DefaultManifestOptions = {}): Man
       panelId: "requirement_court",
       purpose:
         "Decide whether the proposed requirement direction is clear, valuable, feasible, plannable, and verifiable.",
-      maxRounds: 2,
+      maxRounds: 3,
       stages: [
         { id: "brainstorm", actor: "requirements_brainstorm_bot", output: "clarifying_questions" },
         { id: "draft", actor: "goal_draft_bot", output: "requirement_contract_draft" },
@@ -533,14 +587,149 @@ export function createDefaultManifest(options: DefaultManifestOptions = {}): Man
   });
 }
 
-export async function writeManifest(path: string, manifest: Manifest): Promise<void> {
+export function createDefaultSetupReviewBots(): SetupReviewBotInput[] {
+  return [
+    {
+      id: "product_manager_bot",
+      displayName: "Product Manager Bot",
+      role: "Product",
+      panel: "requirement_court",
+      modelId: "product_manager_model",
+      modelName: "product-manager-review-model",
+      votes: true,
+    },
+    {
+      id: "project_manager_bot",
+      displayName: "Project Manager Bot",
+      role: "Project",
+      panel: "requirement_court",
+      modelId: "project_manager_model",
+      modelName: "project-manager-review-model",
+      votes: true,
+    },
+    {
+      id: "senior_engineer_bot",
+      displayName: "Senior Engineer Bot",
+      role: "Senior Engineer",
+      panel: "requirement_court",
+      modelId: "senior_engineer_model",
+      modelName: "senior-engineer-review-model",
+      votes: true,
+    },
+    {
+      id: "testing_bot",
+      displayName: "Testing Bot",
+      role: "Testing",
+      panel: "requirement_court",
+      modelId: "testing_model",
+      modelName: "testing-review-model",
+      votes: true,
+    },
+  ];
+}
+
+export function calculateDefaultSetupRequiredApprovals(voterCount: number): number {
+  if (!Number.isInteger(voterCount) || voterCount <= 0) {
+    throw new Error("At least one voting setup bot is required.");
+  }
+
+  return Math.floor(voterCount * 0.6) + 1;
+}
+
+export function createCompactSetupManifest(
+  options: SetupManifestOptions = {},
+): CompactSetupManifest {
+  const { defaultManifest, setupReviewBots, requiredApprovals } =
+    normalizeSetupManifestOptions(options);
+
+  return CompactSetupManifestSchema.parse({
+    manifestVersion: defaultManifest.manifestVersion,
+    kind: "ai-work-runtime.ponytrail.setup",
+    metadata: {
+      ...defaultManifest.metadata,
+      description:
+        "A compact Ponytrail setup manifest. Define ponies here; Ponytrail expands the runtime details when commands run.",
+    },
+    ponies: setupReviewBots,
+    approvalRule: {
+      requiredApprovals,
+    },
+  });
+}
+
+export function createSetupManifest(options: SetupManifestOptions = {}): Manifest {
+  const { defaultManifest, setupReviewBots, voterIds, requiredApprovals } =
+    normalizeSetupManifestOptions(options);
+
+  const setupReviewManifestBots = setupReviewBots.map(createSetupReviewManifestBot);
+  const setupJudgeBots = defaultManifest.bots
+    .filter((bot) => bot.id === "requirement_judge_bot")
+    .map((bot) => ({
+      ...bot,
+      instruction: `Summarize the voting bot discussions, tally the ${requiredApprovals}-of-${voterIds.length} approval rule, and merge approved feedback into one detailed requirement for human confirmation. The Judge does not vote.`,
+    }));
+
+  return ManifestSchema.parse({
+    ...defaultManifest,
+    models: createSetupModelConfigs(defaultManifest, setupReviewBots),
+    bots: [
+      ...defaultManifest.bots.filter(
+        (bot) => bot.id === "requirements_brainstorm_bot" || bot.id === "goal_draft_bot",
+      ),
+      ...setupReviewManifestBots,
+      ...setupJudgeBots,
+    ],
+    deliberation: {
+      ...defaultManifest.deliberation,
+      decisionRule: {
+        ...defaultManifest.deliberation.decisionRule,
+        voters: voterIds.length,
+        requiredApprovals,
+        voterIds,
+      },
+    },
+    workerExecutionGate: {
+      ...defaultManifest.workerExecutionGate,
+      mayStartWhen: [
+        `requirement_court.approvals >= ${requiredApprovals}`,
+        "human_owner.approved == true",
+        "goal_contract.status == locked",
+      ],
+    },
+    defaultGoalTemplate: {
+      ...defaultManifest.defaultGoalTemplate,
+      approvalRule: {
+        ...defaultManifest.defaultGoalTemplate.approvalRule,
+        goalDirectionPanel: {
+          requiredApprovals,
+          voters: voterIds,
+        },
+      },
+    },
+  });
+}
+
+export async function writeManifest(
+  path: string,
+  manifest: Manifest | CompactSetupManifest,
+): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(ManifestSchema.parse(manifest), null, 2)}\n`);
+  await writeFile(path, `${JSON.stringify(parseManifestFileForWrite(manifest), null, 2)}\n`);
 }
 
 export async function loadManifest(path: string): Promise<Manifest> {
   const raw = await readFile(path, "utf8");
   return ManifestSchema.parse(upgradeManifestInput(JSON.parse(raw)));
+}
+
+function parseManifestFileForWrite(
+  manifest: Manifest | CompactSetupManifest,
+): Manifest | CompactSetupManifest {
+  if (manifest.kind === "ai-work-runtime.ponytrail.setup") {
+    return CompactSetupManifestSchema.parse(manifest);
+  }
+
+  return ManifestSchema.parse(manifest);
 }
 
 function upgradeManifestInput(input: unknown): unknown {
@@ -550,11 +739,22 @@ function upgradeManifestInput(input: unknown): unknown {
 
   const manifest = { ...input };
 
-  if (!Array.isArray(manifest.models)) {
+  if (manifest.kind === "ai-work-runtime.ponytrail.setup") {
+    const compactManifest = CompactSetupManifestSchema.parse(manifest);
+    return createSetupManifest({
+      name: compactManifest.metadata.name,
+      reviewBots: compactManifest.ponies,
+      requiredApprovals: compactManifest.approvalRule.requiredApprovals,
+    });
+  }
+
+  const hadModelRegistry = Array.isArray(manifest.models);
+
+  if (!hadModelRegistry) {
     manifest.models = DEFAULT_MODEL_CONFIGS;
   }
 
-  if (Array.isArray(manifest.bots) && isLegacyDefaultCourt(manifest.bots)) {
+  if (!hadModelRegistry && Array.isArray(manifest.bots) && isLegacyDefaultCourt(manifest.bots)) {
     const options: DefaultManifestOptions = {};
     if (isRecord(manifest.metadata) && typeof manifest.metadata.name === "string") {
       options.name = manifest.metadata.name;
@@ -601,4 +801,160 @@ function isLegacyDefaultCourt(bots: unknown[]): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeSetupManifestOptions(
+  options: SetupManifestOptions,
+): NormalizedSetupManifestOptions {
+  const defaultManifest = createDefaultManifest(
+    options.name === undefined ? {} : { name: options.name },
+  );
+  const setupReviewBots = (options.reviewBots ?? createDefaultSetupReviewBots()).map(
+    normalizeSetupReviewBotInput,
+  );
+  assertNoReservedSetupBotIds(setupReviewBots);
+  assertUniqueSetupBotIds(setupReviewBots);
+  const voterIds = setupReviewBots.filter((bot) => bot.votes !== false).map((bot) => bot.id);
+
+  if (voterIds.length === 0) {
+    throw new Error("At least one voting setup bot is required.");
+  }
+
+  const requiredApprovals =
+    options.requiredApprovals ?? calculateDefaultSetupRequiredApprovals(voterIds.length);
+
+  if (
+    !Number.isInteger(requiredApprovals) ||
+    requiredApprovals < 1 ||
+    requiredApprovals > voterIds.length
+  ) {
+    throw new Error(`Required approvals must be between 1 and ${voterIds.length}.`);
+  }
+
+  return {
+    defaultManifest,
+    setupReviewBots,
+    voterIds,
+    requiredApprovals,
+  };
+}
+
+function normalizeSetupReviewBotInput(bot: SetupReviewBotInput): SetupReviewBotInput {
+  const modelId = typeof bot.modelId === "string" ? bot.modelId.trim() : "";
+  if (!modelId) {
+    throw new Error(`Bot ${bot.id} must reference a model id.`);
+  }
+
+  const modelName = typeof bot.modelName === "string" ? bot.modelName.trim() : "";
+  if (!modelName) {
+    throw new Error(`Bot ${bot.id} must reference a model name.`);
+  }
+
+  return {
+    ...bot,
+    panel: bot.panel ?? "requirement_court",
+    modelId,
+    modelName,
+    votes: bot.votes ?? true,
+  };
+}
+
+function assertUniqueSetupBotIds(setupReviewBots: SetupReviewBotInput[]): void {
+  const seenIds = new Set<string>();
+  for (const bot of setupReviewBots) {
+    if (seenIds.has(bot.id)) {
+      throw new Error(`Duplicate setup bot id: ${bot.id}`);
+    }
+
+    seenIds.add(bot.id);
+  }
+}
+
+function assertNoReservedSetupBotIds(setupReviewBots: SetupReviewBotInput[]): void {
+  for (const bot of setupReviewBots) {
+    if (RESERVED_SETUP_BOT_IDS.has(bot.id)) {
+      throw new Error(`Setup bot id is reserved: ${bot.id}`);
+    }
+  }
+}
+
+function createSetupReviewManifestBot(bot: SetupReviewBotInput): Manifest["bots"][number] {
+  return {
+    id: bot.id,
+    displayName: bot.displayName,
+    type: "review_bot",
+    model: bot.modelId,
+    temperature: 0.1,
+    panel: bot.panel ?? "requirement_court",
+    skills: bot.skills ?? DEFAULT_SETUP_REVIEW_BOT_SKILLS,
+    instruction:
+      bot.instruction ??
+      `Review the requirement direction from the ${bot.role} perspective before voting.`,
+    approvalConditions: bot.approvalConditions ?? [
+      `The requirement is clear and acceptable from the ${bot.role} perspective.`,
+    ],
+    rejectOrAmendConditions: bot.rejectOrAmendConditions ?? [
+      `The requirement needs changes before the ${bot.role} perspective can approve.`,
+    ],
+  };
+}
+
+function createSetupModelConfigs(
+  defaultManifest: Manifest,
+  setupReviewBots: SetupReviewBotInput[],
+): Manifest["models"] {
+  const existingModelConfigs = new Map(defaultManifest.models.map((model) => [model.id, model]));
+  const modelConfigs: Manifest["models"] = [];
+  const addedModelIds = new Set<string>();
+
+  const createFallbackModelConfig = (bot: SetupReviewBotInput): Manifest["models"][number] => ({
+    id: bot.modelId,
+    provider: "configurable",
+    name: bot.modelName,
+    purpose: `Review requirement direction from the ${bot.role} perspective.`,
+    temperature: 0.1,
+  });
+
+  const appendModel = (modelId: string, fallback?: SetupReviewBotInput) => {
+    if (addedModelIds.has(modelId)) {
+      return;
+    }
+
+    const existingModel = existingModelConfigs.get(modelId);
+    if (existingModel) {
+      modelConfigs.push(
+        fallback
+          ? {
+              ...existingModel,
+              name: fallback.modelName,
+              purpose: `Review requirement direction from the ${fallback.role} perspective.`,
+            }
+          : existingModel,
+      );
+      addedModelIds.add(modelId);
+      return;
+    }
+
+    if (!fallback) {
+      return;
+    }
+
+    modelConfigs.push(createFallbackModelConfig(fallback));
+    addedModelIds.add(modelId);
+  };
+
+  appendModel("requirements_model");
+  appendModel("draft_model");
+
+  for (const setupReviewBot of setupReviewBots) {
+    appendModel(setupReviewBot.modelId, setupReviewBot);
+  }
+
+  appendModel("judge_model");
+
+  return modelConfigs.filter(
+    (model) =>
+      BUILT_IN_SETUP_MODEL_IDS.has(model.id) ||
+      setupReviewBots.some((bot) => bot.modelId === model.id),
+  );
 }
