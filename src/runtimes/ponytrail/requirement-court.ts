@@ -55,6 +55,8 @@ export interface RequirementCourtResult {
 export interface RunRequirementCourtInput {
   manifest: Manifest;
   ponyRunner?: RequirementPonyRunner;
+  onRoundStart?: (round: number, botIds: string[]) => void;
+  onRoundComplete?: (round: RequirementCourtRound) => void;
 }
 
 export interface RequirementPonyRunInput {
@@ -119,6 +121,7 @@ export async function runRequirementCourt(
   const rounds: RequirementCourtRound[] = [];
 
   for (let round = 1; round <= input.manifest.deliberation.maxRounds; round += 1) {
+    input.onRoundStart?.(round, input.manifest.deliberation.decisionRule.voterIds);
     const priorDiscussion = [...discussion];
     const roundDiscussion = await Promise.all(
       input.manifest.deliberation.decisionRule.voterIds.map(async (botId) => {
@@ -146,6 +149,8 @@ export async function runRequirementCourt(
       votes,
       verdict,
     });
+
+    input.onRoundComplete?.(rounds.at(-1) as RequirementCourtRound);
 
     if (verdict.approved) {
       break;

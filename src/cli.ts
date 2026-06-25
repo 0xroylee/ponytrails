@@ -5,6 +5,7 @@ import { basename, isAbsolute, join, resolve } from "node:path";
 import { confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
 import { Command } from "commander";
 import pc from "picocolors";
+import { type CourtAnimator, createCourtAnimator, printHorseRaceHeader } from "./court-animation";
 import { installAgentSkill, parseSkillInstallAgents, type SkillInstallResult } from "./plugins";
 import {
   applySnapshotRevert,
@@ -643,6 +644,10 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
   const request = requestParts.join(" ");
   const preparedDiscussion = prepareGoalDiscussion(request, { manifest });
 
+  // Only animate in interactive TTY sessions, not when JSON output is requested.
+  const animator =
+    !input.jsonOutput && process.stdout.isTTY ? createCourtAnimator(manifest) : undefined;
+
   if (preparedDiscussion.status === "needs_clarification") {
     if (input.jsonOutput) {
       console.log(JSON.stringify(preparedDiscussion, null, 2));
@@ -675,12 +680,14 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
       return;
     }
 
-    const result = await runRequirementCourt(
+    if (animator) printHorseRaceHeader();
+    const clarifiedResult = await runRequirementCourt(
       clarifiedDiscussion.contract,
-      createRunRequirementCourtInput(manifest, input.ponyRunner),
+      createRunRequirementCourtInput(manifest, input.ponyRunner, animator),
     );
+    animator?.stop();
 
-    printRequirementCourtResult(result, {
+    printRequirementCourtResult(clarifiedResult, {
       discussionHeading: input.discussionHeading,
       printVisibleThinking: input.printVisibleThinking,
     });
@@ -692,10 +699,12 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
     return;
   }
 
+  if (animator) printHorseRaceHeader();
   const result = await runRequirementCourt(
     preparedDiscussion.contract,
-    createRunRequirementCourtInput(manifest, input.ponyRunner),
+    createRunRequirementCourtInput(manifest, input.ponyRunner, animator),
   );
+  animator?.stop();
 
   if (input.jsonOutput === "court") {
     console.log(JSON.stringify(result, null, 2));
@@ -711,11 +720,17 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
 function createRunRequirementCourtInput(
   manifest: RunRequirementCourtInput["manifest"],
   ponyRunner: RequirementPonyRunner | undefined,
+  animator?: CourtAnimator,
 ): RunRequirementCourtInput {
   const input: RunRequirementCourtInput = { manifest };
 
   if (ponyRunner) {
     input.ponyRunner = ponyRunner;
+  }
+
+  if (animator) {
+    input.onRoundStart = (round, botIds) => animator.startRound(round, botIds);
+    input.onRoundComplete = (round) => animator.finishRound(round);
   }
 
   return input;
