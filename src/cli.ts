@@ -746,19 +746,21 @@ async function printRequirementCourtResultAndArtifacts(
   result: RequirementCourtResult,
   input: RunGoalFlowInput,
 ): Promise<void> {
+  const markdownReportPath = await writeMarkdownReport(result, input);
+
   printRequirementCourtResult(result, {
     discussionHeading: input.discussionHeading,
     printVisibleThinking: input.printVisibleThinking,
+    markdownReportPath,
   });
-  await writeMarkdownReport(result, input);
 }
 
 async function writeMarkdownReport(
   result: RequirementCourtResult,
   input: RunGoalFlowInput,
-): Promise<void> {
+): Promise<string | undefined> {
   if (!input.markdownReport) {
-    return;
+    return undefined;
   }
 
   const reportPath = input.markdownReport.path
@@ -767,7 +769,7 @@ async function writeMarkdownReport(
 
   await mkdir(dirname(reportPath), { recursive: true });
   await writeFile(reportPath, renderRequirementCourtMarkdown(result));
-  console.log(`Markdown report: ${formatReportPathForOutput(input.rootDir, reportPath)}`);
+  return formatReportPathForOutput(input.rootDir, reportPath);
 }
 
 function createDefaultMarkdownReportPath(rootDir: string, result: RequirementCourtResult): string {
@@ -777,7 +779,7 @@ function createDefaultMarkdownReportPath(rootDir: string, result: RequirementCou
     .replace(/[:]/gu, "-");
   return join(
     rootDir,
-    "outputs",
+    ".ponyrace",
     "ponyrace",
     `${timestamp}-${slugifyReportTitle(result.detailedRequirement.title)}.md`,
   );
@@ -859,6 +861,7 @@ function resolveResearchWorker(
 interface RequirementCourtOutputOptions {
   discussionHeading?: string | undefined;
   printVisibleThinking?: boolean | undefined;
+  markdownReportPath?: string | undefined;
 }
 
 function printRequirementCourtResult(
@@ -881,6 +884,9 @@ function printRequirementCourtResult(
   console.log("");
   console.log(pc.cyan("Judge summary"));
   console.log(result.judge.summary);
+  if (options.markdownReportPath) {
+    console.log(`Markdown report: ${options.markdownReportPath}`);
+  }
 
   console.log("");
   console.log(pc.cyan("Final votes"));

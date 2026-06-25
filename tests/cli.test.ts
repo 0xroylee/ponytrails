@@ -822,6 +822,47 @@ describe("cli", () => {
     }
   });
 
+  test("ponyrace writes the default markdown report under .ponyrace after the summary", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
+        { from: "user" },
+      );
+      logs.splice(0);
+
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["ponyrace", "Add", "CSV", "import", "to", "admin", "dashboard"],
+        { from: "user" },
+      );
+
+      const lines = stripAnsiLines(logs);
+      const judgeSummaryIndex = lines.findIndex((line) => line.includes("Judge summary"));
+      const reportLineIndex = lines.findIndex((line) => line.startsWith("Markdown report: "));
+      const finalVotesIndex = lines.findIndex((line) => line.includes("Final votes"));
+      const reportPath = lines[reportLineIndex]?.replace("Markdown report: ", "") ?? "";
+
+      expect(reportPath.startsWith(".ponyrace/ponyrace/")).toBe(true);
+      expect(reportPath.endsWith("-add-csv-import-to-admin-dashboard.md")).toBe(true);
+      expect(reportLineIndex).toBeGreaterThan(judgeSummaryIndex);
+      expect(reportLineIndex).toBeLessThan(finalVotesIndex);
+
+      const report = await readFile(join(rootDir, reportPath), "utf8");
+      expect(report).toContain("# Pony race: Add CSV import to admin dashboard");
+      expect(report).toContain("Human confirmation: pending");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("ponyrace JSON output includes court discussion results", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
