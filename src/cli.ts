@@ -729,8 +729,11 @@ function createRunRequirementCourtInput(
   }
 
   if (animator) {
-    input.onRoundStart = (round, botIds) => animator.startRound(round, botIds);
-    input.onRoundComplete = (round) => animator.finishRound(round);
+    input.onRoundStart = (round, botIds) => animator.onRoundStart(round, botIds);
+    input.onRoundComplete = (round) => animator.onRoundComplete(round);
+    input.onPonyStart = (botId, displayName, round) =>
+      animator.onPonyStart(botId, displayName, round);
+    input.onPonyComplete = (entry) => animator.onPonyComplete(entry);
   }
 
   return input;
