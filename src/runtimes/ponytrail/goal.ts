@@ -2,6 +2,7 @@ import type { Manifest } from "./manifest";
 
 export interface DraftGoalContractInput {
   manifest: Manifest;
+  openQuestions?: string[];
 }
 
 export interface GoalContract {
@@ -51,7 +52,7 @@ export function draftGoalContract(rawRequest: string, input: DraftGoalContractIn
       "locked_goal_contract",
     ],
     risks: ["Goal may need refinement before execution if scope or verification remains unclear."],
-    openQuestions: [],
+    openQuestions: input.openQuestions ?? [],
     approvalRule,
     status: "draft",
   };

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   buildProgram,
+  type GoalApprovalPrompter,
   type GoalClarificationPrompter,
   promptForSetup,
   type SetupPrompter,
@@ -168,9 +169,8 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Ponyrace onboarding complete"))).toBe(true);
       expect(logs.some((line) => line.includes("product_manager_bot"))).toBe(true);
       expect(logs.some((line) => line.includes("product_manager_model"))).toBe(true);
-      expect(
-        logs.some((line) => line.includes('"title": "Add CSV import to admin dashboard"')),
-      ).toBe(true);
+      expect(logs.some((line) => line.includes('"status": "goal_approval_pending"'))).toBe(true);
+      expect(logs.some((line) => line.includes('"humanGoalApproval": "pending"'))).toBe(true);
       expect(logs.some((line) => line.includes('"approved": true'))).toBe(true);
     } finally {
       console.log = originalLog;
@@ -683,7 +683,7 @@ describe("cli", () => {
         from: "user",
       });
 
-      expect(logs.some((line) => line.includes("Needs clarification"))).toBe(true);
+      expect(logs.some((line) => line.includes('"status": "needs_brainstorm_input"'))).toBe(true);
       expect(logs.some((line) => line.includes("What specific outcome"))).toBe(true);
     } finally {
       console.log = originalLog;
@@ -695,18 +695,26 @@ describe("cli", () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
     const originalLog = console.log;
+    const clarificationPrompter: GoalClarificationPrompter = async ({ questions }) => ({
+      answers: questions.map((question) => ({
+        question,
+        mode: "custom",
+        answer: "Show passing tests and a smoke check.",
+      })),
+    });
+    const goalApprovalPrompter: GoalApprovalPrompter = async () => true;
 
     console.log = (...values: unknown[]) => {
       logs.push(values.join(" "));
     };
 
     try {
-      await buildProgram({ cwd: rootDir }).parseAsync(
+      await buildProgram({ cwd: rootDir, clarificationPrompter, goalApprovalPrompter }).parseAsync(
         ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
-      await buildProgram({ cwd: rootDir }).parseAsync(
+      await buildProgram({ cwd: rootDir, clarificationPrompter, goalApprovalPrompter }).parseAsync(
         ["goal", "Add", "CSV", "import", "to", "admin", "dashboard"],
         { from: "user" },
       );
@@ -723,7 +731,9 @@ describe("cli", () => {
         true,
       );
       expect(stripAnsiLines(logs)).toContain("What will change:");
-      expect(logs.some((line) => line === "- Add CSV import to admin dashboard")).toBe(true);
+      expect(logs.some((line) => line.startsWith("- Add CSV import to admin dashboard"))).toBe(
+        true,
+      );
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
@@ -1100,6 +1110,103 @@ describe("cli", () => {
     }
   });
 
+  test("goal asks for draft approval before requirement court discussion", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const approvals: string[] = [];
+    const clarificationPrompter: GoalClarificationPrompter = async ({ questions }) => ({
+      answers: questions.map((question) => ({
+        question,
+        mode: "custom",
+        answer: "Show passing tests and a smoke check.",
+      })),
+    });
+    const goalApprovalPrompter: GoalApprovalPrompter = async ({ contract }) => {
+      approvals.push(contract.title);
+      return true;
+    };
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir, clarificationPrompter, goalApprovalPrompter }).parseAsync(
+        ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
+        { from: "user" },
+      );
+
+      await buildProgram({ cwd: rootDir, clarificationPrompter, goalApprovalPrompter }).parseAsync(
+        ["goal", "Add", "CSV", "import", "to", "admin", "dashboard"],
+        { from: "user" },
+      );
+
+      expect(approvals).toHaveLength(1);
+      expect(approvals[0]).toContain("Add CSV import to admin dashboard");
+      expect(stripAnsiLines(logs)).toContain("Requirement discussion");
+      expect(stripAnsiLines(logs)).toContain("Ready for writing-plans");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("goal rejection stops before requirement court discussion", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
+    const logs: string[] = [];
+    const ponyCalls: string[] = [];
+    const originalLog = console.log;
+    const clarificationPrompter: GoalClarificationPrompter = async ({ questions }) => ({
+      answers: questions.map((question) => ({
+        question,
+        mode: "custom",
+        answer: "Show passing tests and a smoke check.",
+      })),
+    });
+    const goalApprovalPrompter: GoalApprovalPrompter = async () => false;
+    const ponyRunner: RequirementPonyRunner = async ({ bot }) => {
+      ponyCalls.push(bot.id);
+      return {
+        message: `${bot.id} should not run`,
+        vote: "approve",
+        confidence: 0.9,
+        requiredChanges: [],
+      };
+    };
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({
+        cwd: rootDir,
+        clarificationPrompter,
+        goalApprovalPrompter,
+        ponyRunner,
+      }).parseAsync(["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir], {
+        from: "user",
+      });
+
+      await buildProgram({
+        cwd: rootDir,
+        clarificationPrompter,
+        goalApprovalPrompter,
+        ponyRunner,
+      }).parseAsync(["goal", "Add", "CSV", "import", "to", "admin", "dashboard"], {
+        from: "user",
+      });
+
+      expect(ponyCalls).toEqual([]);
+      expect(stripAnsiLines(logs)).toContain("Goal paused before pony discussion.");
+      expect(stripAnsiLines(logs)).not.toContain("Requirement discussion");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("goal asks for custom clarification answers before requirement court discussion", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const logs: string[] = [];
@@ -1116,23 +1223,23 @@ describe("cli", () => {
           ][index] ?? "Clarified detail.",
       })),
     });
+    const goalApprovalPrompter: GoalApprovalPrompter = async () => true;
 
     console.log = (...values: unknown[]) => {
       logs.push(values.join(" "));
     };
 
     try {
-      await buildProgram({ cwd: rootDir, clarificationPrompter }).parseAsync(
+      await buildProgram({ cwd: rootDir, clarificationPrompter, goalApprovalPrompter }).parseAsync(
         ["onboard", "--dir", ".", "--name", "CLI Court", "--home", rootDir],
         { from: "user" },
       );
 
-      await buildProgram({ cwd: rootDir, clarificationPrompter }).parseAsync(
+      await buildProgram({ cwd: rootDir, clarificationPrompter, goalApprovalPrompter }).parseAsync(
         ["goal", "make", "it", "better"],
         { from: "user" },
       );
 
-      expect(logs.some((line) => line.includes("Needs clarification"))).toBe(true);
       expect(stripAnsiLines(logs)).toContain("Requirement discussion");
       expect(logs.some((line) => line.includes("engineer_bot: I think"))).toBe(true);
       expect(logs.some((line) => line.includes("Create an admin dashboard CSV importer"))).toBe(

@@ -59,4 +59,15 @@ describe("goal contracts", () => {
       "Requirement court reaches the configured 3-of-4 approval threshold.",
     );
   });
+
+  test("preserves open brainstorm questions on the draft contract", () => {
+    const contract = draftGoalContract("Add CSV import to the admin dashboard", {
+      manifest: createDefaultManifest(),
+      openQuestions: ["Which files, product area, or workflow should be in scope?"],
+    });
+
+    expect(contract.openQuestions).toEqual([
+      "Which files, product area, or workflow should be in scope?",
+    ]);
+  });
 });

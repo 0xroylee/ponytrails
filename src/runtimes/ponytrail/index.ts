@@ -1,5 +1,6 @@
 export * from "./brainstorm";
 export * from "./goal";
+export * from "./goal-flow";
 export * from "./instruction-context";
 export * from "./manifest";
 export * from "./markdown-report";

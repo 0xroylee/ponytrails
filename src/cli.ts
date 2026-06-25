@@ -20,12 +20,16 @@ import {
 } from "./plugins";
 import {
   applySnapshotRevert,
+  approveGoalDraft,
   calculateDefaultSetupRequiredApprovals,
+  completeGoalDiscussion,
   createCompactSetupManifest,
   createDefaultSetupReviewBots,
   createOnboardingFiles,
   createRequirementCourtMarkdownReportPath,
+  draftGoalFromBrainstorm,
   formatRequirementCourtReportPathForOutput,
+  type GoalContract,
   type InstructionContext,
   loadManifest,
   planSnapshotRevert,
@@ -37,6 +41,7 @@ import {
   readSnapshotHistory,
   recordSnapshotPost,
   recordSnapshotPre,
+  rejectGoalDraft,
   renderRequirementCourtMarkdown,
   renderRequirementCourtTextReport,
   runRequirementCourt,
@@ -44,6 +49,7 @@ import {
   type SnapshotCommit,
   type SnapshotFileState,
   type SnapshotRevertAction,
+  startGoalFlow,
   tallyVotes,
 } from "./runtimes/ponytrail";
 
@@ -67,6 +73,12 @@ export interface GoalClarificationPromptResult {
 export type GoalClarificationPrompter = (
   input: GoalClarificationPromptInput,
 ) => Promise<GoalClarificationPromptResult>;
+
+export interface GoalApprovalPromptInput {
+  contract: GoalContract;
+}
+
+export type GoalApprovalPrompter = (input: GoalApprovalPromptInput) => Promise<boolean>;
 
 export type ProjectNamePrompter = (defaultName: string) => Promise<string>;
 
@@ -127,6 +139,7 @@ const clackSetupPromptIo: SetupPromptIo = {
 export interface BuildProgramOptions {
   cwd?: string;
   clarificationPrompter?: GoalClarificationPrompter;
+  goalApprovalPrompter?: GoalApprovalPrompter;
   projectNamePrompter?: ProjectNamePrompter;
   setupPrompter?: SetupPrompter;
   ponyRunner?: RequirementPonyRunner | undefined;
@@ -146,6 +159,7 @@ interface CommanderVersionInternals {
 export function buildProgram(options: BuildProgramOptions = {}): Command {
   const rootDir = options.cwd ?? process.cwd();
   const clarificationPrompter = options.clarificationPrompter ?? promptForGoalClarifications;
+  const goalApprovalPrompter = options.goalApprovalPrompter ?? promptForGoalApproval;
   const projectNamePrompter = options.projectNamePrompter ?? promptForProjectName;
   const setupPrompter = options.setupPrompter ?? promptForSetup;
   const ponyRunner = options.ponyRunner;
@@ -307,9 +321,10 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
         requestParts: string[],
         commandOptions: { manifest: string; worker?: string; json: boolean },
       ) => {
-        await runGoalFlow(requestParts, {
+        await runGoalCommandFlow(requestParts, {
           rootDir,
           clarificationPrompter,
+          goalApprovalPrompter,
           manifestPath: commandOptions.manifest,
           ponyRunner,
           jsonOutput: commandOptions.json ? "contract" : false,
@@ -692,8 +707,76 @@ interface RunGoalFlowInput {
   markdownReport?: MarkdownReportOptions | undefined;
 }
 
+interface RunGoalCommandInput {
+  rootDir: string;
+  clarificationPrompter: GoalClarificationPrompter;
+  goalApprovalPrompter: GoalApprovalPrompter;
+  manifestPath: string;
+  ponyRunner?: RequirementPonyRunner | undefined;
+  jsonOutput: "contract" | false;
+}
+
 interface MarkdownReportOptions {
   path?: string | undefined;
+}
+
+async function runGoalCommandFlow(
+  requestParts: string[],
+  input: RunGoalCommandInput,
+): Promise<void> {
+  const manifest = await loadManifest(resolvePath(input.rootDir, input.manifestPath));
+  const activePonyRunner = createActivePonyRunner(manifest, {
+    rootDir: input.rootDir,
+    clarificationPrompter: input.clarificationPrompter,
+    manifestPath: input.manifestPath,
+    ponyRunner: input.ponyRunner,
+    jsonOutput: false,
+  });
+  const request = requestParts.join(" ");
+  const started = startGoalFlow(request, { manifest });
+
+  if (input.jsonOutput) {
+    const pending = draftGoalFromBrainstorm(started, { manifest, answers: [] });
+    console.log(JSON.stringify(pending, null, 2));
+    return;
+  }
+
+  if (!process.stdin.isTTY && input.clarificationPrompter === promptForGoalClarifications) {
+    console.log(JSON.stringify(started, null, 2));
+    return;
+  }
+
+  const clarification =
+    started.brainstorm.questions.length === 0
+      ? { answers: [] }
+      : await input.clarificationPrompter({
+          request: started.brainstorm.normalizedRequest,
+          questions: started.brainstorm.questions.map((question) => question.prompt),
+        });
+  const pending = draftGoalFromBrainstorm(started, {
+    manifest,
+    answers: clarification.answers,
+  });
+  const approved = await input.goalApprovalPrompter({ contract: pending.contract });
+
+  if (!approved) {
+    rejectGoalDraft(pending);
+    console.log(pc.dim("Goal paused before pony discussion."));
+    return;
+  }
+
+  const readyForDiscussion = approveGoalDraft(pending);
+  const result = await runRequirementCourt(
+    readyForDiscussion.contract,
+    createRunRequirementCourtInput(manifest, activePonyRunner),
+  );
+  const readyForWritingPlans = completeGoalDiscussion(readyForDiscussion, result);
+
+  await printRequirementCourtResultAndArtifacts(result, {
+    ...input,
+    discussionHeading: "Requirement discussion",
+  });
+  printWritingPlansHandoff(readyForWritingPlans.handoff.message);
 }
 
 async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Promise<void> {
@@ -702,7 +785,7 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
   const request = requestParts.join(" ");
   const preparedDiscussion = prepareGoalDiscussion(request, { manifest });
 
-  if (preparedDiscussion.status === "needs_clarification") {
+  if (preparedDiscussion.status === "needs_brainstorm_input") {
     if (input.jsonOutput) {
       console.log(JSON.stringify(preparedDiscussion, null, 2));
       return;
@@ -710,12 +793,12 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
 
     console.log(pc.yellow("Needs clarification"));
     for (const question of preparedDiscussion.brainstorm.questions) {
-      console.log(`- ${question}`);
+      console.log(`- ${question.prompt}`);
     }
 
     const clarification = await input.clarificationPrompter({
       request: preparedDiscussion.brainstorm.normalizedRequest,
-      questions: preparedDiscussion.brainstorm.questions,
+      questions: preparedDiscussion.brainstorm.questions.map((question) => question.prompt),
     });
     const clarifiedRequest = buildClarifiedRequest(clarification.answers);
 
@@ -726,10 +809,10 @@ async function runGoalFlow(requestParts: string[], input: RunGoalFlowInput): Pro
 
     const clarifiedDiscussion = prepareGoalDiscussion(clarifiedRequest, { manifest });
 
-    if (clarifiedDiscussion.status === "needs_clarification") {
+    if (clarifiedDiscussion.status === "needs_brainstorm_input") {
       console.log(pc.dim("Goal still needs more detail before a worker starts."));
       for (const question of clarifiedDiscussion.brainstorm.questions) {
-        console.log(`- ${question}`);
+        console.log(`- ${question.prompt}`);
       }
       return;
     }
@@ -857,6 +940,11 @@ function printRequirementCourtResult(
   })) {
     console.log(line);
   }
+}
+
+function printWritingPlansHandoff(message: string): void {
+  console.log(pc.cyan("Ready for writing-plans"));
+  console.log(message);
 }
 
 function printSnapshotHistory(
@@ -1055,6 +1143,40 @@ async function promptForGoalClarifications(
 
   outro(pc.green("Goal details captured"));
   return { answers };
+}
+
+async function promptForGoalApproval(input: GoalApprovalPromptInput): Promise<boolean> {
+  if (!process.stdin.isTTY) {
+    return false;
+  }
+
+  intro(pc.cyan("Goal draft approval"));
+  printGoalDraft(input.contract);
+  const answer = await confirm({
+    message: "Approve this goal before pony discussion?",
+    active: "Approve goal",
+    inactive: "Pause",
+    initialValue: true,
+  });
+
+  if (isCancel(answer)) {
+    throw new Error("Goal approval cancelled");
+  }
+
+  outro(answer === true ? pc.green("Goal approved") : pc.yellow("Goal paused"));
+  return answer === true;
+}
+
+function printGoalDraft(contract: GoalContract): void {
+  console.log(pc.cyan("Draft goal"));
+  console.log(`Title: ${contract.title}`);
+  console.log(`Intent: ${contract.intent}`);
+  if (contract.openQuestions.length > 0) {
+    console.log("Open questions:");
+    for (const question of contract.openQuestions) {
+      console.log(`- ${question}`);
+    }
+  }
 }
 
 async function promptForRevertApproval(input: RevertApprovalPromptInput): Promise<boolean> {
