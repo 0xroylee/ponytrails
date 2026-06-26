@@ -10,19 +10,22 @@ import {
 
 const allAgents: SkillInstallAgent[] = ["claude", "copilot", "codex", "cursor"];
 
-async function writeSuperpowersBrainstormingSkill(path: string): Promise<void> {
+async function writeSuperpowersSkill(
+  path: string,
+  input: { name: string; description: string },
+): Promise<void> {
   await mkdir(path, { recursive: true });
   await writeFile(
     join(path, "SKILL.md"),
     [
       "---",
-      "name: brainstorming",
-      'description: "You MUST use this before any creative work."',
+      `name: ${input.name}`,
+      `description: "${input.description}"`,
       "---",
       "",
-      "# Brainstorming Ideas Into Designs",
+      `# ${input.name}`,
       "",
-      "Help turn ideas into fully formed designs and specs through natural collaborative dialogue.",
+      `Fake ${input.name} skill for installer tests.`,
     ].join("\n"),
   );
 }
@@ -75,7 +78,7 @@ describe("skill installer", () => {
     }
   });
 
-  test("ponyrace skill requires Superpowers brainstorming before CLI discussion", async () => {
+  test("ponyrace skill requires Superpowers gates before implementation", async () => {
     const source = await resolveInstallSkillSource("ponyrace");
 
     expect(source.name).toBe("ponyrace");
@@ -85,7 +88,18 @@ describe("skill installer", () => {
     const skill = await readFile(join(source.path, "SKILL.md"), "utf8");
     expect(skill).toContain("name: ponyrace");
     expect(skill).toContain("superpowers:brainstorming");
+    expect(skill).toContain("superpowers:writing-plans");
+    expect(skill).toContain(
+      "ponyrace skills install superpowers:brainstorming --agents codex,claude,cursor --home ~",
+    );
+    expect(skill).toContain(
+      "ponyrace skills install superpowers:writing-plans --agents codex,claude,cursor --home ~",
+    );
     expect(skill).toContain('ponyrace ponyrace "<approved refined requirement>"');
+    expect(skill).toContain("Human confirmation: pending");
+    expect(skill).toContain("explicit human approval of the written implementation plan");
+    expect(skill).toContain("before any implementation action or file edit");
+    expect(skill).toContain("Installed skill copies are refreshed through");
     expect(skill).toContain("Superpowers approval is not worker execution approval");
     expect(skill).not.toContain('ponyrace ponyrace "<request>"');
     expect(skill).not.toContain("rtk bun run dev");
@@ -134,13 +148,48 @@ describe("skill installer", () => {
     );
 
     try {
-      await writeSuperpowersBrainstormingSkill(sourceDir);
+      await writeSuperpowersSkill(sourceDir, {
+        name: "brainstorming",
+        description: "You MUST use this before any creative work.",
+      });
 
       const source = await resolveInstallSkillSource("superpowers:brainstorming", { homeDir });
 
       expect(source).toEqual({
         kind: "path",
         name: "superpowers-brainstorming",
+        path: sourceDir,
+      });
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolves superpowers writing-plans from the local plugin cache", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
+    const sourceDir = join(
+      homeDir,
+      ".codex",
+      "plugins",
+      "cache",
+      "openai-curated",
+      "superpowers",
+      "fake-plugin",
+      "skills",
+      "writing-plans",
+    );
+
+    try {
+      await writeSuperpowersSkill(sourceDir, {
+        name: "writing-plans",
+        description: "Use when you have a spec or requirements for a multi-step task.",
+      });
+
+      const source = await resolveInstallSkillSource("superpowers:writing-plans", { homeDir });
+
+      expect(source).toEqual({
+        kind: "path",
+        name: "superpowers-writing-plans",
         path: sourceDir,
       });
     } finally {
@@ -162,6 +211,20 @@ describe("skill installer", () => {
     }
   });
 
+  test("explains how to install superpowers writing-plans when the plugin cache is missing", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
+
+    try {
+      await expect(
+        resolveInstallSkillSource("superpowers:writing-plans", { homeDir }),
+      ).rejects.toThrow(
+        "Superpowers writing-plans skill not found. Install or enable the Superpowers plugin, then run: ponyrace skills install superpowers:writing-plans --agents codex,claude,cursor --home ~",
+      );
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
   test("installs superpowers brainstorming into directory and Cursor targets", async () => {
     const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
     const sourceDir = join(
@@ -177,7 +240,10 @@ describe("skill installer", () => {
     );
 
     try {
-      await writeSuperpowersBrainstormingSkill(sourceDir);
+      await writeSuperpowersSkill(sourceDir, {
+        name: "brainstorming",
+        description: "You MUST use this before any creative work.",
+      });
 
       const result = await installAgentSkill({
         source: "superpowers:brainstorming",
@@ -198,6 +264,50 @@ describe("skill installer", () => {
       const cursorRulePath = join(homeDir, ".cursor", "rules", "superpowers-brainstorming.mdc");
       await expect(stat(cursorRulePath)).resolves.toBeTruthy();
       expect(await readFile(cursorRulePath, "utf8")).toContain("name: brainstorming");
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("installs superpowers writing-plans into directory and Cursor targets", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "skill-installer-home-"));
+    const sourceDir = join(
+      homeDir,
+      ".codex",
+      "plugins",
+      "cache",
+      "openai-curated",
+      "superpowers",
+      "fake-plugin",
+      "skills",
+      "writing-plans",
+    );
+
+    try {
+      await writeSuperpowersSkill(sourceDir, {
+        name: "writing-plans",
+        description: "Use when you have a spec or requirements for a multi-step task.",
+      });
+
+      const result = await installAgentSkill({
+        source: "superpowers:writing-plans",
+        homeDir,
+        agents: ["codex", "cursor"],
+      });
+
+      expect(result.skillName).toBe("superpowers-writing-plans");
+      expect(result.targets.map((target) => target.status)).toEqual(["installed", "installed"]);
+
+      await expect(
+        stat(join(homeDir, ".agents", "skills", "superpowers-writing-plans", "SKILL.md")),
+      ).resolves.toBeTruthy();
+      await expect(
+        stat(join(homeDir, ".codex", "skills", "superpowers-writing-plans", "SKILL.md")),
+      ).resolves.toBeTruthy();
+
+      const cursorRulePath = join(homeDir, ".cursor", "rules", "superpowers-writing-plans.mdc");
+      await expect(stat(cursorRulePath)).resolves.toBeTruthy();
+      expect(await readFile(cursorRulePath, "utf8")).toContain("name: writing-plans");
     } finally {
       await rm(homeDir, { recursive: true, force: true });
     }

@@ -61,20 +61,38 @@ export interface ResolveInstallSkillSourceOptions {
   homeDir?: string | undefined;
 }
 
-export class MissingSuperpowersBrainstormingSkillError extends Error {
-  constructor() {
+export class MissingSuperpowersSkillError extends Error {
+  constructor(input: { displayName: string; source: string }) {
     super(
-      `Superpowers brainstorming skill not found. Install or enable the Superpowers plugin, then run: ${SUPERPOWERS_BRAINSTORMING_INSTALL_COMMAND}`,
+      `Superpowers ${input.displayName} skill not found. Install or enable the Superpowers plugin, then run: ${formatSuperpowersInstallCommand(input.source)}`,
     );
-    this.name = "MissingSuperpowersBrainstormingSkillError";
+    this.name = "MissingSuperpowersSkillError";
   }
 }
 
 const DEFAULT_BUNDLED_SKILL = "pony-trail";
-const SUPERPOWERS_BRAINSTORMING_SOURCE = "superpowers:brainstorming";
-const SUPERPOWERS_BRAINSTORMING_INSTALL_NAME = "superpowers-brainstorming";
-const SUPERPOWERS_BRAINSTORMING_INSTALL_COMMAND =
-  "ponyrace skills install superpowers:brainstorming --agents codex,claude,cursor --home ~";
+
+interface SupportedSuperpowersSkill {
+  source: string;
+  displayName: string;
+  skillFolder: string;
+  installName: string;
+}
+
+const supportedSuperpowersSkills = [
+  {
+    source: "superpowers:brainstorming",
+    displayName: "brainstorming",
+    skillFolder: "brainstorming",
+    installName: "superpowers-brainstorming",
+  },
+  {
+    source: "superpowers:writing-plans",
+    displayName: "writing-plans",
+    skillFolder: "writing-plans",
+    installName: "superpowers-writing-plans",
+  },
+] as const satisfies readonly SupportedSuperpowersSkill[];
 const bundledSkillAliases: Record<string, string> = {
   "record-change-evidence": "pony-trail",
   "enter-into-evidence": "pony-trail",
@@ -210,8 +228,11 @@ export async function resolveInstallSkillSource(
   sourceOrName: string,
   options: ResolveInstallSkillSourceOptions = {},
 ): Promise<ResolvedInstallSkillSource> {
-  if (sourceOrName === SUPERPOWERS_BRAINSTORMING_SOURCE) {
-    return resolveSuperpowersBrainstormingSkill(options);
+  const superpowersSkill = supportedSuperpowersSkills.find(
+    (skill) => skill.source === sourceOrName,
+  );
+  if (superpowersSkill) {
+    return resolveSuperpowersSkill(superpowersSkill, options);
   }
 
   const cwd = options.cwd ?? process.cwd();
@@ -246,24 +267,31 @@ async function resolveBundledSkillPath(skillName: string): Promise<string | null
   return null;
 }
 
-async function resolveSuperpowersBrainstormingSkill(
+async function resolveSuperpowersSkill(
+  skill: SupportedSuperpowersSkill,
   options: ResolveInstallSkillSourceOptions,
 ): Promise<ResolvedInstallSkillSource> {
   const homeDir = options.homeDir ?? process.env.HOME ?? process.cwd();
-  const skillPath = await findSuperpowersBrainstormingSkillPath(homeDir);
+  const skillPath = await findSuperpowersSkillPath(homeDir, skill.skillFolder);
 
   if (!skillPath) {
-    throw new MissingSuperpowersBrainstormingSkillError();
+    throw new MissingSuperpowersSkillError({
+      displayName: skill.displayName,
+      source: skill.source,
+    });
   }
 
   return {
     kind: "path",
-    name: SUPERPOWERS_BRAINSTORMING_INSTALL_NAME,
+    name: skill.installName,
     path: skillPath,
   };
 }
 
-async function findSuperpowersBrainstormingSkillPath(homeDir: string): Promise<string | null> {
+async function findSuperpowersSkillPath(
+  homeDir: string,
+  skillFolder: string,
+): Promise<string | null> {
   const roots = [
     join(homeDir, ".codex", "plugins", "cache", "openai-curated", "superpowers"),
     join(homeDir, ".codex", "plugins", "cache", "openai-curated-remote", "superpowers"),
@@ -271,7 +299,7 @@ async function findSuperpowersBrainstormingSkillPath(homeDir: string): Promise<s
   ];
 
   for (const root of roots) {
-    const skillPath = await findNestedSuperpowersBrainstormingSkillPath(root);
+    const skillPath = await findNestedSuperpowersSkillPath(root, skillFolder);
     if (skillPath) {
       return skillPath;
     }
@@ -280,7 +308,10 @@ async function findSuperpowersBrainstormingSkillPath(homeDir: string): Promise<s
   return null;
 }
 
-async function findNestedSuperpowersBrainstormingSkillPath(root: string): Promise<string | null> {
+async function findNestedSuperpowersSkillPath(
+  root: string,
+  skillFolder: string,
+): Promise<string | null> {
   let entries: Dirent[];
   try {
     entries = await readdir(root, { withFileTypes: true });
@@ -296,7 +327,7 @@ async function findNestedSuperpowersBrainstormingSkillPath(root: string): Promis
       continue;
     }
 
-    const skillPath = join(root, entry.name, "skills", "brainstorming");
+    const skillPath = join(root, entry.name, "skills", skillFolder);
     if (await pathExists(join(skillPath, "SKILL.md"))) {
       return skillPath;
     }
@@ -305,10 +336,10 @@ async function findNestedSuperpowersBrainstormingSkillPath(root: string): Promis
   return null;
 }
 
-export function isMissingSuperpowersBrainstormingSkillError(
+export function isMissingSuperpowersSkillError(
   error: unknown,
-): error is MissingSuperpowersBrainstormingSkillError {
-  return error instanceof MissingSuperpowersBrainstormingSkillError;
+): error is MissingSuperpowersSkillError {
+  return error instanceof MissingSuperpowersSkillError;
 }
 
 export function parseSkillInstallAgents(rawAgents: string): SkillInstallAgent[] {
@@ -654,6 +685,10 @@ function hasPrehookSupport(agent: SkillInstallAgent): agent is HookCapableSkillI
 
 function looksLikePath(value: string): boolean {
   return value.startsWith(".") || value.startsWith("~") || value.includes(sep) || isAbsolute(value);
+}
+
+function formatSuperpowersInstallCommand(source: string): string {
+  return `ponyrace skills install ${source} --agents codex,claude,cursor --home ~`;
 }
 
 function shellQuote(value: string): string {

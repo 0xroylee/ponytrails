@@ -12,7 +12,7 @@ import {
   createLocalRequirementPonyRunner,
   getCliWorkerAdapterForCommand,
   installAgentSkill,
-  isMissingSuperpowersBrainstormingSkillError,
+  isMissingSuperpowersSkillError,
   parseSkillInstallAgents,
   resolveInstallSkillSource,
   type SkillInstallResult,
@@ -123,7 +123,10 @@ type SkillChangeOperation = "install" | "update";
 
 const defaultManifestPath = ".ponyrace/manifest.json";
 const skillInstallHistorySessionId = "ponyrace-skills";
-const optionalSuperpowersBrainstormingSource = "superpowers:brainstorming";
+const optionalSuperpowersProcessSkillSources = [
+  "superpowers:brainstorming",
+  "superpowers:writing-plans",
+] as const;
 const clackSetupPromptIo: SetupPromptIo = {
   get isTty() {
     return process.stdin.isTTY === true;
@@ -214,8 +217,6 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
           manifest,
         });
 
-        console.log(pc.dim(`Manifest: ${result.manifestPath}`));
-
         for (const source of ["pony-trail", "ponyrace"]) {
           const skillResult = await installSkillWithLocalHistory({
             rootDir: targetDir,
@@ -229,17 +230,33 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
             installPrehook: false,
           });
 
-          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install", {
+            showPostSkillChangeWelcome: false,
+          });
         }
 
-        await installOptionalSuperpowersBrainstormingSkill({
+        const optionalSuperpowers = await installOptionalSuperpowersProcessSkills({
           rootDir: targetDir,
           homeDir: resolveHomePath(commandOptions.home),
           agents: installAgents,
         });
+        for (const optionalSuperpower of optionalSuperpowers) {
+          if (optionalSuperpower.status === "installed") {
+            printSkillInstallResult(
+              optionalSuperpower.result.skillInstall,
+              optionalSuperpower.result.history,
+              "install",
+              { showPostSkillChangeWelcome: false },
+            );
+          }
+        }
 
-        console.log(pc.green("Ponyrace setup complete"));
-        console.log(`Next: restart Codex or Claude, then run /ponyrace your requirement`);
+        printPonyraceReady({
+          completionLabel: "Ponyrace setup complete",
+          manifestPath: result.manifestPath,
+          agents: installAgents,
+          optionalSuperpowers,
+        });
       },
     );
 
@@ -264,9 +281,6 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
           projectName,
         });
 
-        console.log(pc.green("Ponyrace onboarding complete"));
-        console.log(pc.dim(`Manifest: ${result.manifestPath}`));
-
         const installAgents = parseSkillInstallAgents(commandOptions.agents);
 
         for (const source of ["pony-trail", "ponyrace"]) {
@@ -282,16 +296,33 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
             installPrehook: false,
           });
 
-          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install", {
+            showPostSkillChangeWelcome: false,
+          });
         }
 
-        await installOptionalSuperpowersBrainstormingSkill({
+        const optionalSuperpowers = await installOptionalSuperpowersProcessSkills({
           rootDir: targetDir,
           homeDir: resolveHomePath(commandOptions.home),
           agents: installAgents,
         });
+        for (const optionalSuperpower of optionalSuperpowers) {
+          if (optionalSuperpower.status === "installed") {
+            printSkillInstallResult(
+              optionalSuperpower.result.skillInstall,
+              optionalSuperpower.result.history,
+              "install",
+              { showPostSkillChangeWelcome: false },
+            );
+          }
+        }
 
-        console.log(`Next: restart Codex or Claude, then run /ponyrace your requirement`);
+        printPonyraceReady({
+          completionLabel: "Ponyrace onboarding complete",
+          manifestPath: result.manifestPath,
+          agents: installAgents,
+          optionalSuperpowers,
+        });
       },
     );
 
@@ -1267,6 +1298,10 @@ interface InstallSkillWithLocalHistoryResult {
   history?: RecordedSnapshotCommit | undefined;
 }
 
+interface SkillInstallPrintOptions {
+  showPostSkillChangeWelcome?: boolean;
+}
+
 async function installSkillWithLocalHistory(
   input: InstallSkillWithLocalHistoryInput,
 ): Promise<InstallSkillWithLocalHistoryResult> {
@@ -1332,49 +1367,73 @@ async function installSkillWithLocalHistory(
   }
 }
 
-async function installOptionalSuperpowersBrainstormingSkill(input: {
+type OptionalSuperpowersProcessSkillInstall =
+  | {
+      source: string;
+      status: "installed";
+      result: InstallSkillWithLocalHistoryResult;
+    }
+  | {
+      source: string;
+      status: "missing";
+      installCommand: string;
+    };
+
+async function installOptionalSuperpowersProcessSkills(input: {
   rootDir: string;
   homeDir: string;
   agents: ReturnType<typeof parseSkillInstallAgents>;
-}): Promise<void> {
-  try {
-    await resolveInstallSkillSource(optionalSuperpowersBrainstormingSource, {
-      cwd: input.rootDir,
-      homeDir: input.homeDir,
-    });
-  } catch (error) {
-    if (isMissingSuperpowersBrainstormingSkillError(error)) {
-      printOptionalSuperpowersBrainstormingInstallWarning(input);
-      return;
+}): Promise<OptionalSuperpowersProcessSkillInstall[]> {
+  const results: OptionalSuperpowersProcessSkillInstall[] = [];
+
+  for (const source of optionalSuperpowersProcessSkillSources) {
+    try {
+      await resolveInstallSkillSource(source, {
+        cwd: input.rootDir,
+        homeDir: input.homeDir,
+      });
+    } catch (error) {
+      if (isMissingSuperpowersSkillError(error)) {
+        results.push({
+          source,
+          status: "missing",
+          installCommand: formatOptionalSuperpowersInstallCommand({
+            source,
+            homeDir: input.homeDir,
+            agents: input.agents,
+          }),
+        });
+        continue;
+      }
+      throw error;
     }
-    throw error;
+
+    const skillResult = await installSkillWithLocalHistory({
+      rootDir: input.rootDir,
+      operation: "install",
+      source,
+      homeDir: input.homeDir,
+      agents: input.agents,
+      dryRun: false,
+      force: false,
+      refreshExisting: true,
+      installPrehook: false,
+    });
+
+    results.push({ source, status: "installed", result: skillResult });
   }
 
-  const skillResult = await installSkillWithLocalHistory({
-    rootDir: input.rootDir,
-    operation: "install",
-    source: optionalSuperpowersBrainstormingSource,
-    homeDir: input.homeDir,
-    agents: input.agents,
-    dryRun: false,
-    force: false,
-    refreshExisting: true,
-    installPrehook: false,
-  });
-
-  printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install");
+  return results;
 }
 
-function printOptionalSuperpowersBrainstormingInstallWarning(input: {
+function formatOptionalSuperpowersInstallCommand(input: {
+  source: string;
   homeDir: string;
   agents: ReturnType<typeof parseSkillInstallAgents>;
-}): void {
-  console.log(pc.yellow("Superpowers brainstorming skill not found."));
-  console.log(
-    `Install or enable the Superpowers plugin, then run: ponyrace skills install superpowers:brainstorming --agents ${formatAgentList(
-      input.agents,
-    )} --home ${input.homeDir}`,
-  );
+}): string {
+  return `ponyrace skills install ${input.source} --agents ${formatAgentList(
+    input.agents,
+  )} --home ${input.homeDir}`;
 }
 
 function resolveHomePath(path: string): string {
@@ -1391,6 +1450,7 @@ function printSkillInstallResult(
   result: SkillInstallResult,
   history?: RecordedSnapshotCommit | undefined,
   operation: SkillChangeOperation = "install",
+  options: SkillInstallPrintOptions = {},
 ): void {
   console.log(pc.cyan(result.dryRun ? `Skill ${operation} plan` : `Skill ${operation} result`));
   console.log(`Skill: ${result.skillName}`);
@@ -1422,7 +1482,9 @@ function printSkillInstallResult(
     console.log(`${pc.dim("History log:")} ${history.logPath}`);
   }
 
-  printPostSkillChangeWelcome(result);
+  if (options.showPostSkillChangeWelcome !== false) {
+    printPostSkillChangeWelcome(result);
+  }
 }
 
 function formatSkillInstallStatus(status: SkillInstallResult["targets"][number]["status"]): string {
@@ -1477,6 +1539,69 @@ function formatSkillInstallHistoryResult(result: SkillInstallResult): string {
     .map((prehook) => `${prehook.agent}:prehook:${prehook.status}`)
     .join(", ");
   return [targetStatuses, prehookStatuses].filter(Boolean).join("; ");
+}
+
+function formatAgentDisplayList(agents: string[]): string {
+  const displayNames = agents
+    .map((agent) => {
+      switch (agent) {
+        case "codex":
+          return { label: "Codex", order: 0 };
+        case "claude":
+          return { label: "Claude", order: 1 };
+        case "cursor":
+          return { label: "Cursor", order: 2 };
+        case "copilot":
+          return { label: "GitHub Copilot", order: 3 };
+        default:
+          return { label: agent, order: 99 };
+      }
+    })
+    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
+    .map((agent) => agent.label);
+
+  if (displayNames.length <= 1) {
+    return displayNames[0] ?? "your agent";
+  }
+  if (displayNames.length === 2) {
+    return `${displayNames[0]} and ${displayNames[1]}`;
+  }
+
+  return `${displayNames.slice(0, -1).join(", ")}, and ${displayNames.at(-1)}`;
+}
+
+function printPonyraceReady(input: {
+  completionLabel: string;
+  manifestPath: string;
+  agents: string[];
+  optionalSuperpowers: OptionalSuperpowersProcessSkillInstall[];
+}): void {
+  console.log("");
+  console.log(pc.green("============"));
+  console.log(pc.bold(pc.green("PONYRACE")));
+  console.log(pc.green("============"));
+  console.log(pc.green(input.completionLabel));
+  console.log(`${pc.dim("Manifest:")} ${input.manifestPath}`);
+  console.log(`${pc.dim("Configured targets:")} ${formatAgentDisplayList(input.agents)}`);
+
+  const missingSuperpowers = input.optionalSuperpowers.filter(
+    (optionalSuperpower) => optionalSuperpower.status === "missing",
+  );
+  if (missingSuperpowers.length > 0) {
+    console.log("");
+    console.log(pc.dim("Optional: Superpowers process skills are not installed."));
+    console.log(
+      pc.dim(
+        "Ponyrace still works without them; install missing skills later for the full /ponyrace workflow:",
+      ),
+    );
+    for (const missingSuperpower of missingSuperpowers) {
+      console.log(pc.dim(missingSuperpower.installCommand));
+    }
+  }
+
+  console.log("");
+  console.log(`${pc.dim("Next:")} restart the configured agent app, then run /ponyrace <request>`);
 }
 
 function printPostSkillChangeWelcome(result: SkillInstallResult): void {

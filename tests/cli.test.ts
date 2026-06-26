@@ -14,19 +14,44 @@ import type { CliInvocation, CliStreamRunner } from "../src/plugins";
 import type { RequirementPonyRunner } from "../src/runtimes/ponytrail";
 import { createDefaultSetupReviewBots } from "../src/runtimes/ponytrail/manifest";
 
-async function writeSuperpowersBrainstormingSkill(path: string): Promise<void> {
+async function writeSuperpowersSkill(
+  path: string,
+  input: { name: string; description: string },
+): Promise<void> {
   await mkdir(path, { recursive: true });
   await writeFile(
     join(path, "SKILL.md"),
     [
       "---",
-      "name: brainstorming",
-      'description: "You MUST use this before any creative work."',
+      `name: ${input.name}`,
+      `description: "${input.description}"`,
       "---",
       "",
-      "# Brainstorming Ideas Into Designs",
+      `# ${input.name}`,
     ].join("\n"),
   );
+}
+
+async function writeSuperpowersProcessSkills(homeDir: string): Promise<void> {
+  const baseDir = join(
+    homeDir,
+    ".codex",
+    "plugins",
+    "cache",
+    "openai-curated",
+    "superpowers",
+    "fake-plugin",
+    "skills",
+  );
+
+  await writeSuperpowersSkill(join(baseDir, "brainstorming"), {
+    name: "brainstorming",
+    description: "You MUST use this before any creative work.",
+  });
+  await writeSuperpowersSkill(join(baseDir, "writing-plans"), {
+    name: "writing-plans",
+    description: "Use when you have a spec or requirements for a multi-step task.",
+  });
 }
 
 describe("cli", () => {
@@ -218,8 +243,14 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Skill: pony-trail"))).toBe(true);
       expect(logs.some((line) => line.includes("Skill: ponyrace"))).toBe(true);
       expect(logs.some((line) => line.includes("Ponyrace onboarding complete"))).toBe(true);
-      expect(stripAnsiLines(logs)).toContain("Welcome to Ponyrace.");
-      expect(logs.some((line) => line.includes("Restart your agent IDE"))).toBe(true);
+      expect(stripAnsiLines(logs)).not.toContain("Welcome to Ponyrace.");
+      expect(countPlainLines(logs, "PONYRACE")).toBe(1);
+      expect(logs.some((line) => line.includes("Configured targets:"))).toBe(true);
+      expect(logs.some((line) => line.includes("Codex, Claude, and GitHub Copilot"))).toBe(true);
+      expect(logs.some((line) => line.includes("Next: restart the configured agent app"))).toBe(
+        true,
+      );
+      expect(logs.some((line) => line.includes("/ponyrace <request>"))).toBe(true);
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
@@ -294,7 +325,13 @@ describe("cli", () => {
         botCount: 4,
       });
       expect(logs.some((line) => line.includes("Ponyrace setup complete"))).toBe(true);
-      expect(logs.some((line) => line.includes("Next: restart Codex or Claude"))).toBe(true);
+      expect(countPlainLines(logs, "PONYRACE")).toBe(1);
+      expect(logs.some((line) => line.includes("Configured targets:"))).toBe(true);
+      expect(logs.some((line) => line.includes("Codex, Claude, and Cursor"))).toBe(true);
+      expect(logs.some((line) => line.includes("Next: restart the configured agent app"))).toBe(
+        true,
+      );
+      expect(logs.some((line) => line.includes("/ponyrace <request>"))).toBe(true);
       expect(logs.some((line) => line.includes("Pony race"))).toBe(false);
       expect(logs.some((line) => line.includes("Requirement discussion"))).toBe(false);
       expect(logs.some((line) => line.includes("Detailed requirement"))).toBe(false);
@@ -337,7 +374,7 @@ describe("cli", () => {
     }
   });
 
-  test("setup warns and continues when optional superpowers brainstorming is missing", async () => {
+  test("setup warns and continues when optional superpowers process skills are missing", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
     const logs: string[] = [];
@@ -364,12 +401,20 @@ describe("cli", () => {
         stat(join(homeDir, ".agents", "skills", "superpowers-brainstorming", "SKILL.md")),
       ).rejects.toThrow();
       expect(logs.some((line) => line.includes("Ponyrace setup complete"))).toBe(true);
-      expect(logs.some((line) => line.includes("Superpowers brainstorming skill not found"))).toBe(
-        true,
-      );
+      expect(
+        logs.some((line) =>
+          line.includes("Optional: Superpowers process skills are not installed."),
+        ),
+      ).toBe(true);
+      expect(logs.some((line) => line.includes("Ponyrace still works without them"))).toBe(true);
       expect(
         logs.some((line) =>
           line.includes("ponyrace skills install superpowers:brainstorming --agents codex --home"),
+        ),
+      ).toBe(true);
+      expect(
+        logs.some((line) =>
+          line.includes("ponyrace skills install superpowers:writing-plans --agents codex --home"),
         ),
       ).toBe(true);
     } finally {
@@ -610,20 +655,9 @@ describe("cli", () => {
     }
   });
 
-  test("onboard installs optional superpowers brainstorming when available", async () => {
+  test("onboard installs optional superpowers process skills when available", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-cli-"));
     const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-skill-home-"));
-    const sourceDir = join(
-      homeDir,
-      ".codex",
-      "plugins",
-      "cache",
-      "openai-curated",
-      "superpowers",
-      "fake-plugin",
-      "skills",
-      "brainstorming",
-    );
     const logs: string[] = [];
     const originalLog = console.log;
 
@@ -632,7 +666,7 @@ describe("cli", () => {
     };
 
     try {
-      await writeSuperpowersBrainstormingSkill(sourceDir);
+      await writeSuperpowersProcessSkills(homeDir);
 
       await buildProgram({ cwd: rootDir }).parseAsync(
         [
@@ -647,13 +681,16 @@ describe("cli", () => {
         { from: "user" },
       );
 
-      await expect(
-        stat(join(homeDir, ".agents", "skills", "superpowers-brainstorming", "SKILL.md")),
-      ).resolves.toBeTruthy();
-      await expect(
-        stat(join(homeDir, ".codex", "skills", "superpowers-brainstorming", "SKILL.md")),
-      ).resolves.toBeTruthy();
+      for (const skill of ["superpowers-brainstorming", "superpowers-writing-plans"]) {
+        await expect(
+          stat(join(homeDir, ".agents", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+        await expect(
+          stat(join(homeDir, ".codex", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+      }
       expect(logs.some((line) => line.includes("Skill: superpowers-brainstorming"))).toBe(true);
+      expect(logs.some((line) => line.includes("Skill: superpowers-writing-plans"))).toBe(true);
       expect(logs.some((line) => line.includes("Superpowers brainstorming skill not found"))).toBe(
         false,
       );
@@ -1705,4 +1742,8 @@ function stripAnsi(value: string): string {
 
 function stripAnsiLines(values: string[]): string[] {
   return values.map(stripAnsi);
+}
+
+function countPlainLines(lines: string[], expected: string): number {
+  return stripAnsiLines(lines).filter((line) => line === expected).length;
 }
