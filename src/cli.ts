@@ -28,11 +28,16 @@ import {
   createOnboardingFiles,
   createRequirementCourtHtmlReportPath,
   createRequirementCourtMarkdownReportPath,
+  createWorkflowBundleScaffold,
   draftGoalFromBrainstorm,
   formatRequirementCourtReportPathForOutput,
   type GoalContract,
+  getWorkflowSkillInstallSources,
   type InstructionContext,
+  installWorkflowBundle,
+  listInstalledWorkflowBundles,
   loadManifest,
+  loadWorkflowBundle,
   planSnapshotRevert,
   prepareGoalDiscussion,
   type RecordedSnapshotCommit,
@@ -517,6 +522,100 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
         console.log(pc.green(`Reverted snapshot ${snapshotId}`));
       },
     );
+
+  const bundleCommand = program.command("bundle").description("Author workflow bundles.");
+
+  bundleCommand
+    .command("init")
+    .description("Create a local workflow bundle scaffold.")
+    .argument("<name>", "workflow bundle name")
+    .option("--dir <dir>", "directory that will contain the bundle", rootDir)
+    .action(async (name: string, commandOptions: { dir: string }) => {
+      const scaffold = await createWorkflowBundleScaffold({
+        rootDir: resolvePath(rootDir, commandOptions.dir),
+        name,
+      });
+
+      console.log(`Workflow bundle created: ${scaffold.bundleDir}`);
+      console.log(`${pc.dim("Manifest:")} ${scaffold.manifestPath}`);
+      console.log(`${pc.dim("README:")} ${scaffold.readmePath}`);
+    });
+
+  bundleCommand
+    .command("validate")
+    .description("Validate a workflow bundle manifest.")
+    .argument("<path>", "workflow bundle directory or workflow.json path")
+    .action(async (path: string) => {
+      const bundle = await loadWorkflowBundle(path, { cwd: rootDir });
+
+      console.log(`Workflow bundle valid: ${bundle.manifest.name}@${bundle.manifest.version}`);
+      console.log(`${pc.dim("Steps:")} ${bundle.manifest.steps.length}`);
+      console.log(`${pc.dim("Skills:")} ${bundle.manifest.skills.length}`);
+    });
+
+  const workflowCommand = program.command("workflow").description("Install and inspect workflows.");
+
+  workflowCommand
+    .command("install")
+    .description("Install a bundled or local workflow bundle and its skills.")
+    .argument("<source>", "bundled workflow name or local workflow bundle path")
+    .option("--dir <dir>", "project directory that receives .ponyrace/workflows", rootDir)
+    .option(
+      "--agents <agents>",
+      "comma-separated skill install targets: codex,claude,cursor",
+      "codex,claude,cursor",
+    )
+    .option("--home <dir>", "home directory that contains agent config folders", homedir())
+    .action(
+      async (source: string, commandOptions: { dir: string; agents: string; home: string }) => {
+        const targetDir = resolvePath(rootDir, commandOptions.dir);
+        const bundle = await loadWorkflowBundle(source, { cwd: rootDir });
+        const installAgents = parseSkillInstallAgents(commandOptions.agents);
+        const homeDir = resolveHomePath(commandOptions.home);
+
+        for (const skillSource of getWorkflowSkillInstallSources(bundle)) {
+          const skillResult = await installSkillWithLocalHistory({
+            rootDir: targetDir,
+            operation: "install",
+            source: skillSource,
+            homeDir,
+            agents: installAgents,
+            dryRun: false,
+            force: false,
+            refreshExisting: true,
+            installPrehook: false,
+          });
+
+          printSkillInstallResult(skillResult.skillInstall, skillResult.history, "install", {
+            showPostSkillChangeWelcome: false,
+          });
+        }
+
+        const install = await installWorkflowBundle({ rootDir: targetDir, bundle });
+
+        console.log(`Workflow installed: ${install.workflow.name}`);
+        console.log(`${pc.dim("Workflow file:")} ${install.path}`);
+      },
+    );
+
+  workflowCommand
+    .command("list")
+    .description("List installed workflow bundles.")
+    .option("--dir <dir>", "project directory with .ponyrace/workflows", rootDir)
+    .action(async (commandOptions: { dir: string }) => {
+      const workflows = await listInstalledWorkflowBundles({
+        rootDir: resolvePath(rootDir, commandOptions.dir),
+      });
+
+      if (workflows.length === 0) {
+        console.log(pc.dim("No workflows installed."));
+        return;
+      }
+
+      for (const workflow of workflows) {
+        console.log(`${workflow.name} ${workflow.version}`);
+      }
+    });
 
   const skillsCommand = program.command("skills").description("Manage agent skills.");
 

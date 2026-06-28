@@ -1,52 +1,124 @@
 <img src="/assets/ponyrace.png" alt="Ponyrace" width="640" />
 
-# Ponyrace
+# Ponyrace Workflows
 
-Run a quick requirement check before an AI agent starts coding.
+Install reusable AI-agent workflows made from multiple skills.
 
-Ponyrace installs a `/ponyrace` chat command for your agent. When you use it,
-role ponies review the request, a Judge summarizes the votes, and you get a
-clear requirement to approve before implementation starts.
+The first bundled workflow is `product-dev`. It composes Superpowers
+brainstorming, Ponyrace requirement review, Superpowers writing-plans, and
+Ponytrail file-change evidence.
 
-Ponyrace does not implement code by itself. It helps you decide whether the
-agent should proceed, revise the request, or stop.
+The original `/ponyrace` requirement review remains available as a lower-level
+primitive. Workflow bundles are now the main direction.
 
 ## Quick Start
 
-In the project where your agent will work:
+Install the first bundled workflow in the project where your agent will work:
 
 ```bash
-npx ponyrace onboard
+npx ponyrace workflow install product-dev
 ```
 
-Use `setup` instead if you want to choose the review ponies, models, or approval
-threshold:
+List installed workflows:
 
 ```bash
-npx ponyrace setup
+npx ponyrace workflow list
 ```
 
-Restart your agent IDE so Codex, Claude, Cursor, or GitHub Copilot loads the
-new `/ponyrace` skill.
+Create your own workflow bundle:
 
-Then start a race from agent chat:
+```bash
+npx ponyrace bundle init release-review
+npx ponyrace bundle validate release-review
+```
+
+Or inspect the checked-in example:
+
+```bash
+npx ponyrace bundle validate examples/workflows/release-review
+```
+
+New workflow authors can follow the step-by-step guide in
+[`docs/workflow-author-guide.md`](docs/workflow-author-guide.md).
+
+Restart your agent IDE so Codex, Claude, Cursor, or GitHub Copilot loads any
+newly installed skills.
+
+## Workflow Bundles
+
+A workflow bundle is a folder with a `workflow.json` manifest plus optional
+local skills:
+
+```text
+release-review/
+  workflow.json
+  README.md
+  skills/
+    custom-review/
+      SKILL.md
+```
+
+`workflow.json` names skill dependencies and ordered steps. V1 uses JSON so the
+runtime can validate bundles without adding another parser dependency.
+
+```json
+{
+  "schemaVersion": "0.1",
+  "name": "release-review",
+  "version": "0.1.0",
+  "description": "Review and plan release changes.",
+  "skills": [
+    { "source": "superpowers:brainstorming" },
+    { "source": "./skills/custom-review" },
+    { "source": "superpowers:writing-plans" },
+    { "source": "pony-trail" }
+  ],
+  "steps": [
+    {
+      "id": "shape",
+      "title": "Shape the request",
+      "skill": "superpowers:brainstorming",
+      "gate": "human_approval"
+    },
+    {
+      "id": "custom-review",
+      "title": "Run the bundle-specific review",
+      "skill": "./skills/custom-review",
+      "gate": "human_approval"
+    },
+    {
+      "id": "plan",
+      "title": "Write the implementation plan",
+      "skill": "superpowers:writing-plans"
+    },
+    {
+      "id": "evidence",
+      "title": "Record evidence and rollback context",
+      "skill": "pony-trail"
+    }
+  ]
+}
+```
+
+Workflow install writes normalized project state under `.ponyrace/workflows/`
+and installs the listed skills for the selected agent targets.
+
+Automatic workflow step execution is intentionally deferred while the bundle
+contract stabilizes.
+
+## Ponyrace Primitive
+
+The requirement-review primitive is still available from chat:
 
 ```text
 /ponyrace add CSV import to the admin dashboard. Scope: admin import only. Evidence: tests and one smoke import.
 ```
 
-Or run the same discussion from a shell:
+Or from a shell:
 
 ```bash
 npx ponyrace ponyrace "add CSV import to the admin dashboard. Scope: admin import only. Evidence: tests and one smoke import."
 ```
-
-Read the result:
-
-- If it says `approved`, review the detailed requirement and explicitly tell
-  your implementation agent to proceed.
-- If it says `not approved`, or if any pony votes `amend` or `reject`, rewrite
-  the request with the requested changes and run another race.
 
 ## Good Requests
 
@@ -96,6 +168,10 @@ By default, Markdown reports are saved under `.ponyrace/ponyrace/`.
 
 | Command | Purpose |
 | --- | --- |
+| `npx ponyrace workflow install product-dev` | Install the bundled product development workflow and its skills. |
+| `npx ponyrace workflow list` | Show installed workflow bundles. |
+| `npx ponyrace bundle init <name>` | Create a workflow bundle scaffold. |
+| `npx ponyrace bundle validate <path>` | Validate a workflow bundle manifest. |
 | `npx ponyrace onboard` | Create `.ponyrace/` files and install default skills. |
 | `npx ponyrace setup` | Configure ponies, models, approval threshold, and skills. |
 | `npx ponyrace ponyrace "<request>"` | Run a requirement race from the shell. |
@@ -111,6 +187,7 @@ Ponyrace writes local project state under `.ponyrace/`:
 ```text
 .ponyrace/
   manifest.json
+  workflows/
   ponyrace/
   snapshots.jsonl
   sessions/

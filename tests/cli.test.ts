@@ -69,6 +69,8 @@ describe("cli", () => {
       "stream-goal",
       "history",
       "revert",
+      "bundle",
+      "workflow",
       "skills",
     ]);
 
@@ -77,6 +79,8 @@ describe("cli", () => {
     const ponyraceCommand = program.commands.find((command) => command.name() === "ponyrace");
     const streamGoalCommand = program.commands.find((command) => command.name() === "stream-goal");
     const revertCommand = program.commands.find((command) => command.name() === "revert");
+    const bundleCommand = program.commands.find((command) => command.name() === "bundle");
+    const workflowCommand = program.commands.find((command) => command.name() === "workflow");
     const skillsCommand = program.commands.find((command) => command.name() === "skills");
 
     expect(setupCommand?.options.map((option) => option.long)).toEqual([
@@ -105,6 +109,8 @@ describe("cli", () => {
       "--worker",
     ]);
     expect(revertCommand?.options.map((option) => option.long)).toEqual(["--dry-run"]);
+    expect(bundleCommand?.commands.map((command) => command.name())).toEqual(["init", "validate"]);
+    expect(workflowCommand?.commands.map((command) => command.name())).toEqual(["install", "list"]);
     expect(skillsCommand?.commands.map((command) => command.name())).toEqual(["install", "update"]);
   });
 
@@ -336,6 +342,82 @@ describe("cli", () => {
       expect(logs.some((line) => line.includes("Pony race"))).toBe(false);
       expect(logs.some((line) => line.includes("Requirement discussion"))).toBe(false);
       expect(logs.some((line) => line.includes("Detailed requirement"))).toBe(false);
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("bundle init creates an authorable workflow bundle and validate accepts it", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-bundle-cli-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["bundle", "init", "release-review", "--dir", "bundles"],
+        { from: "user" },
+      );
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["bundle", "validate", "bundles/release-review"],
+        { from: "user" },
+      );
+
+      await expect(
+        stat(join(rootDir, "bundles", "release-review", "workflow.json")),
+      ).resolves.toBeTruthy();
+      await expect(
+        stat(join(rootDir, "bundles", "release-review", "skills", "custom-review", "SKILL.md")),
+      ).resolves.toBeTruthy();
+      expect(stripAnsiLines(logs)).toContain(
+        `Workflow bundle created: ${join(rootDir, "bundles", "release-review")}`,
+      );
+      expect(stripAnsiLines(logs)).toContain("Workflow bundle valid: release-review@0.1.0");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("workflow install installs product-dev skills and lists the installed workflow", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "ponytrail-workflow-cli-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "ponytrail-workflow-home-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await writeSuperpowersProcessSkills(homeDir);
+
+      await buildProgram({ cwd: rootDir }).parseAsync(
+        ["workflow", "install", "product-dev", "--home", homeDir, "--agents", "codex"],
+        { from: "user" },
+      );
+      await buildProgram({ cwd: rootDir }).parseAsync(["workflow", "list"], { from: "user" });
+
+      await expect(
+        stat(join(rootDir, ".ponyrace", "workflows", "product-dev.json")),
+      ).resolves.toBeTruthy();
+      for (const skill of [
+        "superpowers-brainstorming",
+        "ponyrace",
+        "superpowers-writing-plans",
+        "pony-trail",
+      ]) {
+        await expect(
+          stat(join(homeDir, ".agents", "skills", skill, "SKILL.md")),
+        ).resolves.toBeTruthy();
+      }
+      expect(stripAnsiLines(logs)).toContain("Workflow installed: product-dev");
+      expect(stripAnsiLines(logs)).toContain("product-dev 0.1.0");
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });

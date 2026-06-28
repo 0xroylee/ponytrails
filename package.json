@@ -8,7 +8,9 @@
   "files": [
     "dist",
     "src",
-    "bundled-skills"
+    "bundled-skills",
+    "bundled-workflows",
+    "examples"
   ],
   "scripts": {
     "dev": "bun src/cli.ts",

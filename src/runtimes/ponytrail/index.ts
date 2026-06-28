@@ -10,3 +10,4 @@ export * from "./requirement-court";
 export * from "./requirement-report";
 export * from "./snapshots";
 export * from "./voting";
+export * from "./workflow-bundles";

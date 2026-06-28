@@ -27,5 +27,7 @@ describe("package metadata", () => {
     expect(packageMetadata.bin?.ponyrace).toBe("./dist/cli.js");
     expect(packageMetadata.files).toContain("dist");
     expect(packageMetadata.files).toContain("bundled-skills");
+    expect(packageMetadata.files).toContain("bundled-workflows");
+    expect(packageMetadata.files).toContain("examples");
   });
 });

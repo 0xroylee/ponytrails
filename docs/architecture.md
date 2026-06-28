@@ -13,6 +13,7 @@ src/
       requirement-court.ts
       snapshots.ts
       voting.ts
+      workflow-bundles.ts
   plugins/
     adapters/
       codex-cli/
@@ -34,6 +35,7 @@ src/
 - draft a goal contract from a raw request
 - run each requirement-court pony through a `RequirementPonyRunner`
 - tally the requirement court with the manifest decision rule plus a non-voting Judge
+- load, validate, scaffold, install, and list workflow bundles
 - read Pony Trail snapshot history and plan file-level reverts
 - print visible role-bot discussion before worker execution is allowed
 
@@ -91,6 +93,21 @@ Skills should describe review behavior and instructions. Bots can compose skills
 
 CLI-backed ponies receive the descriptions for their configured manifest skills in the review prompt. This keeps the manifest as the source of truth for role lenses while making the model-backed review explain what evidence it used.
 
+## Workflow Bundles
+
+Workflow bundles are the primary product direction. A bundle is a directory with
+a `workflow.json` manifest, a README, and optional local skills. The manifest
+declares skill dependencies and ordered workflow steps.
+`src/runtimes/ponytrail/workflow-bundles.ts` owns parsing, validation,
+scaffolding, bundled workflow resolution, and project-local install records
+under `.ponyrace/workflows/`.
+
+The bundled `product-dev` workflow composes `superpowers:brainstorming`,
+`ponyrace`, `superpowers:writing-plans`, and `pony-trail`. Installing a
+workflow uses the existing skill installer seam for every declared skill,
+including bundle-local `./skills/...` paths. Automatic step execution is
+intentionally deferred until the bundle contract is stable.
+
 ## Project Onboarding Layout
 
 Running onboarding creates a local runtime workspace:
@@ -99,6 +116,7 @@ Running onboarding creates a local runtime workspace:
 .ponyrace/
   manifest.json
   README.md
+  workflows/
   goals/
   runtimes/
   plugins/
