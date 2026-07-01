@@ -16,6 +16,13 @@ Install or clone the default product-development GetSuperpower:
 npx getsuperpower install product-dev
 ```
 
+Install from a public git repository:
+
+```bash
+npx getsuperpower install https://github.com/acme/release-review.git
+npx getsuperpower install 'https://github.com/acme/workflows.git#examples/release-review'
+```
+
 List installed GetSuperpowers:
 
 ```bash
@@ -28,60 +35,13 @@ Restart your agent after installing skills so it reloads them.
 
 ## How It Works
 
-```mermaid
-flowchart LR
-  Install["getsuperpower install"]
-  Manifest["workflow.json<br/>what to install"]
-  Entry["entry skill<br/>what users call"]
-  Skills["sub-skills<br/>what the agent uses"]
-  Agent["Claude / Codex / opencode / Cursor / GitHub Copilot"]
-  Result["workflow result"]
-
-  Install --> Manifest
-  Manifest --> Entry
-  Manifest --> Skills
-  Entry --> Agent
-  Skills --> Agent
-  Agent --> Result
-
-  classDef command fill:#dbeafe,stroke:#2563eb,color:#172554;
-  classDef manifest fill:#dcfce7,stroke:#16a34a,color:#052e16;
-  classDef entry fill:#f3e8ff,stroke:#9333ea,color:#3b0764;
-  classDef skills fill:#ffedd5,stroke:#f97316,color:#431407;
-  classDef agent fill:#fef9c3,stroke:#ca8a04,color:#422006;
-  classDef result fill:#e0f2fe,stroke:#0284c7,color:#082f49;
-
-  class Install command;
-  class Manifest manifest;
-  class Entry entry;
-  class Skills skills;
-  class Agent agent;
-  class Result result;
-```
+<img src="assets/diagrams/getsuperpower-how-it-works.svg" alt="GetSuperpower workflow diagram" width="720" />
 
 `workflow.json` installs the skill tree. The entry skill runs it. Sub-skills are the steps the agent follows.
 
 ### Install And Run Sequence
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor User as User
-  participant CLI as GetSuperpower CLI
-  participant Workflow as workflow json
-  participant Skills as entry skill and sub skills
-  participant State as workflow records
-  participant Agent as AI agent
-
-  User->>CLI: install or clone a GetSuperpower
-  CLI->>Workflow: read workflow.json skills and steps
-  CLI->>Skills: install required skills
-  CLI->>State: save .getsuperpower/workflows record
-  User->>Agent: call the entry skill
-  Agent->>Workflow: follow the skill tree
-  Agent->>Skills: use sub-skills in order
-  Agent-->>User: return the workflow result
-```
+<img src="assets/diagrams/getsuperpower-install-sequence.svg" alt="GetSuperpower install and run sequence diagram" width="920" />
 
 ## Try A Callable Workflow
 
@@ -170,6 +130,7 @@ npx getsuperpower skills install mattpocock/skills
 | --- | --- |
 | `npx getsuperpower install product-dev` | Install the default GetSuperpower. |
 | `npx getsuperpower clone product-dev` | Same as install; deploy a GetSuperpower by name or source. |
+| `npx getsuperpower install https://github.com/acme/release-review.git` | Install a GetSuperpower from a public git repo. |
 | `npx getsuperpower deps <source>` | Show required skills before install or clone. |
 | `npx getsuperpower list` | Show installed GetSuperpowers. |
 | `npx getsuperpower init <name>` | Create a GetSuperpower scaffold. |
@@ -200,6 +161,7 @@ bun install
 bun run build
 bun test
 bun run check
+bun scripts/smoke-public-git-install.ts
 ```
 
 ## Compatibility

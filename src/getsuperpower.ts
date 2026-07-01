@@ -13,6 +13,7 @@ import {
   installWorkflowBundle,
   listInstalledWorkflowBundles,
   loadWorkflowBundle,
+  type WorkflowGitCommandRunner,
 } from "./runtimes/ponytrail";
 
 export interface GetSuperpowerInstallSkillInput {
@@ -77,6 +78,7 @@ export interface ConfigureGetSuperpowerCommandOptions {
   installSkill: GetSuperpowerSkillInstaller;
   printSkillInstallResult: GetSuperpowerSkillInstallPrinter;
   installExternalSkillDependency?: GetSuperpowerExternalSkillDependencyInstaller;
+  workflowGitCommandRunner?: WorkflowGitCommandRunner;
 }
 
 type GetSuperpowerInstallVerb = "install" | "clone";
@@ -96,7 +98,7 @@ export function configureGetSuperpowerCommand(
   const bundleCommand = program
     .command("bundle")
     .description("Compatibility alias for GetSuperpower authoring.");
-  configureAuthorCommands(bundleCommand, options.rootDir);
+  configureAuthorCommands(bundleCommand, options);
 
   const workflowCommand = program
     .command("workflow")
@@ -111,21 +113,24 @@ function configureGetSuperpowerCommands(
   command: Command,
   options: ConfigureGetSuperpowerCommandOptions,
 ): void {
-  configureAuthorCommands(command, options.rootDir);
+  configureAuthorCommands(command, options);
   configureInstallCommand(command, options);
   configureListCommand(command, options.rootDir);
-  configureDependencyCommand(command, options.rootDir);
+  configureDependencyCommand(command, options);
 }
 
-function configureAuthorCommands(command: Command, rootDir: string): void {
+function configureAuthorCommands(
+  command: Command,
+  options: ConfigureGetSuperpowerCommandOptions,
+): void {
   command
     .command("init")
     .description("Create a local GetSuperpower scaffold.")
     .argument("<name>", "GetSuperpower name")
-    .option("--dir <dir>", "directory that will contain the GetSuperpower", rootDir)
+    .option("--dir <dir>", "directory that will contain the GetSuperpower", options.rootDir)
     .action(async (name: string, commandOptions: { dir: string }) => {
       const scaffold = await createWorkflowBundleScaffold({
-        rootDir: resolvePath(rootDir, commandOptions.dir),
+        rootDir: resolvePath(options.rootDir, commandOptions.dir),
         name,
       });
 
@@ -139,11 +144,19 @@ function configureAuthorCommands(command: Command, rootDir: string): void {
     .description("Validate a GetSuperpower manifest.")
     .argument("<path>", "GetSuperpower directory or workflow.json path")
     .action(async (path: string) => {
-      const bundle = await loadWorkflowBundle(path, { cwd: rootDir });
-
-      console.log(`GetSuperpower valid: ${bundle.manifest.name}@${bundle.manifest.version}`);
-      console.log(`${pc.dim("Steps:")} ${bundle.manifest.steps.length}`);
-      console.log(`${pc.dim("Skills:")} ${bundle.manifest.skills.length}`);
+      const bundle = await loadWorkflowBundle(path, {
+        cwd: options.rootDir,
+        ...(options.workflowGitCommandRunner
+          ? { runGitCommand: options.workflowGitCommandRunner }
+          : {}),
+      });
+      try {
+        console.log(`GetSuperpower valid: ${bundle.manifest.name}@${bundle.manifest.version}`);
+        console.log(`${pc.dim("Steps:")} ${bundle.manifest.steps.length}`);
+        console.log(`${pc.dim("Skills:")} ${bundle.manifest.skills.length}`);
+      } finally {
+        await bundle.cleanup?.();
+      }
     });
 }
 
@@ -189,32 +202,41 @@ async function runGetSuperpowerInstall(
   options: ConfigureGetSuperpowerCommandOptions,
 ): Promise<void> {
   const targetDir = resolvePath(options.rootDir, commandOptions.dir);
-  const bundle = await loadWorkflowBundle(source, { cwd: options.rootDir });
+  const bundle = await loadWorkflowBundle(source, {
+    cwd: options.rootDir,
+    ...(options.workflowGitCommandRunner
+      ? { runGitCommand: options.workflowGitCommandRunner }
+      : {}),
+  });
   const installAgents = parseSkillInstallAgents(commandOptions.agents);
   const homeDir = resolveHomePath(commandOptions.home);
   const installedExternalPackages = new Set<string>();
 
-  for (const skillSource of getWorkflowSkillInstallSources(bundle)) {
-    const skillResult = await installGetSuperpowerSkillDependency({
-      rootDir: targetDir,
-      source: skillSource,
-      homeDir,
-      agents: installAgents,
-      installSkill: options.installSkill,
-      installExternalSkillDependency:
-        options.installExternalSkillDependency ?? installExternalSkillDependencyWithSkillsCli,
-      installedExternalPackages,
-    });
+  try {
+    for (const skillSource of getWorkflowSkillInstallSources(bundle)) {
+      const skillResult = await installGetSuperpowerSkillDependency({
+        rootDir: targetDir,
+        source: skillSource,
+        homeDir,
+        agents: installAgents,
+        installSkill: options.installSkill,
+        installExternalSkillDependency:
+          options.installExternalSkillDependency ?? installExternalSkillDependencyWithSkillsCli,
+        installedExternalPackages,
+      });
 
-    options.printSkillInstallResult(skillResult.skillInstall, "install", {
-      showPostSkillChangeWelcome: false,
-    });
+      options.printSkillInstallResult(skillResult.skillInstall, "install", {
+        showPostSkillChangeWelcome: false,
+      });
+    }
+
+    const install = await installWorkflowBundle({ rootDir: targetDir, bundle });
+
+    console.log(`GetSuperpower installed: ${install.workflow.name}`);
+    console.log(`${pc.dim("GetSuperpower file:")} ${install.path}`);
+  } finally {
+    await bundle.cleanup?.();
   }
-
-  const install = await installWorkflowBundle({ rootDir: targetDir, bundle });
-
-  console.log(`GetSuperpower installed: ${install.workflow.name}`);
-  console.log(`${pc.dim("GetSuperpower file:")} ${install.path}`);
 }
 
 async function installGetSuperpowerSkillDependency(input: {
@@ -378,19 +400,30 @@ function configureListCommand(command: Command, rootDir: string): void {
     });
 }
 
-function configureDependencyCommand(command: Command, rootDir: string): void {
+function configureDependencyCommand(
+  command: Command,
+  options: ConfigureGetSuperpowerCommandOptions,
+): void {
   command
     .command("deps")
     .aliases(["dependencies", "dependence"])
     .description("List the skill dependencies declared by a GetSuperpower.")
     .argument("<source>", "bundled GetSuperpower name or local GetSuperpower path")
     .action(async (source: string) => {
-      const bundle = await loadWorkflowBundle(source, { cwd: rootDir });
-
-      console.log(`GetSuperpower dependencies: ${bundle.manifest.name}`);
-      for (const skill of bundle.manifest.skills) {
-        const optional = skill.optional ? " (optional)" : "";
-        console.log(`- ${skill.source}${optional}`);
+      const bundle = await loadWorkflowBundle(source, {
+        cwd: options.rootDir,
+        ...(options.workflowGitCommandRunner
+          ? { runGitCommand: options.workflowGitCommandRunner }
+          : {}),
+      });
+      try {
+        console.log(`GetSuperpower dependencies: ${bundle.manifest.name}`);
+        for (const skill of bundle.manifest.skills) {
+          const optional = skill.optional ? " (optional)" : "";
+          console.log(`- ${skill.source}${optional}`);
+        }
+      } finally {
+        await bundle.cleanup?.();
       }
     });
 }

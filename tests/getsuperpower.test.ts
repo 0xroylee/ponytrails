@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
@@ -9,6 +9,7 @@ import {
   installExternalSkillDependencyWithSkillsCli,
 } from "../src/getsuperpower";
 import { MissingMattPocockSkillError, type SkillInstallResult } from "../src/plugins";
+import type { WorkflowGitCommand } from "../src/runtimes/ponytrail/workflow-bundles";
 
 function fakeSkillInstallResult(input: {
   source: string;
@@ -32,6 +33,36 @@ function fakeSkillInstallResult(input: {
     ],
     prehooks: [],
   };
+}
+
+async function writeGitWorkflowFixture(checkoutDir: string): Promise<void> {
+  await mkdir(join(checkoutDir, "skills", "git-entry"), { recursive: true });
+  await writeFile(
+    join(checkoutDir, "skills", "git-entry", "SKILL.md"),
+    [
+      "---",
+      "name: git-entry",
+      'description: "Entry skill from a public git workflow."',
+      "---",
+      "",
+      "# git-entry",
+    ].join("\n"),
+  );
+  await writeFile(
+    join(checkoutDir, "workflow.json"),
+    JSON.stringify(
+      {
+        schemaVersion: "0.1",
+        name: "git-workflow",
+        version: "0.1.0",
+        description: "Uses one local skill from git.",
+        skills: [{ source: "./skills/git-entry" }],
+        steps: [{ id: "entry", title: "Entry", skill: "./skills/git-entry" }],
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 describe("getsuperpower command module", () => {
@@ -138,6 +169,138 @@ describe("getsuperpower command module", () => {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
       await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test("install supports a public git workflow source", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-git-"));
+    const homeDir = await mkdtemp(join(tmpdir(), "getsuperpower-git-home-"));
+    const source = "https://github.com/acme/git-workflow.git";
+    const skillInstalls: string[] = [];
+    const printedSkills: string[] = [];
+    const commands: WorkflowGitCommand[] = [];
+    const program = new Command();
+    let checkoutDir = "";
+
+    configureGetSuperpowerCommand(program, {
+      rootDir,
+      workflowGitCommandRunner: async (command) => {
+        commands.push(command);
+        if (command.args[0] === "clone") {
+          checkoutDir = command.args.at(-1) ?? "";
+          await writeGitWorkflowFixture(checkoutDir);
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      },
+      installSkill: async (input) => {
+        skillInstalls.push(input.source);
+        return {
+          skillInstall: fakeSkillInstallResult({
+            source: input.source,
+            skillName: "git-entry",
+            destination: join(homeDir, ".agents", "skills", "git-entry"),
+          }),
+        };
+      },
+      printSkillInstallResult: (result) => {
+        printedSkills.push(result.skillName);
+      },
+    });
+
+    await program.parseAsync(
+      ["install", source, "--dir", rootDir, "--home", homeDir, "--agents", "codex"],
+      { from: "user" },
+    );
+
+    expect(commands.map((command) => command.args[0])).toEqual(["clone", "rev-parse"]);
+    expect(skillInstalls).toEqual([join(checkoutDir, "skills", "git-entry")]);
+    expect(printedSkills).toEqual(["git-entry"]);
+    const installed = JSON.parse(
+      await readFile(join(rootDir, ".getsuperpower", "workflows", "git-workflow.json"), "utf8"),
+    );
+    expect(installed.source).toEqual({ kind: "git", url: source, commit: "abc123" });
+    await expect(stat(checkoutDir)).rejects.toThrow();
+
+    await rm(rootDir, { recursive: true, force: true });
+    await rm(homeDir, { recursive: true, force: true });
+  });
+
+  test("validate supports a public git workflow source", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-git-validate-"));
+    const source = "https://github.com/acme/git-workflow.git";
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const program = new Command();
+    let checkoutDir = "";
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        workflowGitCommandRunner: async (command) => {
+          if (command.args[0] === "clone") {
+            checkoutDir = command.args.at(-1) ?? "";
+            await writeGitWorkflowFixture(checkoutDir);
+            return { stdout: "", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+        },
+        installSkill: async () => {
+          throw new Error("install is not exercised by this validate test");
+        },
+        printSkillInstallResult: () => {},
+      });
+
+      await program.parseAsync(["validate", source], { from: "user" });
+
+      expect(logs).toEqual(["GetSuperpower valid: git-workflow@0.1.0", "Steps: 1", "Skills: 1"]);
+      await expect(stat(checkoutDir)).rejects.toThrow();
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("deps supports a public git workflow source", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-git-deps-"));
+    const source = "https://github.com/acme/git-workflow.git";
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const program = new Command();
+    let checkoutDir = "";
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        workflowGitCommandRunner: async (command) => {
+          if (command.args[0] === "clone") {
+            checkoutDir = command.args.at(-1) ?? "";
+            await writeGitWorkflowFixture(checkoutDir);
+            return { stdout: "", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+        },
+        installSkill: async () => {
+          throw new Error("install is not exercised by this deps test");
+        },
+        printSkillInstallResult: () => {},
+      });
+
+      await program.parseAsync(["deps", source], { from: "user" });
+
+      expect(logs).toEqual(["GetSuperpower dependencies: git-workflow", "- ./skills/git-entry"]);
+      await expect(stat(checkoutDir)).rejects.toThrow();
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
     }
   });
 

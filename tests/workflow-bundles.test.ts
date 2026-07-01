@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   createWorkflowBundleScaffold,
+  getWorkflowSkillInstallSources,
   installWorkflowBundle,
   listInstalledWorkflowBundles,
   loadWorkflowBundle,
+  type WorkflowGitCommand,
 } from "../src/runtimes/ponytrail/workflow-bundles";
 
 describe("workflow bundles", () => {
@@ -162,6 +165,227 @@ describe("workflow bundles", () => {
     ).resolves.toContain("This is the entry skill for the openspec-superpowers GetSuperpower.");
   });
 
+  test("loads a workflow bundle from a public git URL", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "workflow-bundle-git-"));
+    const source = "https://github.com/acme/release-review.git";
+    const commands: WorkflowGitCommand[] = [];
+    let checkoutDir = "";
+
+    const bundle = await loadWorkflowBundle(source, {
+      tempDir,
+      runGitCommand: async (command) => {
+        commands.push(command);
+        if (command.args[0] === "clone") {
+          checkoutDir = command.args.at(-1) ?? "";
+          await mkdir(join(checkoutDir, "skills", "git-entry"), { recursive: true });
+          await writeFile(
+            join(checkoutDir, "skills", "git-entry", "SKILL.md"),
+            [
+              "---",
+              "name: git-entry",
+              'description: "Entry skill from a public git workflow."',
+              "---",
+              "",
+              "# git-entry",
+            ].join("\n"),
+          );
+          await writeFile(
+            join(checkoutDir, "workflow.json"),
+            JSON.stringify(
+              {
+                schemaVersion: "0.1",
+                name: "git-workflow",
+                version: "0.1.0",
+                description: "Installs from git.",
+                skills: [{ source: "./skills/git-entry" }],
+                steps: [{ id: "entry", title: "Entry", skill: "./skills/git-entry" }],
+              },
+              null,
+              2,
+            ),
+          );
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+
+        return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+      },
+    });
+
+    expect(commands.map((command) => command.args[0])).toEqual(["clone", "rev-parse"]);
+    expect(commands[0]?.args).toEqual(["clone", "--depth", "1", source, checkoutDir]);
+    expect(bundle.manifest.name).toBe("git-workflow");
+    expect(bundle.source).toEqual({ kind: "git", url: source, commit: "abc123" });
+    expect(getWorkflowSkillInstallSources(bundle)).toEqual([
+      join(checkoutDir, "skills", "git-entry"),
+    ]);
+
+    await bundle.cleanup?.();
+    await expect(stat(checkoutDir)).rejects.toThrow();
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  test("loads a public git workflow from a URL fragment subdirectory", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "workflow-bundle-git-subdir-"));
+    const source = "https://github.com/acme/workflows.git#examples/release-review";
+    const commands: WorkflowGitCommand[] = [];
+    let checkoutDir = "";
+
+    const bundle = await loadWorkflowBundle(source, {
+      tempDir,
+      runGitCommand: async (command) => {
+        commands.push(command);
+        if (command.args[0] === "clone") {
+          checkoutDir = command.args.at(-1) ?? "";
+          const workflowDir = join(checkoutDir, "examples", "release-review");
+          await mkdir(join(workflowDir, "skills", "git-entry"), { recursive: true });
+          await writeFile(
+            join(workflowDir, "skills", "git-entry", "SKILL.md"),
+            [
+              "---",
+              "name: git-entry",
+              'description: "Entry skill from a public git workflow subdirectory."',
+              "---",
+              "",
+              "# git-entry",
+            ].join("\n"),
+          );
+          await writeFile(
+            join(workflowDir, "workflow.json"),
+            JSON.stringify(
+              {
+                schemaVersion: "0.1",
+                name: "git-subdir-workflow",
+                version: "0.1.0",
+                description: "Installs from a git subdirectory.",
+                skills: [{ source: "./skills/git-entry" }],
+                steps: [{ id: "entry", title: "Entry", skill: "./skills/git-entry" }],
+              },
+              null,
+              2,
+            ),
+          );
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+
+        return { stdout: "def456\n", stderr: "", exitCode: 0 };
+      },
+    });
+
+    expect(commands[0]?.args).toEqual([
+      "clone",
+      "--depth",
+      "1",
+      "https://github.com/acme/workflows.git",
+      checkoutDir,
+    ]);
+    expect(bundle.source).toEqual({
+      kind: "git",
+      url: source,
+      commit: "def456",
+      subdirectory: "examples/release-review",
+    });
+    expect(getWorkflowSkillInstallSources(bundle)).toEqual([
+      join(checkoutDir, "examples", "release-review", "skills", "git-entry"),
+    ]);
+
+    await bundle.cleanup?.();
+    await expect(stat(checkoutDir)).rejects.toThrow();
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  test("loads a workflow from a file git URL with the default git runner", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "workflow-bundle-file-git-"));
+    const sourceRepo = join(rootDir, "source");
+    const tempDir = join(rootDir, "tmp");
+
+    await mkdir(join(sourceRepo, "skills", "file-entry"), { recursive: true });
+    await mkdir(tempDir, { recursive: true });
+    await writeFile(
+      join(sourceRepo, "skills", "file-entry", "SKILL.md"),
+      [
+        "---",
+        "name: file-entry",
+        'description: "Entry skill from a file git workflow."',
+        "---",
+        "",
+        "# file-entry",
+      ].join("\n"),
+    );
+    await writeFile(
+      join(sourceRepo, "workflow.json"),
+      JSON.stringify(
+        {
+          schemaVersion: "0.1",
+          name: "file-git-workflow",
+          version: "0.1.0",
+          description: "Installs from a file git source.",
+          skills: [{ source: "./skills/file-entry" }],
+          steps: [{ id: "entry", title: "Entry", skill: "./skills/file-entry" }],
+        },
+        null,
+        2,
+      ),
+    );
+    await runGit(["init"], sourceRepo);
+    await runGit(["config", "user.email", "test@example.invalid"], sourceRepo);
+    await runGit(["config", "user.name", "Workflow Test"], sourceRepo);
+    await runGit(["add", "."], sourceRepo);
+    await runGit(["commit", "-m", "add workflow"], sourceRepo);
+
+    const bundle = await loadWorkflowBundle(pathToFileURL(sourceRepo).href, { tempDir });
+
+    expect(bundle.manifest.name).toBe("file-git-workflow");
+    expect(bundle.source.kind).toBe("git");
+    expect(bundle.source).toHaveProperty("commit");
+    expect(getWorkflowSkillInstallSources(bundle)[0]).toContain("file-entry");
+    await bundle.cleanup?.();
+    expect(
+      (await readdir(tempDir)).filter((entry) => entry.startsWith("getsuperpower-git-")),
+    ).toEqual([]);
+    await rm(rootDir, { recursive: true, force: true });
+  });
+
+  test("reports public git clone failures with the source URL", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "workflow-bundle-git-failure-"));
+    const source = "https://github.com/acme/missing-workflow.git";
+
+    await expect(
+      loadWorkflowBundle(source, {
+        tempDir,
+        runGitCommand: async () => ({
+          stdout: "",
+          stderr: "repository not found",
+          exitCode: 128,
+        }),
+      }),
+    ).rejects.toThrow(`Public git workflow source could not be fetched: ${source}`);
+
+    expect(await readdir(tempDir)).toEqual([]);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  test("cleans a public git checkout when workflow.json is missing", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "workflow-bundle-git-missing-"));
+    let checkoutDir = "";
+
+    await expect(
+      loadWorkflowBundle("https://github.com/acme/not-a-workflow.git", {
+        tempDir,
+        runGitCommand: async (command) => {
+          if (command.args[0] === "clone") {
+            checkoutDir = command.args.at(-1) ?? "";
+            await mkdir(checkoutDir, { recursive: true });
+            return { stdout: "", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "abc123\n", stderr: "", exitCode: 0 };
+        },
+      }),
+    ).rejects.toThrow("No GetSuperpower workflow manifest was found");
+
+    await expect(stat(checkoutDir)).rejects.toThrow();
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
   test("installs and lists workflow bundles under .getsuperpower", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "workflow-bundle-install-"));
     const bundle = await loadWorkflowBundle("product-dev");
@@ -180,3 +404,20 @@ describe("workflow bundles", () => {
     expect(workflows.map((workflow) => workflow.name)).toEqual(["product-dev"]);
   });
 });
+
+async function runGit(args: string[], cwd: string): Promise<void> {
+  const subprocess = Bun.spawn(["git", ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(subprocess.stdout).text(),
+    new Response(subprocess.stderr).text(),
+    subprocess.exited,
+  ]);
+
+  if (exitCode !== 0) {
+    throw new Error(`git ${args.join(" ")} failed: ${stderr.trim() || stdout.trim()}`);
+  }
+}

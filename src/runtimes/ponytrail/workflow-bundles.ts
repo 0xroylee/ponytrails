@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { z } from "zod";
 
@@ -54,11 +55,41 @@ export const WorkflowBundleManifestSchema = z
 
 export type WorkflowBundleManifest = z.infer<typeof WorkflowBundleManifestSchema>;
 
+export interface WorkflowGitCommand {
+  executable: string;
+  args: string[];
+  cwd: string;
+  env: Record<string, string | undefined>;
+}
+
+export interface WorkflowGitCommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export type WorkflowGitCommandRunner = (
+  command: WorkflowGitCommand,
+) => Promise<WorkflowGitCommandResult>;
+
+export type WorkflowBundleSource =
+  | {
+      kind: "bundled" | "local";
+      path: string;
+    }
+  | {
+      kind: "git";
+      url: string;
+      commit?: string;
+      subdirectory?: string;
+    };
+
 export interface WorkflowBundle {
   manifest: WorkflowBundleManifest;
   sourceDir: string;
   manifestPath: string;
-  bundled: boolean;
+  source: WorkflowBundleSource;
+  cleanup?: () => Promise<void>;
 }
 
 export interface WorkflowBundleScaffold {
@@ -69,10 +100,7 @@ export interface WorkflowBundleScaffold {
 }
 
 export interface InstalledWorkflowBundle extends WorkflowBundleManifest {
-  source: {
-    kind: "bundled" | "local";
-    path: string;
-  };
+  source: WorkflowBundleSource;
 }
 
 export interface WorkflowInstallResult {
@@ -82,22 +110,44 @@ export interface WorkflowInstallResult {
 
 export async function loadWorkflowBundle(
   source: string,
-  options: { cwd?: string } = {},
+  options: {
+    cwd?: string;
+    runGitCommand?: WorkflowGitCommandRunner;
+    tempDir?: string;
+  } = {},
 ): Promise<WorkflowBundle> {
-  const sourceDir = resolveWorkflowBundleSource(source, options.cwd ?? process.cwd());
-  const manifestPath = sourceDir.endsWith(workflowFileName)
-    ? sourceDir
-    : join(sourceDir, workflowFileName);
-  const manifestDir = sourceDir.endsWith(workflowFileName) ? dirname(sourceDir) : sourceDir;
-  const rawManifest = await readFile(manifestPath, "utf8");
-  const manifest = WorkflowBundleManifestSchema.parse(JSON.parse(rawManifest));
+  const resolvedSource = await resolveWorkflowBundleSource(source, {
+    cwd: options.cwd ?? process.cwd(),
+    ...(options.runGitCommand ? { runGitCommand: options.runGitCommand } : {}),
+    ...(options.tempDir ? { tempDir: options.tempDir } : {}),
+  });
+  const manifestPath = resolvedSource.sourceDir.endsWith(workflowFileName)
+    ? resolvedSource.sourceDir
+    : join(resolvedSource.sourceDir, workflowFileName);
+  const manifestDir = resolvedSource.sourceDir.endsWith(workflowFileName)
+    ? dirname(resolvedSource.sourceDir)
+    : resolvedSource.sourceDir;
 
-  return {
-    manifest,
-    sourceDir: manifestDir,
-    manifestPath,
-    bundled: isBundledWorkflowSource(source),
-  };
+  try {
+    const rawManifest = await readFile(manifestPath, "utf8");
+    const manifest = WorkflowBundleManifestSchema.parse(JSON.parse(rawManifest));
+
+    return {
+      manifest,
+      sourceDir: manifestDir,
+      manifestPath,
+      source: resolvedSource.source,
+      ...(resolvedSource.cleanup ? { cleanup: resolvedSource.cleanup } : {}),
+    };
+  } catch (error) {
+    await resolvedSource.cleanup?.();
+    if (resolvedSource.source.kind === "git" && isMissingFileError(error)) {
+      throw new Error(
+        `No GetSuperpower workflow manifest was found at ${manifestPath} from public git source: ${resolvedSource.source.url}`,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function createWorkflowBundleScaffold(input: {
@@ -185,10 +235,7 @@ export function getWorkflowSkillInstallSources(bundle: WorkflowBundle): string[]
 function createInstalledWorkflowBundle(bundle: WorkflowBundle): InstalledWorkflowBundle {
   return {
     ...bundle.manifest,
-    source: {
-      kind: bundle.bundled ? "bundled" : "local",
-      path: bundle.sourceDir,
-    },
+    source: bundle.source,
   };
 }
 
@@ -273,12 +320,32 @@ function formatEntrySkillSource(source: string): string {
   return source;
 }
 
-function resolveWorkflowBundleSource(source: string, cwd: string): string {
-  if (isLocalWorkflowSource(source)) {
-    return isAbsolute(source) ? source : resolve(cwd, source);
+interface ResolvedWorkflowBundleSource {
+  sourceDir: string;
+  source: WorkflowBundleSource;
+  cleanup?: () => Promise<void>;
+}
+
+async function resolveWorkflowBundleSource(
+  source: string,
+  options: {
+    cwd: string;
+    runGitCommand?: WorkflowGitCommandRunner;
+    tempDir?: string;
+  },
+): Promise<ResolvedWorkflowBundleSource> {
+  const gitSource = parseGitWorkflowSource(source);
+  if (gitSource) {
+    return cloneGitWorkflowSource(gitSource, options);
   }
 
-  return join(findBundledWorkflowsDir(), source);
+  if (isLocalWorkflowSource(source)) {
+    const sourceDir = isAbsolute(source) ? source : resolve(options.cwd, source);
+    return { sourceDir, source: { kind: "local", path: sourceDir } };
+  }
+
+  const sourceDir = join(findBundledWorkflowsDir(), source);
+  return { sourceDir, source: { kind: "bundled", path: sourceDir } };
 }
 
 function isLocalWorkflowSource(source: string): boolean {
@@ -293,8 +360,155 @@ function isLocalWorkflowSource(source: string): boolean {
   );
 }
 
-function isBundledWorkflowSource(source: string): boolean {
-  return !isLocalWorkflowSource(source);
+interface GitWorkflowSource {
+  cloneUrl: string;
+  url: string;
+  subdirectory?: string;
+}
+
+function parseGitWorkflowSource(source: string): GitWorkflowSource | null {
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "file:") {
+    return null;
+  }
+
+  const subdirectory = parseGitWorkflowSubdirectory(url.hash);
+  url.hash = "";
+
+  return {
+    cloneUrl: url.toString(),
+    url: source,
+    ...(subdirectory ? { subdirectory } : {}),
+  };
+}
+
+function parseGitWorkflowSubdirectory(hash: string): string | undefined {
+  if (!hash) {
+    return undefined;
+  }
+
+  const rawHash = decodeURIComponent(hash.slice(1));
+  const params = new URLSearchParams(rawHash);
+  const candidate = params.get("path") ?? (rawHash.includes("=") ? undefined : rawHash);
+  if (!candidate) {
+    return undefined;
+  }
+
+  const normalized = candidate
+    .split("/")
+    .filter((part) => part.length > 0 && part !== ".")
+    .join("/");
+  if (!normalized) {
+    return undefined;
+  }
+  if (
+    normalized === ".." ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    isAbsolute(normalized)
+  ) {
+    throw new Error(`Unsupported public git workflow subdirectory: ${candidate}`);
+  }
+
+  return normalized;
+}
+
+async function cloneGitWorkflowSource(
+  source: GitWorkflowSource,
+  options: {
+    cwd: string;
+    runGitCommand?: WorkflowGitCommandRunner;
+    tempDir?: string;
+  },
+): Promise<ResolvedWorkflowBundleSource> {
+  const tempRoot = await mkdtemp(join(options.tempDir ?? tmpdir(), "getsuperpower-git-"));
+  const checkoutDir = join(tempRoot, "checkout");
+  const cleanup = () => rm(tempRoot, { recursive: true, force: true });
+
+  try {
+    await runRequiredGitCommand(
+      {
+        executable: "git",
+        args: ["clone", "--depth", "1", source.cloneUrl, checkoutDir],
+        cwd: options.cwd,
+        env: process.env,
+      },
+      options.runGitCommand,
+      `Public git workflow source could not be fetched: ${source.url}`,
+    );
+
+    const commitResult = await runOptionalGitCommand(
+      {
+        executable: "git",
+        args: ["rev-parse", "HEAD"],
+        cwd: checkoutDir,
+        env: process.env,
+      },
+      options.runGitCommand,
+    );
+    const commit = commitResult.exitCode === 0 ? commitResult.stdout.trim() : undefined;
+    const sourceDir = source.subdirectory ? join(checkoutDir, source.subdirectory) : checkoutDir;
+
+    return {
+      sourceDir,
+      source: {
+        kind: "git",
+        url: source.url,
+        ...(commit ? { commit } : {}),
+        ...(source.subdirectory ? { subdirectory: source.subdirectory } : {}),
+      },
+      cleanup,
+    };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+}
+
+async function runRequiredGitCommand(
+  command: WorkflowGitCommand,
+  runGitCommand: WorkflowGitCommandRunner | undefined,
+  failureMessage: string,
+): Promise<WorkflowGitCommandResult> {
+  const result = await runOptionalGitCommand(command, runGitCommand);
+  if (result.exitCode !== 0) {
+    const detail = [result.stderr.trim(), result.stdout.trim()].filter(Boolean).join("\n");
+    throw new Error(detail ? `${failureMessage}\n${detail}` : failureMessage);
+  }
+  return result;
+}
+
+async function runOptionalGitCommand(
+  command: WorkflowGitCommand,
+  runGitCommand: WorkflowGitCommandRunner | undefined,
+): Promise<WorkflowGitCommandResult> {
+  if (runGitCommand) {
+    return runGitCommand(command);
+  }
+
+  const subprocess = Bun.spawn([command.executable, ...command.args], {
+    cwd: command.cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: command.env,
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(subprocess.stdout).text(),
+    new Response(subprocess.stderr).text(),
+    subprocess.exited,
+  ]);
+
+  return { stdout, stderr, exitCode };
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException).code === "ENOENT";
 }
 
 function findBundledWorkflowsDir(): string {

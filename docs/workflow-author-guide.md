@@ -268,6 +268,20 @@ git push origin codex/add-support-triage-workflow
 If you do not have write access, fork the repo on GitHub, push the branch to
 your fork, then open a pull request into `0xroylee/getsuperpower`.
 
+Users can also install a workflow directly from a public git repository when
+the repository root contains `workflow.json`:
+
+```bash
+npx getsuperpower install https://github.com/acme/support-triage.git
+```
+
+If the workflow lives in a subdirectory, add the workflow path as a URL
+fragment:
+
+```bash
+npx getsuperpower install 'https://github.com/acme/workflows.git#examples/workflows/support-triage'
+```
+
 Before opening the pull request, run:
 
 ```bash
