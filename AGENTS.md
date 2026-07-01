@@ -56,8 +56,8 @@ Author or user request
   `skills[]`; it does not need a workflow step.
 - Every `steps[].skill` value must exactly match a declared `skills[].source`.
 - `getsuperpower install` and `getsuperpower clone` are the same operation.
-- The older `bundle`, `workflow`, and `getsuperpower` nested command surfaces
-  exist only as compatibility aliases.
+- The older `bundle` and `workflow` command surfaces exist only as
+  compatibility aliases.
 - Pony Trail history, revert, and prehook features are paused. Do not expose or
   document them as active CLI commands unless the feature is explicitly resumed.
 

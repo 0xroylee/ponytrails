@@ -93,11 +93,6 @@ export function configureGetSuperpowerCommand(
 ): Command {
   configureGetSuperpowerCommands(program, options);
 
-  const getsuperpowerCommand = program
-    .command("getsuperpower")
-    .description("Compatibility alias for root GetSuperpower commands.");
-  configureGetSuperpowerCommands(getsuperpowerCommand, options);
-
   const bundleCommand = program
     .command("bundle")
     .description("Compatibility alias for GetSuperpower authoring.");

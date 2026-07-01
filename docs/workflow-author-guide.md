@@ -64,7 +64,7 @@ support-triage
 From the repo root:
 
 ```bash
-bun run dev -- getsuperpower init support-triage --dir examples/workflows
+bun run dev -- init support-triage --dir examples/workflows
 ```
 
 This creates:
@@ -198,7 +198,7 @@ Then update `workflow.json` to use:
 Run:
 
 ```bash
-bun run dev -- getsuperpower validate examples/workflows/support-triage
+bun run dev -- validate examples/workflows/support-triage
 ```
 
 Expected output:
@@ -214,14 +214,14 @@ Skills: 5
 Show the dependencies before installing:
 
 ```bash
-bun run dev -- getsuperpower deps examples/workflows/support-triage
+bun run dev -- deps examples/workflows/support-triage
 ```
 
 Install or clone it into a project:
 
 ```bash
-bun run dev -- getsuperpower install examples/workflows/support-triage
-bun run dev -- getsuperpower clone examples/workflows/support-triage
+bun run dev -- install examples/workflows/support-triage
+bun run dev -- clone examples/workflows/support-triage
 ```
 
 `clone` is the same operation as `install`; it exists so shared GetSuperpowers
@@ -230,7 +230,7 @@ feel natural to adopt from another author.
 Then list installed GetSuperpowers:
 
 ```bash
-bun run dev -- getsuperpower list
+bun run dev -- list
 ```
 
 You should see:
@@ -300,7 +300,7 @@ The checked-in `real-engineering` workflow shows how to combine local workflow
 guidance with external skill packs:
 
 ```bash
-bun run dev -- getsuperpower validate examples/workflows/real-engineering
+bun run dev -- validate examples/workflows/real-engineering
 ```
 
 It uses:

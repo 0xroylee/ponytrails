@@ -56,7 +56,6 @@ describe("cli", () => {
       "clone",
       "list",
       "deps",
-      "getsuperpower",
       "bundle",
       "workflow",
       "skills",
@@ -76,26 +75,11 @@ describe("cli", () => {
     }
 
     const rootDepsCommand = program.commands.find((command) => command.name() === "deps");
-    const getsuperpowerCommand = program.commands.find(
-      (command) => command.name() === "getsuperpower",
-    );
     const bundleCommand = program.commands.find((command) => command.name() === "bundle");
     const workflowCommand = program.commands.find((command) => command.name() === "workflow");
     const skillsCommand = program.commands.find((command) => command.name() === "skills");
 
     expect(rootDepsCommand?.aliases()).toEqual(["dependencies", "dependence"]);
-    expect(getsuperpowerCommand?.commands.map((command) => command.name())).toEqual([
-      "init",
-      "validate",
-      "install",
-      "clone",
-      "list",
-      "deps",
-    ]);
-    expect(getsuperpowerCommand?.commands.at(-1)?.aliases()).toEqual([
-      "dependencies",
-      "dependence",
-    ]);
     expect(bundleCommand?.commands.map((command) => command.name())).toEqual(["init", "validate"]);
     expect(workflowCommand?.commands.map((command) => command.name())).toEqual(["install", "list"]);
     expect(skillsCommand?.commands.map((command) => command.name())).toEqual(["install", "update"]);
@@ -244,10 +228,9 @@ describe("cli", () => {
     };
 
     try {
-      await buildProgram().parseAsync(
-        ["getsuperpower", "deps", "examples/workflows/real-engineering"],
-        { from: "user" },
-      );
+      await buildProgram().parseAsync(["deps", "examples/workflows/real-engineering"], {
+        from: "user",
+      });
 
       expect(stripAnsiLines(logs)).toContain("GetSuperpower dependencies: real-engineering");
       expect(stripAnsiLines(logs)).toContain("- ./skills/rtk-command-discipline");

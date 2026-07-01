@@ -53,27 +53,10 @@ describe("getsuperpower command module", () => {
       "clone",
       "list",
       "deps",
-      "getsuperpower",
       "bundle",
       "workflow",
     ]);
     expect(program.commands.find((command) => command.name() === "deps")?.aliases()).toEqual([
-      "dependencies",
-      "dependence",
-    ]);
-
-    const getsuperpowerCommand = program.commands.find(
-      (command) => command.name() === "getsuperpower",
-    );
-    expect(getsuperpowerCommand?.commands.map((command) => command.name())).toEqual([
-      "init",
-      "validate",
-      "install",
-      "clone",
-      "list",
-      "deps",
-    ]);
-    expect(getsuperpowerCommand?.commands.at(-1)?.aliases()).toEqual([
       "dependencies",
       "dependence",
     ]);
@@ -258,17 +241,7 @@ describe("getsuperpower command module", () => {
 
     await expect(
       program.parseAsync(
-        [
-          "getsuperpower",
-          "install",
-          bundleDir,
-          "--dir",
-          rootDir,
-          "--home",
-          homeDir,
-          "--agents",
-          "codex",
-        ],
+        ["install", bundleDir, "--dir", rootDir, "--home", homeDir, "--agents", "codex"],
         { from: "user" },
       ),
     ).rejects.toThrow(
