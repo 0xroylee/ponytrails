@@ -127,12 +127,12 @@ describe("workflow bundles", () => {
     ]);
   });
 
-  test("loads the openspec-superpowers example workflow from the handoff diagram", async () => {
+  test("loads the openspec delivery example workflow from the handoff diagram", async () => {
     const bundle = await loadWorkflowBundle("examples/workflows/openspec-superpowers");
 
-    expect(bundle.manifest.name).toBe("openspec-superpowers");
+    expect(bundle.manifest.name).toBe("openspec-delivery");
     expect(bundle.manifest.skills.map((skill) => skill.source)).toEqual([
-      "./skills/openspec-superpowers",
+      "./skills/openspec-delivery",
       "./skills/opsx-handoff-review",
       "superpowers:brainstorming",
       "superpowers:writing-plans",
@@ -157,12 +157,12 @@ describe("workflow bundles", () => {
           "workflows",
           "openspec-superpowers",
           "skills",
-          "openspec-superpowers",
+          "openspec-delivery",
           "SKILL.md",
         ),
         "utf8",
       ),
-    ).resolves.toContain("This is the entry skill for the openspec-superpowers GetSuperpower.");
+    ).resolves.toContain("This is the entry skill for the openspec-delivery GetSuperpower.");
   });
 
   test("loads a workflow bundle from a public git URL", async () => {

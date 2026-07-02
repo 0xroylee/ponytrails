@@ -56,13 +56,13 @@ describe("cli", () => {
       "clone",
       "list",
       "deps",
+      "onboard",
       "bundle",
       "workflow",
       "skills",
     ]);
     for (const removedCommand of [
       "setup",
-      "onboard",
       "bots",
       "goal",
       "ponyrace",

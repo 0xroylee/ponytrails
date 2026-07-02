@@ -6,6 +6,7 @@ import { Command } from "commander";
 import {
   configureGetSuperpowerCommand,
   type GetSuperpowerExternalSkillCommand,
+  type GetSuperpowerOnboardCommand,
   installExternalSkillDependencyWithSkillsCli,
 } from "../src/getsuperpower";
 import { MissingMattPocockSkillError, type SkillInstallResult } from "../src/plugins";
@@ -84,6 +85,7 @@ describe("getsuperpower command module", () => {
       "clone",
       "list",
       "deps",
+      "onboard",
       "bundle",
       "workflow",
     ]);
@@ -304,6 +306,264 @@ describe("getsuperpower command module", () => {
     }
   });
 
+  test("onboard skips RTK and CodeGraph setup when declined", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-onboard-"));
+    const logs: string[] = [];
+    const prompts: string[] = [];
+    const commands: GetSuperpowerOnboardCommand[] = [];
+    const originalLog = console.log;
+    const program = new Command();
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        installSkill: async () => {
+          throw new Error("install is not exercised by onboard");
+        },
+        printSkillInstallResult: () => {},
+        onboardPrompt: {
+          confirm: async (input) => {
+            prompts.push(input.message);
+            return false;
+          },
+        },
+        onboardCommandRunner: async (command) => {
+          commands.push(command);
+          return { stdout: "", stderr: "rtk missing", exitCode: 1 };
+        },
+      });
+
+      await program.parseAsync(["onboard", "--dir", rootDir], { from: "user" });
+
+      expect(commands).toEqual([
+        {
+          executable: "rtk",
+          args: ["--version"],
+          cwd: rootDir,
+          env: expect.objectContaining({}),
+        },
+      ]);
+      expect(prompts).toEqual([
+        "RTK is not available. Show RTK setup guidance to reduce Codex token usage?",
+        "CodeGraph is not initialized. Index this codebase with CodeGraph now?",
+      ]);
+      expect(stripAnsiLines(logs)).toContain("RTK setup skipped");
+      expect(stripAnsiLines(logs)).toContain("CodeGraph setup skipped");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("onboard prints RTK setup guidance when RTK setup is accepted", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-onboard-"));
+    const logs: string[] = [];
+    const promptAnswers = [true, false];
+    const originalLog = console.log;
+    const program = new Command();
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        installSkill: async () => {
+          throw new Error("install is not exercised by onboard");
+        },
+        printSkillInstallResult: () => {},
+        onboardPrompt: {
+          confirm: async () => promptAnswers.shift() ?? false,
+        },
+        onboardCommandRunner: async () => ({
+          stdout: "",
+          stderr: "rtk missing",
+          exitCode: 1,
+        }),
+      });
+
+      await program.parseAsync(["onboard", "--dir", rootDir], { from: "user" });
+
+      expect(stripAnsiLines(logs)).toContain("RTK setup guidance");
+      expect(stripAnsiLines(logs)).toContain("Install or enable RTK, then verify it with:");
+      expect(stripAnsiLines(logs)).toContain("rtk --version");
+      expect(stripAnsiLines(logs)).toContain("CodeGraph setup skipped");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("onboard fails clearly when the target directory is missing", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-onboard-"));
+    const program = new Command();
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        installSkill: async () => {
+          throw new Error("install is not exercised by onboard");
+        },
+        printSkillInstallResult: () => {},
+      });
+
+      await expect(
+        program.parseAsync(["onboard", "--dir", "missing"], { from: "user" }),
+      ).rejects.toThrow("Onboard target directory does not exist:");
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("onboard reports RTK and CodeGraph as ready when both are available", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-onboard-"));
+    const logs: string[] = [];
+    const prompts: string[] = [];
+    const commands: GetSuperpowerOnboardCommand[] = [];
+    const originalLog = console.log;
+    const program = new Command();
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      await mkdir(join(rootDir, ".codegraph"), { recursive: true });
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        installSkill: async () => {
+          throw new Error("install is not exercised by onboard");
+        },
+        printSkillInstallResult: () => {},
+        onboardPrompt: {
+          confirm: async (input) => {
+            prompts.push(input.message);
+            return true;
+          },
+        },
+        onboardCommandRunner: async (command) => {
+          commands.push(command);
+          return { stdout: "rtk 1.0.0", stderr: "", exitCode: 0 };
+        },
+      });
+
+      await program.parseAsync(["onboard", "--dir", rootDir], { from: "user" });
+
+      expect(commands).toEqual([
+        {
+          executable: "rtk",
+          args: ["--version"],
+          cwd: rootDir,
+          env: expect.objectContaining({}),
+        },
+      ]);
+      expect(prompts).toEqual([]);
+      expect(stripAnsiLines(logs)).toContain("RTK ready");
+      expect(stripAnsiLines(logs)).toContain("CodeGraph ready");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("onboard runs CodeGraph indexing when confirmed", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-onboard-"));
+    const logs: string[] = [];
+    const prompts: string[] = [];
+    const promptAnswers = [false, true];
+    const commands: GetSuperpowerOnboardCommand[] = [];
+    const originalLog = console.log;
+    const program = new Command();
+
+    console.log = (...values: unknown[]) => {
+      logs.push(values.join(" "));
+    };
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        installSkill: async () => {
+          throw new Error("install is not exercised by onboard");
+        },
+        printSkillInstallResult: () => {},
+        onboardPrompt: {
+          confirm: async (input) => {
+            prompts.push(input.message);
+            return promptAnswers.shift() ?? false;
+          },
+        },
+        onboardCommandRunner: async (command) => {
+          commands.push(command);
+          if (command.executable === "codegraph") {
+            return { stdout: "indexed", stderr: "", exitCode: 0 };
+          }
+          return { stdout: "", stderr: "rtk missing", exitCode: 1 };
+        },
+      });
+
+      await program.parseAsync(["onboard", "--dir", rootDir], { from: "user" });
+
+      expect(commands).toEqual([
+        {
+          executable: "rtk",
+          args: ["--version"],
+          cwd: rootDir,
+          env: expect.objectContaining({}),
+        },
+        {
+          executable: "codegraph",
+          args: ["init", "-i"],
+          cwd: rootDir,
+          env: expect.objectContaining({}),
+        },
+      ]);
+      expect(prompts).toHaveLength(2);
+      expect(stripAnsiLines(logs)).toContain("RTK setup skipped");
+      expect(stripAnsiLines(logs)).toContain("CodeGraph indexed");
+    } finally {
+      console.log = originalLog;
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("onboard reports CodeGraph setup failures with command detail", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-onboard-"));
+    const promptAnswers = [false, true];
+    const program = new Command();
+
+    try {
+      configureGetSuperpowerCommand(program, {
+        rootDir,
+        installSkill: async () => {
+          throw new Error("install is not exercised by onboard");
+        },
+        printSkillInstallResult: () => {},
+        onboardPrompt: {
+          confirm: async () => promptAnswers.shift() ?? false,
+        },
+        onboardCommandRunner: async (command) => {
+          if (command.executable === "codegraph") {
+            return { stdout: "", stderr: "permission denied", exitCode: 2 };
+          }
+          return { stdout: "", stderr: "rtk missing", exitCode: 1 };
+        },
+      });
+
+      await expect(
+        program.parseAsync(["onboard", "--dir", rootDir], { from: "user" }),
+      ).rejects.toThrow(
+        "CodeGraph setup failed while running codegraph init -i: permission denied",
+      );
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
   test("uses the skills CLI by default before retrying missing external skill installs", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "getsuperpower-"));
     const homeDir = await mkdtemp(join(tmpdir(), "getsuperpower-home-"));
@@ -459,3 +719,12 @@ describe("getsuperpower command module", () => {
     ]);
   });
 });
+
+function stripAnsiLines(lines: string[]): string[] {
+  return lines.map(stripAnsi);
+}
+
+function stripAnsi(value: string): string {
+  const escapeCharacter = String.fromCharCode(27);
+  return value.replace(new RegExp(`${escapeCharacter}\\[[0-?]*[ -/]*[@-~]`, "g"), "");
+}
