@@ -11,3 +11,4 @@ docs/superpowers/
 .codegraph
 __pycache__/
 *.pyc
+.env
