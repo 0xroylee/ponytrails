@@ -3,7 +3,14 @@
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { Command } from "commander";
-import pc from "picocolors";
+import {
+  keyValue,
+  muted,
+  rootHelpBanner,
+  styleHelpTerm,
+  styleHelpTitle,
+  success,
+} from "./cli-theme";
 import {
   configureGetSuperpowerCommand,
   type GetSuperpowerExternalSkillDependencyInstaller,
@@ -39,6 +46,15 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .description("Install, author, and inspect GetSuperpower skill trees.")
     .version(CLI_VERSION)
     .option("-v", "output the version number");
+  program.configureHelp({
+    styleTitle: styleHelpTitle,
+    styleSubcommandTerm: styleHelpTerm,
+    styleOptionTerm: styleHelpTerm,
+  });
+  program.addHelpText("before", rootHelpBanner);
+  program.action(() => {
+    program.help();
+  });
 
   program.on("option:v", () => {
     outputVersionAndExit(program, CLI_VERSION);
@@ -251,26 +267,26 @@ function printSkillInstallResult(
   operation: SkillChangeOperation = "install",
   options: SkillInstallPrintOptions = {},
 ): void {
-  console.log(pc.cyan(result.dryRun ? `Skill ${operation} plan` : `Skill ${operation} result`));
-  console.log(`Skill: ${result.skillName}`);
-  console.log(`${pc.dim("Source:")} ${result.source.path}`);
+  console.log(success(result.dryRun ? `Skill ${operation} plan` : `Skill ${operation} result`));
+  console.log(keyValue("Skill", result.skillName));
+  console.log(keyValue("Source", result.source.path));
 
   for (const target of result.targets) {
     console.log(
-      `${target.agent}: ${formatSkillInstallStatus(target.status)} ${pc.dim(target.destination)}`,
+      `${target.agent}: ${formatSkillInstallStatus(target.status)} ${muted(target.destination)}`,
     );
   }
 
   if (result.prehooks.length > 0) {
     console.log("");
     console.log(
-      pc.cyan(result.dryRun ? `Prehook ${operation} plan` : `Prehook ${operation} result`),
+      success(result.dryRun ? `Prehook ${operation} plan` : `Prehook ${operation} result`),
     );
     for (const prehook of result.prehooks) {
       console.log(
-        `${prehook.agent}: ${formatSkillInstallStatus(prehook.status)} ${pc.dim(
+        `${prehook.agent}: ${formatSkillInstallStatus(prehook.status)} ${muted(
           prehook.hookScript,
-        )} ${pc.dim(`settings: ${prehook.settingsPath}`)}`,
+        )} ${muted(`settings: ${prehook.settingsPath}`)}`,
       );
     }
   }
@@ -303,15 +319,15 @@ function formatSkillInstallStatus(status: SkillInstallResult["targets"][number][
 
 function printExternalSkillsPackageInstallResult(result: InstallExternalSkillsPackageResult): void {
   console.log(
-    pc.cyan(result.dryRun ? "Skills package install plan" : "Skills package install result"),
+    success(result.dryRun ? "Skills package install plan" : "Skills package install result"),
   );
-  console.log(`Package: ${result.packageName}`);
-  console.log(`${pc.dim("Home:")} ${result.homeDir}`);
-  console.log(`${pc.dim("Internal command:")} npx --yes skills@latest add ${result.packageName}`);
+  console.log(keyValue("Package", result.packageName));
+  console.log(keyValue("Home", result.homeDir));
+  console.log(keyValue("Internal command", `npx --yes skills@latest add ${result.packageName}`));
 
   if (!result.dryRun) {
     console.log("");
-    console.log(pc.green("Welcome to GetSuperpower."));
+    console.log(success("Welcome to GetSuperpower."));
     console.log("Restart your agent IDE so it loads the latest skills.");
   }
 }
@@ -322,7 +338,7 @@ function printPostSkillChangeWelcome(result: SkillInstallResult): void {
   }
 
   console.log("");
-  console.log(pc.green("Welcome to GetSuperpower."));
+  console.log(success("Welcome to GetSuperpower."));
   console.log("Restart your agent IDE so it loads the latest skills.");
 }
 

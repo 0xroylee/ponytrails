@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { cancel as clackCancel, confirm as clackConfirm, isCancel } from "@clack/prompts";
 import type { Command } from "commander";
-import pc from "picocolors";
+import { commandText, keyValue, muted, nextStep, success, warning } from "./cli-theme";
 import {
   MissingMattPocockSkillError,
   parseSkillInstallAgents,
@@ -160,9 +160,9 @@ function configureAuthorCommands(
         name,
       });
 
-      console.log(`GetSuperpower created: ${scaffold.bundleDir}`);
-      console.log(`${pc.dim("Manifest:")} ${scaffold.manifestPath}`);
-      console.log(`${pc.dim("README:")} ${scaffold.readmePath}`);
+      console.log(success(`GetSuperpower created: ${scaffold.bundleDir}`));
+      console.log(keyValue("Manifest", scaffold.manifestPath));
+      console.log(keyValue("README", scaffold.readmePath));
     });
 
   command
@@ -177,9 +177,11 @@ function configureAuthorCommands(
           : {}),
       });
       try {
-        console.log(`GetSuperpower valid: ${bundle.manifest.name}@${bundle.manifest.version}`);
-        console.log(`${pc.dim("Steps:")} ${bundle.manifest.steps.length}`);
-        console.log(`${pc.dim("Skills:")} ${bundle.manifest.skills.length}`);
+        console.log(
+          success(`GetSuperpower valid: ${bundle.manifest.name}@${bundle.manifest.version}`),
+        );
+        console.log(keyValue("Steps", String(bundle.manifest.steps.length)));
+        console.log(keyValue("Skills", String(bundle.manifest.skills.length)));
       } finally {
         await bundle.cleanup?.();
       }
@@ -258,8 +260,8 @@ async function runGetSuperpowerInstall(
 
     const install = await installWorkflowBundle({ rootDir: targetDir, bundle });
 
-    console.log(`GetSuperpower installed: ${install.workflow.name}`);
-    console.log(`${pc.dim("GetSuperpower file:")} ${install.path}`);
+    console.log(success(`GetSuperpower installed: ${install.workflow.name}`));
+    console.log(keyValue("GetSuperpower file", install.path));
   } finally {
     await bundle.cleanup?.();
   }
@@ -283,7 +285,7 @@ async function installGetSuperpowerSkillDependency(input: {
     }
 
     if (!input.installedExternalPackages.has(externalPackage)) {
-      console.log(`Installing external skill dependency with skills CLI: ${externalPackage}`);
+      console.log(keyValue("Installing external skill dependency", externalPackage));
       await input.installExternalSkillDependency({
         source: input.source,
         homeDir: input.homeDir,
@@ -416,7 +418,8 @@ function configureListCommand(command: Command, rootDir: string): void {
       });
 
       if (workflows.length === 0) {
-        console.log(pc.dim("No GetSuperpowers installed."));
+        console.log(muted("No GetSuperpowers installed."));
+        console.log(nextStep("getsuperpower install product-dev"));
         return;
       }
 
@@ -443,7 +446,7 @@ function configureDependencyCommand(
           : {}),
       });
       try {
-        console.log(`GetSuperpower dependencies: ${bundle.manifest.name}`);
+        console.log(success(`GetSuperpower dependencies: ${bundle.manifest.name}`));
         for (const skill of bundle.manifest.skills) {
           const optional = skill.optional ? " (optional)" : "";
           console.log(`- ${skill.source}${optional}`);
@@ -477,7 +480,8 @@ async function runGetSuperpowerOnboard(
   const prompt = options.onboardPrompt ?? createDefaultOnboardPrompt();
   const runCommand = options.onboardCommandRunner ?? runExternalSkillCommand;
 
-  console.log(`GetSuperpower onboard: ${targetDir}`);
+  console.log(success("GetSuperpower onboard"));
+  console.log(keyValue("Workspace", targetDir));
 
   const rtkResult = await runCommand({
     executable: "rtk",
@@ -487,7 +491,7 @@ async function runGetSuperpowerOnboard(
   });
 
   if (rtkResult.exitCode === 0) {
-    console.log("RTK ready");
+    console.log(success("RTK ready"));
   } else if (
     await prompt.confirm({
       message: "RTK is not available. Show RTK setup guidance to reduce Codex token usage?",
@@ -496,12 +500,12 @@ async function runGetSuperpowerOnboard(
   ) {
     printRtkSetupGuidance();
   } else {
-    console.log("RTK setup skipped");
+    console.log(warning("RTK setup skipped"));
   }
 
   const codegraphDir = join(targetDir, ".codegraph");
   if (existsSync(codegraphDir)) {
-    console.log("CodeGraph ready");
+    console.log(success("CodeGraph ready"));
   } else if (
     await prompt.confirm({
       message: "CodeGraph is not initialized. Index this codebase with CodeGraph now?",
@@ -510,16 +514,16 @@ async function runGetSuperpowerOnboard(
   ) {
     await runCodeGraphInit({ targetDir, runCommand });
   } else {
-    console.log("CodeGraph setup skipped");
+    console.log(warning("CodeGraph setup skipped"));
   }
 
-  console.log("GetSuperpower onboard complete");
+  console.log(success("GetSuperpower onboard complete"));
 }
 
 function printRtkSetupGuidance(): void {
-  console.log("RTK setup guidance");
+  console.log(success("RTK setup guidance"));
   console.log("Install or enable RTK, then verify it with:");
-  console.log("rtk --version");
+  console.log(commandText("rtk --version"));
 }
 
 async function runCodeGraphInit(input: {
@@ -538,7 +542,7 @@ async function runCodeGraphInit(input: {
     throw new Error(`CodeGraph setup failed while running codegraph init -i: ${detail}`);
   }
 
-  console.log("CodeGraph indexed");
+  console.log(success("CodeGraph indexed"));
 }
 
 function createDefaultOnboardPrompt(): GetSuperpowerOnboardPrompt {

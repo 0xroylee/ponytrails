@@ -90,6 +90,54 @@ describe("cli", () => {
     ).not.toContain("--prehook");
   });
 
+  test("root help presents the GetSuperpower welcome", () => {
+    const program = buildProgram();
+    const output: string[] = [];
+
+    program.configureOutput({
+      writeOut: (value) => output.push(value),
+      writeErr: (value) => output.push(value),
+    });
+    program.outputHelp();
+
+    const help = stripAnsi(output.join(""));
+
+    expect(help).toContain("GETSUPERPOWER");
+    expect(help).toContain("Welcome to GetSuperpower.");
+    expect(help).toContain("Install and author workflow skill trees for agent work.");
+    expect(help).toContain("getsuperpower init release-review");
+    expect(help).toContain("getsuperpower validate ./release-review");
+    expect(help).toContain("getsuperpower install product-dev");
+    expect(help).toContain("getsuperpower clone https://github.com/acme/release-review.git");
+    expect(help).toContain("getsuperpower deps product-dev");
+    expect(help).toContain("bundle");
+    expect(help).toContain("Compatibility alias for GetSuperpower authoring.");
+    expect(help).not.toContain("ponyrace");
+    expect(help).not.toContain("history");
+    expect(help).not.toContain("revert");
+  });
+
+  test("no-command invocation prints welcome help", async () => {
+    const program = buildProgram();
+    const output: string[] = [];
+
+    program.exitOverride();
+    program.configureOutput({
+      writeOut: (value) => output.push(value),
+      writeErr: (value) => output.push(value),
+    });
+
+    await expect(program.parseAsync([], { from: "user" })).rejects.toMatchObject({
+      code: "commander.help",
+      exitCode: 0,
+    });
+
+    const text = stripAnsi(output.join(""));
+    expect(text).toContain("GETSUPERPOWER");
+    expect(text).toContain("Welcome to GetSuperpower.");
+    expect(text).toContain("Usage: getsuperpower");
+  });
+
   test("prints the CLI version with -v", async () => {
     const program = buildProgram();
     const expectedVersion = "0.3.1";

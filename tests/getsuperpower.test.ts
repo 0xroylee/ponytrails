@@ -163,7 +163,7 @@ describe("getsuperpower command module", () => {
 
       expect(skillInstalls).toEqual([localSkillDir]);
       expect(printedSkills).toEqual(["clone-entry"]);
-      expect(logs).toContain("GetSuperpower installed: clone-bundle");
+      expect(stripAnsiLines(logs)).toContain("GetSuperpower installed: clone-bundle");
       await expect(
         stat(join(rootDir, ".getsuperpower", "workflows", "clone-bundle.json")),
       ).resolves.toBeTruthy();
@@ -259,7 +259,11 @@ describe("getsuperpower command module", () => {
 
       await program.parseAsync(["validate", source], { from: "user" });
 
-      expect(logs).toEqual(["GetSuperpower valid: git-workflow@0.1.0", "Steps: 1", "Skills: 1"]);
+      expect(stripAnsiLines(logs)).toEqual([
+        "GetSuperpower valid: git-workflow@0.1.0",
+        "Steps: 1",
+        "Skills: 1",
+      ]);
       await expect(stat(checkoutDir)).rejects.toThrow();
     } finally {
       console.log = originalLog;
@@ -298,7 +302,10 @@ describe("getsuperpower command module", () => {
 
       await program.parseAsync(["deps", source], { from: "user" });
 
-      expect(logs).toEqual(["GetSuperpower dependencies: git-workflow", "- ./skills/git-entry"]);
+      expect(stripAnsiLines(logs)).toEqual([
+        "GetSuperpower dependencies: git-workflow",
+        "- ./skills/git-entry",
+      ]);
       await expect(stat(checkoutDir)).rejects.toThrow();
     } finally {
       console.log = originalLog;
@@ -347,6 +354,8 @@ describe("getsuperpower command module", () => {
           env: expect.objectContaining({}),
         },
       ]);
+      expect(stripAnsiLines(logs)).toContain("GetSuperpower onboard");
+      expect(stripAnsiLines(logs)).toContain(`Workspace: ${rootDir}`);
       expect(prompts).toEqual([
         "RTK is not available. Show RTK setup guidance to reduce Codex token usage?",
         "CodeGraph is not initialized. Index this codebase with CodeGraph now?",
@@ -392,6 +401,7 @@ describe("getsuperpower command module", () => {
       expect(stripAnsiLines(logs)).toContain("RTK setup guidance");
       expect(stripAnsiLines(logs)).toContain("Install or enable RTK, then verify it with:");
       expect(stripAnsiLines(logs)).toContain("rtk --version");
+      expect(stripAnsiLines(logs)).toContain("GetSuperpower onboard complete");
       expect(stripAnsiLines(logs)).toContain("CodeGraph setup skipped");
     } finally {
       console.log = originalLog;
@@ -463,8 +473,11 @@ describe("getsuperpower command module", () => {
         },
       ]);
       expect(prompts).toEqual([]);
+      expect(stripAnsiLines(logs)).toContain("GetSuperpower onboard");
+      expect(stripAnsiLines(logs)).toContain(`Workspace: ${rootDir}`);
       expect(stripAnsiLines(logs)).toContain("RTK ready");
       expect(stripAnsiLines(logs)).toContain("CodeGraph ready");
+      expect(stripAnsiLines(logs)).toContain("GetSuperpower onboard complete");
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
@@ -525,6 +538,7 @@ describe("getsuperpower command module", () => {
       expect(prompts).toHaveLength(2);
       expect(stripAnsiLines(logs)).toContain("RTK setup skipped");
       expect(stripAnsiLines(logs)).toContain("CodeGraph indexed");
+      expect(stripAnsiLines(logs)).toContain("GetSuperpower onboard complete");
     } finally {
       console.log = originalLog;
       await rm(rootDir, { recursive: true, force: true });
