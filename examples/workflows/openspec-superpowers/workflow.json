@@ -1,11 +1,11 @@
 {
   "schemaVersion": "0.1",
-  "name": "openspec-superpowers",
+  "name": "openspec-delivery",
   "version": "0.1.0",
-  "description": "OpenSpec proposes, reviews, and archives while Superpowers deepens design, executes task by task, and verifies delivery.",
+  "description": "Professional OpenSpec delivery workflow from proposal through design, plan, TDD implementation, verification, and archive.",
   "skills": [
     {
-      "source": "./skills/openspec-superpowers"
+      "source": "./skills/openspec-delivery"
     },
     {
       "source": "./skills/opsx-handoff-review"

@@ -1,9 +1,13 @@
-# OpenSpec + Superpowers GetSuperpower
+# OpenSpec Delivery GetSuperpower
 
-This example turns the OpenSpec + Superpowers handoff diagram into an installable
-GetSuperpower reference.
+This example turns an OpenSpec delivery loop into an installable GetSuperpower
+reference. The user calls one professional entry skill, and that skill
+coordinates proposal, design, planning, implementation, verification, and
+archive work.
 
-It models a closed AI-assisted development loop:
+<img src="../../../assets/diagrams/openspec-delivery-workflow.svg" alt="OpenSpec Delivery workflow diagram" width="920" />
+
+It models a closed AI-assisted delivery loop:
 
 1. OpenSpec runs `/opsx:propose` to define scope and generate `proposal.md`,
    `specs/`, and `tasks.md`.
@@ -19,13 +23,13 @@ It models a closed AI-assisted development loop:
 The callable entry skill is:
 
 ```text
-skills/openspec-superpowers/SKILL.md
+skills/openspec-delivery/SKILL.md
 ```
 
 After install and agent restart, invoke:
 
 ```text
-$openspec-superpowers implement this OpenSpec change
+$openspec-delivery implement this OpenSpec change
 ```
 
 ## Key Handoff Points
@@ -43,7 +47,7 @@ $openspec-superpowers implement this OpenSpec change
 This GetSuperpower combines local OpenSpec handoff guidance with reusable agent
 skills:
 
-- `./skills/openspec-superpowers`
+- `./skills/openspec-delivery`
 - `./skills/opsx-handoff-review`
 - `superpowers:brainstorming`
 - `superpowers:writing-plans`
@@ -63,23 +67,23 @@ bun run dev -- skills install mattpocock/skills
 Validate this GetSuperpower from the repo root:
 
 ```bash
-bun run dev -- getsuperpower validate examples/workflows/openspec-superpowers
+bun run dev -- validate examples/workflows/openspec-superpowers
 ```
 
 List its dependencies:
 
 ```bash
-bun run dev -- getsuperpower deps examples/workflows/openspec-superpowers
+bun run dev -- deps examples/workflows/openspec-superpowers
 ```
 
 Install it into a project:
 
 ```bash
-bun run dev -- getsuperpower install examples/workflows/openspec-superpowers
-bun run dev -- getsuperpower clone examples/workflows/openspec-superpowers
+bun run dev -- install examples/workflows/openspec-superpowers
+bun run dev -- clone examples/workflows/openspec-superpowers
 ```
 
-`getsuperpower clone <source>` is equivalent to `getsuperpower install <source>`.
+`clone <source>` is equivalent to `install <source>`.
 
-Restart the agent app after install so the `$openspec-superpowers` entry skill
+Restart the agent app after install so the `$openspec-delivery` entry skill
 and its sub-skills are available.

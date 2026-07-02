@@ -1,13 +1,14 @@
 ---
-name: openspec-superpowers
-description: Use when running the OpenSpec + Superpowers GetSuperpower workflow, skill tree, or multi-skill development loop from proposal through archive.
+name: openspec-delivery
+description: Use when running a professional OpenSpec delivery workflow from proposal through design, plan, TDD implementation, verification, and archive.
 ---
 
-# OpenSpec + Superpowers GetSuperpower
+# OpenSpec Delivery GetSuperpower
 
-This is the entry skill for the openspec-superpowers GetSuperpower.
+This is the entry skill for the openspec-delivery GetSuperpower.
 
-When this skill is used, run the workflow below in order. Load/use every required sub-skill before doing the work for its phase.
+When this skill is used, run the delivery workflow below in order. Load/use
+every required sub-skill before doing the work for its phase.
 
 ## Required Sub-Skills
 

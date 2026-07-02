@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
+import { cancel as clackCancel, confirm as clackConfirm, isCancel } from "@clack/prompts";
 import type { Command } from "commander";
 import pc from "picocolors";
 import {
@@ -73,12 +75,35 @@ export type GetSuperpowerExternalSkillCommandRunner = (
   command: GetSuperpowerExternalSkillCommand,
 ) => Promise<GetSuperpowerExternalSkillCommandResult>;
 
+export interface GetSuperpowerOnboardPrompt {
+  confirm(input: { message: string; defaultValue: boolean }): Promise<boolean>;
+}
+
+export interface GetSuperpowerOnboardCommand {
+  executable: string;
+  args: string[];
+  cwd: string;
+  env: Record<string, string | undefined>;
+}
+
+export interface GetSuperpowerOnboardCommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export type GetSuperpowerOnboardCommandRunner = (
+  command: GetSuperpowerOnboardCommand,
+) => Promise<GetSuperpowerOnboardCommandResult>;
+
 export interface ConfigureGetSuperpowerCommandOptions {
   rootDir: string;
   installSkill: GetSuperpowerSkillInstaller;
   printSkillInstallResult: GetSuperpowerSkillInstallPrinter;
   installExternalSkillDependency?: GetSuperpowerExternalSkillDependencyInstaller;
   workflowGitCommandRunner?: WorkflowGitCommandRunner;
+  onboardPrompt?: GetSuperpowerOnboardPrompt;
+  onboardCommandRunner?: GetSuperpowerOnboardCommandRunner;
 }
 
 type GetSuperpowerInstallVerb = "install" | "clone";
@@ -117,6 +142,7 @@ function configureGetSuperpowerCommands(
   configureInstallCommand(command, options);
   configureListCommand(command, options.rootDir);
   configureDependencyCommand(command, options);
+  configureOnboardCommand(command, options);
 }
 
 function configureAuthorCommands(
@@ -426,6 +452,111 @@ function configureDependencyCommand(
         await bundle.cleanup?.();
       }
     });
+}
+
+function configureOnboardCommand(
+  command: Command,
+  options: ConfigureGetSuperpowerCommandOptions,
+): void {
+  command
+    .command("onboard")
+    .description("Step through RTK and CodeGraph setup for this workspace.")
+    .option("--dir <dir>", "project directory to onboard", options.rootDir)
+    .action((commandOptions: { dir: string }) => runGetSuperpowerOnboard(commandOptions, options));
+}
+
+async function runGetSuperpowerOnboard(
+  commandOptions: { dir: string },
+  options: ConfigureGetSuperpowerCommandOptions,
+): Promise<void> {
+  const targetDir = resolvePath(options.rootDir, commandOptions.dir);
+  if (!existsSync(targetDir)) {
+    throw new Error(`Onboard target directory does not exist: ${targetDir}`);
+  }
+
+  const prompt = options.onboardPrompt ?? createDefaultOnboardPrompt();
+  const runCommand = options.onboardCommandRunner ?? runExternalSkillCommand;
+
+  console.log(`GetSuperpower onboard: ${targetDir}`);
+
+  const rtkResult = await runCommand({
+    executable: "rtk",
+    args: ["--version"],
+    cwd: targetDir,
+    env: process.env,
+  });
+
+  if (rtkResult.exitCode === 0) {
+    console.log("RTK ready");
+  } else if (
+    await prompt.confirm({
+      message: "RTK is not available. Show RTK setup guidance to reduce Codex token usage?",
+      defaultValue: true,
+    })
+  ) {
+    printRtkSetupGuidance();
+  } else {
+    console.log("RTK setup skipped");
+  }
+
+  const codegraphDir = join(targetDir, ".codegraph");
+  if (existsSync(codegraphDir)) {
+    console.log("CodeGraph ready");
+  } else if (
+    await prompt.confirm({
+      message: "CodeGraph is not initialized. Index this codebase with CodeGraph now?",
+      defaultValue: true,
+    })
+  ) {
+    await runCodeGraphInit({ targetDir, runCommand });
+  } else {
+    console.log("CodeGraph setup skipped");
+  }
+
+  console.log("GetSuperpower onboard complete");
+}
+
+function printRtkSetupGuidance(): void {
+  console.log("RTK setup guidance");
+  console.log("Install or enable RTK, then verify it with:");
+  console.log("rtk --version");
+}
+
+async function runCodeGraphInit(input: {
+  targetDir: string;
+  runCommand: GetSuperpowerOnboardCommandRunner;
+}): Promise<void> {
+  const result = await input.runCommand({
+    executable: "codegraph",
+    args: ["init", "-i"],
+    cwd: input.targetDir,
+    env: process.env,
+  });
+
+  if (result.exitCode !== 0) {
+    const detail = result.stderr.trim() || result.stdout.trim() || `exit ${result.exitCode}`;
+    throw new Error(`CodeGraph setup failed while running codegraph init -i: ${detail}`);
+  }
+
+  console.log("CodeGraph indexed");
+}
+
+function createDefaultOnboardPrompt(): GetSuperpowerOnboardPrompt {
+  return {
+    confirm: async (input) => {
+      const result = await clackConfirm({
+        message: input.message,
+        initialValue: input.defaultValue,
+      });
+
+      if (isCancel(result)) {
+        clackCancel("GetSuperpower onboard cancelled");
+        throw new Error("GetSuperpower onboard cancelled");
+      }
+
+      return result;
+    },
+  };
 }
 
 function resolvePath(rootDir: string, path: string): string {
